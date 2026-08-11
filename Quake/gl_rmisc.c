@@ -60,6 +60,25 @@ extern cvar_t r_indirect;
 extern cvar_t r_tasks;
 extern cvar_t r_parallelmark;
 extern cvar_t r_usesops;
+extern cvar_t r_gtao;
+extern cvar_t r_gtao_radius;
+extern cvar_t r_gtao_radius_multiplier;
+extern cvar_t r_gtao_falloff;
+extern cvar_t r_gtao_thickness;
+extern cvar_t r_gtao_strength;
+extern cvar_t r_gtao_debug;
+extern cvar_t r_gtao_normal_mode;
+extern cvar_t r_gtao_quality;
+extern cvar_t r_gtao_noise_mode;
+extern cvar_t r_gtao_depth_prefilter;
+extern cvar_t r_gtao_depth_mip_offset;
+extern cvar_t r_gtao_denoise;
+extern cvar_t r_gtao_bias;
+extern cvar_t r_gtao_bent_normals;
+extern cvar_t r_gtao_multibounce;
+extern cvar_t r_gtao_temporal;
+extern cvar_t r_gtao_temporal_blend;
+extern cvar_t r_gtao_halfres;
 
 #if defined(USE_SIMD)
 extern cvar_t r_simd;
@@ -1436,7 +1455,7 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, screen_effects_layout_bindings, 5);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, screen_effects_layout_bindings, 8);
 		screen_effects_layout_bindings[0].binding = 0;
 		screen_effects_layout_bindings[0].descriptorCount = 1;
 		screen_effects_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1457,18 +1476,120 @@ void R_CreateDescriptorSetLayouts ()
 		screen_effects_layout_bindings[4].descriptorCount = 1;
 		screen_effects_layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		screen_effects_layout_bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		screen_effects_layout_bindings[5].binding = 5;
+		screen_effects_layout_bindings[5].descriptorCount = 1;
+		screen_effects_layout_bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		screen_effects_layout_bindings[5].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		screen_effects_layout_bindings[6].binding = 6;
+		screen_effects_layout_bindings[6].descriptorCount = 1;
+		screen_effects_layout_bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		screen_effects_layout_bindings[6].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		screen_effects_layout_bindings[7].binding = 7;
+		screen_effects_layout_bindings[7].descriptorCount = 1;
+		screen_effects_layout_bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		screen_effects_layout_bindings[7].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		descriptor_set_layout_create_info.bindingCount = countof (screen_effects_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = screen_effects_layout_bindings;
 
 		memset (&vulkan_globals.screen_effects_set_layout, 0, sizeof (vulkan_globals.screen_effects_set_layout));
-		vulkan_globals.screen_effects_set_layout.num_combined_image_samplers = 2;
+		vulkan_globals.screen_effects_set_layout.num_combined_image_samplers = 5;
 		vulkan_globals.screen_effects_set_layout.num_storage_images = 1;
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_effects_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "screen effects");
+	}
+
+	{
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, gtao_layout_bindings, 6);
+		gtao_layout_bindings[0].binding = 0;
+		gtao_layout_bindings[0].descriptorCount = 1;
+		gtao_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		gtao_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		gtao_layout_bindings[1].binding = 1;
+		gtao_layout_bindings[1].descriptorCount = 1;
+		gtao_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		gtao_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		gtao_layout_bindings[2].binding = 2;
+		gtao_layout_bindings[2].descriptorCount = 1;
+		gtao_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		gtao_layout_bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		gtao_layout_bindings[3].binding = 3;
+		gtao_layout_bindings[3].descriptorCount = 1;
+		gtao_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		gtao_layout_bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		gtao_layout_bindings[4].binding = 4;
+		gtao_layout_bindings[4].descriptorCount = 1;
+		gtao_layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		gtao_layout_bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		gtao_layout_bindings[5].binding = 5;
+		gtao_layout_bindings[5].descriptorCount = 1;
+		gtao_layout_bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		gtao_layout_bindings[5].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+		descriptor_set_layout_create_info.bindingCount = countof (gtao_layout_bindings);
+		descriptor_set_layout_create_info.pBindings = gtao_layout_bindings;
+
+		memset (&vulkan_globals.gtao_set_layout, 0, sizeof (vulkan_globals.gtao_set_layout));
+		vulkan_globals.gtao_set_layout.num_combined_image_samplers = 5;
+		vulkan_globals.gtao_set_layout.num_storage_images = 1;
+
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.gtao_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gtao_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "gtao");
+	}
+
+	{
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, bindings, 3);
+		bindings[0].binding = 0;
+		bindings[0].descriptorCount = 1;
+		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		bindings[1].binding = 1;
+		bindings[1].descriptorCount = 1;
+		bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		bindings[2].binding = 2;
+		bindings[2].descriptorCount = 1;
+		bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		descriptor_set_layout_create_info.bindingCount = countof (bindings);
+		descriptor_set_layout_create_info.pBindings = bindings;
+		memset (&vulkan_globals.gtao_depth_set_layout, 0, sizeof (vulkan_globals.gtao_depth_set_layout));
+		vulkan_globals.gtao_depth_set_layout.num_combined_image_samplers = 2;
+		vulkan_globals.gtao_depth_set_layout.num_storage_images = 1;
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.gtao_depth_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gtao_depth_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "gtao depth");
+	}
+
+	{
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, bindings, 3);
+		bindings[0].binding = 0;
+		bindings[0].descriptorCount = 1;
+		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		bindings[1].binding = 1;
+		bindings[1].descriptorCount = 1;
+		bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		bindings[2].binding = 2;
+		bindings[2].descriptorCount = 1;
+		bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		descriptor_set_layout_create_info.bindingCount = countof (bindings);
+		descriptor_set_layout_create_info.pBindings = bindings;
+		memset (&vulkan_globals.gtao_denoise_set_layout, 0, sizeof (vulkan_globals.gtao_denoise_set_layout));
+		vulkan_globals.gtao_denoise_set_layout.num_combined_image_samplers = 2;
+		vulkan_globals.gtao_denoise_set_layout.num_storage_images = 1;
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.gtao_denoise_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gtao_denoise_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "gtao denoise");
 	}
 
 	{
@@ -1921,7 +2042,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 3 * sizeof (uint32_t) + 8 * sizeof (float);
+		push_constant_range.size = 6 * sizeof (uint32_t) + 10 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1940,6 +2061,73 @@ void R_CreatePipelineLayouts ()
 		vulkan_globals.screen_effects_scale_pipeline.layout.push_constant_range = push_constant_range;
 		vulkan_globals.screen_effects_scale_sops_pipeline.layout.handle = vulkan_globals.screen_effects_pipeline.layout.handle;
 		vulkan_globals.screen_effects_scale_sops_pipeline.layout.push_constant_range = push_constant_range;
+	}
+
+	{
+		// GTAO
+		VkDescriptorSetLayout gtao_descriptor_set_layouts[1] = {
+			vulkan_globals.gtao_set_layout.handle,
+		};
+
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 12 * sizeof (uint32_t) + 20 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = gtao_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.gtao_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gtao_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "gtao_pipeline_layout");
+		vulkan_globals.gtao_pipeline.layout.push_constant_range = push_constant_range;
+		vulkan_globals.gtao_msaa_pipeline.layout.handle = vulkan_globals.gtao_pipeline.layout.handle;
+		vulkan_globals.gtao_msaa_pipeline.layout.push_constant_range = push_constant_range;
+	}
+
+	{
+		VkDescriptorSetLayout set_layouts[1] = {vulkan_globals.gtao_depth_set_layout.handle};
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 6 * sizeof (uint32_t);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.gtao_depth_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gtao_depth_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "gtao_depth_pipeline_layout");
+		vulkan_globals.gtao_depth_pipeline.layout.push_constant_range = push_constant_range;
+		vulkan_globals.gtao_depth_msaa_pipeline.layout = vulkan_globals.gtao_depth_pipeline.layout;
+		vulkan_globals.gtao_depth_downsample_pipeline.layout = vulkan_globals.gtao_depth_pipeline.layout;
+	}
+
+	{
+		VkDescriptorSetLayout set_layouts[1] = {vulkan_globals.gtao_denoise_set_layout.handle};
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 4 * sizeof (uint32_t);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.gtao_denoise_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gtao_denoise_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "gtao_denoise_pipeline_layout");
+		vulkan_globals.gtao_denoise_pipeline.layout.push_constant_range = push_constant_range;
 	}
 
 	{
@@ -2403,6 +2591,12 @@ DECLARE_SHADER_MODULE (screen_effects_8bit_scale_sops_comp);
 DECLARE_SHADER_MODULE (screen_effects_10bit_comp);
 DECLARE_SHADER_MODULE (screen_effects_10bit_scale_comp);
 DECLARE_SHADER_MODULE (screen_effects_10bit_scale_sops_comp);
+DECLARE_SHADER_MODULE (gtao_comp);
+DECLARE_SHADER_MODULE (gtao_msaa_comp);
+DECLARE_SHADER_MODULE (gtao_depth_comp);
+DECLARE_SHADER_MODULE (gtao_depth_msaa_comp);
+DECLARE_SHADER_MODULE (gtao_depth_downsample_comp);
+DECLARE_SHADER_MODULE (gtao_denoise_comp);
 DECLARE_SHADER_MODULE (cs_tex_warp_comp);
 DECLARE_SHADER_MODULE (indirect_comp);
 DECLARE_SHADER_MODULE (indirect_clear_comp);
@@ -3134,6 +3328,14 @@ static void R_CreateSkyPipelines ()
 
 		base.depth_stencil_state.depthTestEnable = VK_TRUE;
 		base.depth_stencil_state.depthWriteEnable = VK_TRUE;
+		base.depth_stencil_state.stencilTestEnable = VK_TRUE;
+		base.depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
+		base.depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
+		base.depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
+		base.depth_stencil_state.front.passOp = VK_STENCIL_OP_REPLACE;
+		base.depth_stencil_state.front.compareMask = 0x1;
+		base.depth_stencil_state.front.writeMask = 0x1;
+		base.depth_stencil_state.front.reference = 0x1;
 
 		pipeline_create_infos_t infos;
 		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
@@ -3151,7 +3353,7 @@ static void R_CreateSkyPipelines ()
 			infos.depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
 			infos.depth_stencil_state.front.passOp = VK_STENCIL_OP_REPLACE;
 			infos.depth_stencil_state.front.compareMask = 0xFF;
-			infos.depth_stencil_state.front.writeMask = 0xFF;
+			infos.depth_stencil_state.front.writeMask = 0x1;
 			infos.depth_stencil_state.front.reference = 0x1;
 			infos.blend_attachment_states[0].colorWriteMask = 0; // We only want to write stencil
 			R_CreateGraphicsPipeline (
@@ -3412,6 +3614,19 @@ static void R_CreateWorldPipelines ()
 	}
 }
 
+static void R_SetViewModelStencilState (pipeline_create_infos_t *infos)
+{
+	infos->depth_stencil_state.stencilTestEnable = VK_TRUE;
+	infos->depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
+	infos->depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
+	infos->depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
+	infos->depth_stencil_state.front.passOp = VK_STENCIL_OP_REPLACE;
+	infos->depth_stencil_state.front.compareMask = 0x2;
+	infos->depth_stencil_state.front.writeMask = 0x2;
+	infos->depth_stencil_state.front.reference = 0x2;
+	infos->depth_stencil_state.back = infos->depth_stencil_state.front;
+}
+
 /*
 ===============
 R_CreateAliasPipelines
@@ -3449,6 +3664,10 @@ static void R_CreateAliasPipelines ()
 			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
 			R_CreateGraphicsPipeline (
 				&vulkan_globals.alias_pipelines[variant][pipeline_index], &infos, layout, va (variant ? "alias_main_oit %d" : "alias %d", pipeline_index));
+			R_SetViewModelStencilState (&infos);
+			R_CreateGraphicsPipeline (
+				&vulkan_globals.alias_viewmodel_pipelines[variant][pipeline_index], &infos, layout,
+				va (variant ? "alias_viewmodel_main_oit %d" : "alias_viewmodel %d", pipeline_index));
 		}
 
 		if (alpha_blend)
@@ -3548,6 +3767,10 @@ static void R_CreateMD5Pipelines ()
 			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
 			R_CreateGraphicsPipeline (
 				&vulkan_globals.md5_pipelines[variant][pipeline_index], &infos, layout, va (variant ? "md5_main_oit %d" : "md5 %d", pipeline_index));
+			R_SetViewModelStencilState (&infos);
+			R_CreateGraphicsPipeline (
+				&vulkan_globals.md5_viewmodel_pipelines[variant][pipeline_index], &infos, layout,
+				va (variant ? "md5_viewmodel_main_oit %d" : "md5_viewmodel %d", pipeline_index));
 		}
 
 		if (alpha_blend)
@@ -3688,6 +3911,21 @@ static void R_CreateScreenEffectsPipelines ()
 
 /*
 ===============
+R_CreateGTAOPipelines
+===============
+*/
+static void R_CreateGTAOPipelines ()
+{
+	R_CreateComputePipeline (&vulkan_globals.gtao_pipeline, gtao_comp_module, 0, NULL, "gtao");
+	R_CreateComputePipeline (&vulkan_globals.gtao_msaa_pipeline, gtao_msaa_comp_module, 0, NULL, "gtao_msaa");
+	R_CreateComputePipeline (&vulkan_globals.gtao_depth_pipeline, gtao_depth_comp_module, 0, NULL, "gtao_depth");
+	R_CreateComputePipeline (&vulkan_globals.gtao_depth_msaa_pipeline, gtao_depth_msaa_comp_module, 0, NULL, "gtao_depth_msaa");
+	R_CreateComputePipeline (&vulkan_globals.gtao_depth_downsample_pipeline, gtao_depth_downsample_comp_module, 0, NULL, "gtao_depth_downsample");
+	R_CreateComputePipeline (&vulkan_globals.gtao_denoise_pipeline, gtao_denoise_comp_module, 0, NULL, "gtao_denoise");
+}
+
+/*
+===============
 R_CreateUpdateLightmapPipelines
 ===============
 */
@@ -3781,6 +4019,12 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (screen_effects_10bit_comp);
 	CREATE_SHADER_MODULE (screen_effects_10bit_scale_comp);
 	CREATE_SHADER_MODULE_COND (screen_effects_10bit_scale_sops_comp, vulkan_globals.screen_effects_sops);
+	CREATE_SHADER_MODULE (gtao_comp);
+	CREATE_SHADER_MODULE (gtao_msaa_comp);
+	CREATE_SHADER_MODULE (gtao_depth_comp);
+	CREATE_SHADER_MODULE (gtao_depth_msaa_comp);
+	CREATE_SHADER_MODULE (gtao_depth_downsample_comp);
+	CREATE_SHADER_MODULE (gtao_denoise_comp);
 	CREATE_SHADER_MODULE (cs_tex_warp_comp);
 	CREATE_SHADER_MODULE (indirect_comp);
 	CREATE_SHADER_MODULE (indirect_clear_comp);
@@ -3851,6 +4095,12 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (screen_effects_10bit_comp);
 	DESTROY_SHADER_MODULE (screen_effects_10bit_scale_comp);
 	DESTROY_SHADER_MODULE (screen_effects_10bit_scale_sops_comp);
+	DESTROY_SHADER_MODULE (gtao_comp);
+	DESTROY_SHADER_MODULE (gtao_msaa_comp);
+	DESTROY_SHADER_MODULE (gtao_depth_comp);
+	DESTROY_SHADER_MODULE (gtao_depth_msaa_comp);
+	DESTROY_SHADER_MODULE (gtao_depth_downsample_comp);
+	DESTROY_SHADER_MODULE (gtao_denoise_comp);
 	DESTROY_SHADER_MODULE (cs_tex_warp_comp);
 	DESTROY_SHADER_MODULE (indirect_comp);
 	DESTROY_SHADER_MODULE (indirect_clear_comp);
@@ -3889,6 +4139,7 @@ void R_CreatePipelines ()
 	R_CreateMD5Pipelines ();
 	R_CreatePostprocessPipelines ();
 	R_CreateScreenEffectsPipelines ();
+	R_CreateGTAOPipelines ();
 	R_CreateUpdateLightmapPipelines ();
 	R_CreateIndirectComputePipelines ();
 	R_CreateRayDebugPipelines ();
@@ -4012,8 +4263,12 @@ void R_DestroyPipelines (void)
 		{
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_pipelines[variant][i].handle, NULL);
 			vulkan_globals.alias_pipelines[variant][i].handle = VK_NULL_HANDLE;
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_viewmodel_pipelines[variant][i].handle, NULL);
+			vulkan_globals.alias_viewmodel_pipelines[variant][i].handle = VK_NULL_HANDLE;
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_pipelines[variant][i].handle, NULL);
 			vulkan_globals.md5_pipelines[variant][i].handle = VK_NULL_HANDLE;
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_viewmodel_pipelines[variant][i].handle, NULL);
+			vulkan_globals.md5_viewmodel_pipelines[variant][i].handle = VK_NULL_HANDLE;
 		}
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_wboit_pipelines[i].handle, NULL);
 		vulkan_globals.alias_wboit_pipelines[i].handle = VK_NULL_HANDLE;
@@ -4049,6 +4304,18 @@ void R_DestroyPipelines (void)
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.screen_effects_scale_sops_pipeline.handle, NULL);
 		vulkan_globals.screen_effects_scale_sops_pipeline.handle = VK_NULL_HANDLE;
 	}
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_pipeline.handle, NULL);
+	vulkan_globals.gtao_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_depth_pipeline.handle, NULL);
+	vulkan_globals.gtao_depth_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_depth_msaa_pipeline.handle, NULL);
+	vulkan_globals.gtao_depth_msaa_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_depth_downsample_pipeline.handle, NULL);
+	vulkan_globals.gtao_depth_downsample_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_denoise_pipeline.handle, NULL);
+	vulkan_globals.gtao_denoise_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_msaa_pipeline.handle, NULL);
+	vulkan_globals.gtao_msaa_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.cs_tex_warp_pipeline.handle, NULL);
 	vulkan_globals.cs_tex_warp_pipeline.handle = VK_NULL_HANDLE;
 	if (vulkan_globals.showtris_pipeline[MAIN_RENDER_PASS_STANDARD].handle != VK_NULL_HANDLE)
@@ -4106,6 +4373,40 @@ static void R_ScaleChanged_f (cvar_t *var)
 }
 
 /*
+===================
+R_GTAODefaults_f
+===================
+*/
+static void R_GTAODefaults_f (void)
+{
+	cvar_t *gtao_cvars[] = {
+		&r_gtao,
+		&r_gtao_radius,
+		&r_gtao_radius_multiplier,
+		&r_gtao_falloff,
+		&r_gtao_thickness,
+		&r_gtao_strength,
+		&r_gtao_debug,
+		&r_gtao_normal_mode,
+		&r_gtao_quality,
+		&r_gtao_noise_mode,
+		&r_gtao_depth_prefilter,
+		&r_gtao_depth_mip_offset,
+		&r_gtao_denoise,
+		&r_gtao_bias,
+		&r_gtao_bent_normals,
+		&r_gtao_multibounce,
+		&r_gtao_temporal,
+		&r_gtao_temporal_blend,
+		&r_gtao_halfres,
+	};
+
+	for (uint32_t i = 0; i < countof (gtao_cvars); ++i)
+		Cvar_SetQuick (gtao_cvars[i], gtao_cvars[i]->default_string);
+	Con_Printf ("GTAO settings restored to renderer defaults\n");
+}
+
+/*
 ===============
 R_Init
 ===============
@@ -4116,6 +4417,7 @@ void R_Init (void)
 
 	Cmd_AddCommand ("timerefresh", R_TimeRefresh_f);
 	Cmd_AddCommand ("pointfile", R_ReadPointFile_f);
+	Cmd_AddCommand ("gtao_defaults", R_GTAODefaults_f);
 
 	cmd = Cmd_AddCommand ("r_showbboxes_filter", R_ShowbboxesFilter_f);
 	if (cmd)
@@ -4176,6 +4478,25 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_telealpha);
 	Cvar_RegisterVariable (&r_slimealpha);
 	Cvar_RegisterVariable (&r_scale);
+	Cvar_RegisterVariable (&r_gtao);
+	Cvar_RegisterVariable (&r_gtao_radius);
+	Cvar_RegisterVariable (&r_gtao_radius_multiplier);
+	Cvar_RegisterVariable (&r_gtao_falloff);
+	Cvar_RegisterVariable (&r_gtao_thickness);
+	Cvar_RegisterVariable (&r_gtao_strength);
+	Cvar_RegisterVariable (&r_gtao_debug);
+	Cvar_RegisterVariable (&r_gtao_normal_mode);
+	Cvar_RegisterVariable (&r_gtao_quality);
+	Cvar_RegisterVariable (&r_gtao_noise_mode);
+	Cvar_RegisterVariable (&r_gtao_depth_prefilter);
+	Cvar_RegisterVariable (&r_gtao_depth_mip_offset);
+	Cvar_RegisterVariable (&r_gtao_denoise);
+	Cvar_RegisterVariable (&r_gtao_bias);
+	Cvar_RegisterVariable (&r_gtao_bent_normals);
+	Cvar_RegisterVariable (&r_gtao_multibounce);
+	Cvar_RegisterVariable (&r_gtao_temporal);
+	Cvar_RegisterVariable (&r_gtao_temporal_blend);
+	Cvar_RegisterVariable (&r_gtao_halfres);
 	Cvar_RegisterVariable (&r_lodbias);
 	Cvar_RegisterVariable (&gl_lodbias);
 	Cvar_SetCallback (&r_scale, R_ScaleChanged_f);

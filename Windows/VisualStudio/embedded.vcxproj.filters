@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <CustomBuild Include="..\..\Shaders\alias.frag">
@@ -27,6 +27,15 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects.comp">
       <Filter>Shaders\Screen Effects</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\gtao.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\gtao_depth.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\gtao_denoise.comp">
+      <Filter>Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
       <Filter>Shaders\Update Lightmap</Filter>

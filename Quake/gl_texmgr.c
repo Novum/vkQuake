@@ -806,8 +806,18 @@ void TexMgr_Init (void)
 
 	TEMP_ALLOC (byte, bluenoise_rgba, sizeof (bluenoise_data) * 4);
 	for (i = 0; i < sizeof (bluenoise_data); ++i)
-		for (int j = 0; j < 3; ++j)
-			bluenoise_rgba[i * 4 + j] = bluenoise_data[i];
+	{
+		const int x = i & 63;
+		const int y = i >> 6;
+		const int second_x = (y + 17) & 63;
+		const int second_y = (63 - x + 31) & 63;
+		bluenoise_rgba[i * 4 + 0] = bluenoise_data[i];
+		// Preserve the blue-noise spectrum while providing a decorrelated
+		// second dimension for spatial-only GTAO sampling.
+		bluenoise_rgba[i * 4 + 1] = bluenoise_data[second_y * 64 + second_x];
+		bluenoise_rgba[i * 4 + 2] = bluenoise_data[i];
+		bluenoise_rgba[i * 4 + 3] = 255;
+	}
 	bluenoisetexture = TexMgr_LoadImage (
 		NULL, "bluenoise", 64, 64, SRC_RGBA, bluenoise_rgba, "", (src_offset_t)greytexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
 	TEMP_FREE (bluenoise_rgba);

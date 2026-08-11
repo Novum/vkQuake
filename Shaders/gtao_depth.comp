@@ -1,0 +1,78 @@
+#version 460
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+#ifdef GTAO_DEPTH_DOWNSAMPLE
+layout (set = 0, binding = 0) uniform sampler2D input_depth_tex;
+layout (set = 0, binding = 2) uniform usampler2D input_stencil_tex;
+#elif defined(GTAO_DEPTH_MSAA)
+layout (set = 0, binding = 0) uniform sampler2DMS input_depth_tex;
+layout (set = 0, binding = 2) uniform usampler2DMS input_stencil_tex;
+#else
+layout (set = 0, binding = 0) uniform sampler2D input_depth_tex;
+layout (set = 0, binding = 2) uniform usampler2D input_stencil_tex;
+#endif
+layout (set = 0, binding = 1, r32f) uniform writeonly image2D output_depth_image;
+
+layout (push_constant) uniform DepthConsts
+{
+	uvec2 output_size;
+	vec2  projection;
+	float effect_radius;
+	float falloff_range;
+}
+push_constants;
+
+layout (local_size_x = 8, local_size_y = 8) in;
+
+const uint STENCIL_EXCLUDED = 0x3u;
+
+float depth_mip_filter (vec4 depths)
+{
+	float max_depth = max (max (depths.x, depths.y), max (depths.z, depths.w));
+	if (max_depth <= 0.0f)
+		return 0.0f;
+	float effect_radius = 0.75f * max (push_constants.effect_radius, 0.0001f);
+	float falloff_range = max (push_constants.falloff_range * effect_radius, 0.0001f);
+	float falloff_from = effect_radius * (1.0f - push_constants.falloff_range);
+	float falloff_mul = -1.0f / falloff_range;
+	float falloff_add = falloff_from / falloff_range + 1.0f;
+	vec4 weights = clamp ((max_depth - depths) * falloff_mul + falloff_add, 0.0f, 1.0f);
+	weights *= vec4 (greaterThan (depths, vec4 (0.0f)));
+	return dot (weights, depths) / max (dot (weights, vec4 (1.0f)), 0.0001f);
+}
+
+void main ()
+{
+	ivec2 pixel = ivec2 (gl_GlobalInvocationID.xy);
+	if (any (greaterThanEqual (pixel, ivec2 (push_constants.output_size))))
+		return;
+
+#ifdef GTAO_DEPTH_DOWNSAMPLE
+	ivec2 input_size = textureSize (input_depth_tex, 0);
+	ivec2 input_pixel = pixel * 2;
+	vec4 depths;
+	for (int y = 0; y < 2; ++y)
+	{
+		for (int x = 0; x < 2; ++x)
+		{
+			depths[y * 2 + x] = texelFetch (input_depth_tex, min (input_pixel + ivec2 (x, y), input_size - 1), 0).r;
+		}
+	}
+	imageStore (output_depth_image, pixel, vec4 (depth_mip_filter (depths)));
+#else
+	float device_depth = 0.0f;
+#ifdef GTAO_DEPTH_MSAA
+	for (int sample_index = 0; sample_index < textureSamples (input_depth_tex); ++sample_index)
+	{
+		if ((texelFetch (input_stencil_tex, pixel, sample_index).r & STENCIL_EXCLUDED) == 0u)
+			device_depth = max (device_depth, texelFetch (input_depth_tex, pixel, sample_index).r);
+	}
+#else
+	if ((texelFetch (input_stencil_tex, pixel, 0).r & STENCIL_EXCLUDED) == 0u)
+		device_depth = texelFetch (input_depth_tex, pixel, 0).r;
+#endif
+	float view_depth = device_depth > 0.00001f ? push_constants.projection.y / (device_depth + push_constants.projection.x) : 0.0f;
+	imageStore (output_depth_image, pixel, vec4 (max (view_depth, 0.0f)));
+#endif
+}

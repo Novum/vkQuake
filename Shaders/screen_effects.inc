@@ -9,6 +9,9 @@ struct OctreeNode
 
 layout (set = 0, binding = 0) uniform sampler2D input_tex;
 layout (set = 0, binding = 1) uniform sampler2D blue_noise_tex;
+layout (set = 0, binding = 5) uniform sampler2D gtao_tex;
+layout (set = 0, binding = 6) uniform sampler2D gtao_view_depth_tex;
+layout (set = 0, binding = 7) uniform sampler2D gtao_denoise_tex;
 layout (set = 0, binding = 3) uniform samplerBuffer palette_colors;
 layout (set = 0, binding = 4) uniform PaletteOctree
 {
@@ -27,6 +30,11 @@ layout (push_constant) uniform PushConsts
 	float poly_blend_g;
 	float poly_blend_b;
 	float poly_blend_a;
+	float gtao_strength;
+	uint  gtao_debug_mode;
+	uint  gtao_denoise;
+	float gtao_multibounce;
+	uint  gtao_halfres;
 }
 push_constants;
 
@@ -57,6 +65,88 @@ float blue_noise (ivec2 u)
 	return texelFetch (blue_noise_tex, ivec2 (uint (u.x) % 64, uint (u.y) % 64), 0).r;
 }
 
+vec4 gtao_fetch (ivec2 pixel)
+{
+	return (push_constants.gtao_denoise & 1u) != 0u ? texelFetch (gtao_denoise_tex, pixel, 0) : texelFetch (gtao_tex, pixel, 0);
+}
+
+float gtao_depth_similarity (float center_depth, float sample_depth)
+{
+	if (center_depth <= 0.0f || sample_depth <= 0.0f)
+		return center_depth == sample_depth ? 1.0f : 0.0f;
+	return clamp (1.25f - abs (sample_depth - center_depth) / max (center_depth * 0.011f, 0.00001f), 0.0f, 1.0f);
+}
+
+float gtao_relative_depth_difference (float center_depth, float sample_depth)
+{
+	if (center_depth <= 0.0f || sample_depth <= 0.0f)
+		return center_depth == sample_depth ? 0.0f : 1e30f;
+	return abs (sample_depth - center_depth) / max (center_depth, 0.00001f);
+}
+
+vec4 gtao_resolve (ivec2 target_pixel, vec2 target_uv, bool warped)
+{
+	if (warped)
+		target_pixel = clamp (ivec2 (target_uv / push_constants.screen_size_rcp), ivec2 (0), ivec2 (push_constants.clamp_size));
+	if (push_constants.gtao_halfres == 0u)
+		return gtao_fetch (target_pixel);
+
+	// Half-resolution AO is stored contiguously in the upper-left working
+	// region. AO texel q represents source pixel 2*q.
+	ivec2 source_max = ivec2 (push_constants.clamp_size);
+	ivec2 working_max = source_max / 2;
+	ivec2 base = clamp (target_pixel / 2, ivec2 (0), working_max);
+	if (all (equal (target_pixel, base * 2)))
+		return gtao_fetch (base);
+	ivec2 candidates[4] = ivec2[4] (
+		base, min (base + ivec2 (1, 0), working_max),
+		min (base + ivec2 (0, 1), working_max), min (base + ivec2 (1, 1), working_max));
+	float target_depth = texelFetch (gtao_view_depth_tex, target_pixel, 0).r;
+	vec2 fraction = clamp (vec2 (target_pixel - base * 2) * 0.5f, 0.0f, 1.0f);
+	vec4 spatial_weights = vec4 ((1.0f - fraction.x) * (1.0f - fraction.y), fraction.x * (1.0f - fraction.y),
+		(1.0f - fraction.x) * fraction.y, fraction.x * fraction.y);
+	vec4 closest_result = gtao_fetch (base);
+	vec4 best_result = closest_result;
+	float visibility_sum = 0.0f;
+	float weight_sum = 0.0f;
+	float best_weight = 0.0f;
+	float closest_depth_difference = 1e30f;
+	for (int i = 0; i < 4; ++i)
+	{
+		if (spatial_weights[i] <= 0.0f)
+			continue;
+		ivec2 source_pixel = min (candidates[i] * 2, source_max);
+		float sample_depth = texelFetch (gtao_view_depth_tex, source_pixel, 0).r;
+		float depth_difference = gtao_relative_depth_difference (target_depth, sample_depth);
+		vec4 candidate = gtao_fetch (candidates[i]);
+		if (depth_difference < closest_depth_difference)
+		{
+			closest_depth_difference = depth_difference;
+			closest_result = candidate;
+		}
+		float weight = spatial_weights[i] * gtao_depth_similarity (target_depth, sample_depth);
+		visibility_sum += candidate.r * weight;
+		weight_sum += weight;
+		if (weight > best_weight)
+		{
+			best_weight = weight;
+			best_result = candidate;
+		}
+	}
+	vec4 result = weight_sum > 0.0001f ? best_result : closest_result;
+	if (weight_sum > 0.0001f)
+		result.r = visibility_sum / weight_sum;
+	return result;
+}
+
+vec3 gtao_multibounce_visibility (float visibility, vec3 albedo)
+{
+	vec3 a = 2.0404f * albedo - 0.3324f;
+	vec3 b = -4.7951f * albedo + 0.6417f;
+	vec3 c = 2.7552f * albedo + 0.6903f;
+	return max (vec3 (visibility), ((visibility * a + b) * visibility + c) * visibility);
+}
+
 #define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
 #define SCREEN_EFFECT_FLAG_SCALE_2X	  0x1
 #define SCREEN_EFFECT_FLAG_SCALE_4X	  0x2
@@ -64,6 +154,7 @@ float blue_noise (ivec2 u)
 #define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
 #define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
 #define SCREEN_EFFECT_FLAG_MENU		  0x10
+#define SCREEN_EFFECT_FLAG_GTAO		  0x20
 
 #if defined(SCALING)
 // Vulkan guarantees 16384 bytes of shared memory, so host doesn't need to check
@@ -128,6 +219,7 @@ void main ()
 #endif
 
 	vec4 color = vec4 (0.0f, 0.0f, 0.0f, 0.0f);
+	vec2 effect_texcoord = (vec2 (pos_x, pos_y) + 0.5f) * push_constants.screen_size_rcp;
 
 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_WATER_WARP) != 0)
 	{
@@ -142,10 +234,30 @@ void main ()
 		const float tex_x = (pos_x_norm + (sin (pos_y_norm * cycle_x + push_constants.time) * amp_x)) * (1.0f - amp_x * 2.0f) + amp_x;
 		const float tex_y = (pos_y_norm + (sin (pos_x_norm * cycle_y + push_constants.time) * amp_y)) * (1.0f - amp_y * 2.0f) + amp_y;
 
-		color = texture (input_tex, vec2 (tex_x, tex_y));
+		effect_texcoord = vec2 (tex_x, tex_y);
+		color = texture (input_tex, effect_texcoord);
 	}
 	else
 		color = texelFetch (input_tex, ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y)), 0);
+
+	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_GTAO) != 0)
+	{
+		const ivec2 ao_pixel = ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y));
+		const bool gtao_warped = (push_constants.flags & SCREEN_EFFECT_FLAG_WATER_WARP) != 0;
+		const vec4 ao_sample = gtao_resolve (ao_pixel, effect_texcoord, gtao_warped);
+		if (push_constants.gtao_debug_mode == 1u || push_constants.gtao_debug_mode == 7u)
+			color.rgb = vec3 (clamp (ao_sample.r, 0.0f, 1.0f));
+		else if (push_constants.gtao_debug_mode > 1u)
+			color.rgb = ao_sample.rgb;
+		else
+		{
+			float ao_visibility = clamp (ao_sample.r, 0.0f, 1.0f);
+			float visibility = clamp (1.0f - ((1.0f - ao_visibility) * push_constants.gtao_strength), 0.0f, 1.0f);
+			vec3 single_bounce = color.rgb * visibility;
+			vec3 multi_bounce = color.rgb * gtao_multibounce_visibility (visibility, color.rgb);
+			color.rgb = mix (single_bounce, multi_bounce, clamp (push_constants.gtao_multibounce, 0.0f, 1.0f));
+		}
+	}
 
 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_PALETTIZE) != 0)
 	{

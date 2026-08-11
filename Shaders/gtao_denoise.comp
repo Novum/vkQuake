@@ -1,0 +1,73 @@
+#version 460
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (set = 0, binding = 0) uniform sampler2D input_ao_tex;
+layout (set = 0, binding = 1) uniform sampler2D view_depth_tex;
+layout (set = 0, binding = 2, rgba8) uniform writeonly image2D output_ao_image;
+
+layout (push_constant) uniform DenoiseConsts
+{
+	uvec2 clamp_size;
+	uint sample_stride;
+	float center_weight;
+}
+push_constants;
+
+layout (local_size_x = 8, local_size_y = 8) in;
+
+vec4 unpack_edges (float packed_value)
+{
+	uint packed = uint (packed_value * 255.5f);
+	return vec4 (float ((packed >> 6) & 3u), float ((packed >> 4) & 3u),
+		float ((packed >> 2) & 3u), float (packed & 3u)) / 3.0f;
+}
+
+void main ()
+{
+	ivec2 pixel = ivec2 (gl_GlobalInvocationID.xy) * int (push_constants.sample_stride);
+	if (any (greaterThan (pixel, ivec2 (push_constants.clamp_size))))
+		return;
+
+	vec4 center = texelFetch (input_ao_tex, pixel, 0);
+	if (all (greaterThan (center, vec4 (0.999f))))
+	{
+		imageStore (output_ao_image, pixel, center);
+		return;
+	}
+
+	int stride = int (push_constants.sample_stride);
+	ivec2 limit = ivec2 (push_constants.clamp_size);
+	ivec2 p_l = clamp (pixel + ivec2 (-stride, 0), ivec2 (0), limit);
+	ivec2 p_r = clamp (pixel + ivec2 ( stride, 0), ivec2 (0), limit);
+	ivec2 p_t = clamp (pixel + ivec2 (0, -stride), ivec2 (0), limit);
+	ivec2 p_b = clamp (pixel + ivec2 (0,  stride), ivec2 (0), limit);
+	ivec2 p_tl = clamp (pixel + ivec2 (-stride, -stride), ivec2 (0), limit);
+	ivec2 p_tr = clamp (pixel + ivec2 ( stride, -stride), ivec2 (0), limit);
+	ivec2 p_bl = clamp (pixel + ivec2 (-stride,  stride), ivec2 (0), limit);
+	ivec2 p_br = clamp (pixel + ivec2 ( stride,  stride), ivec2 (0), limit);
+	vec4 ao_l = texelFetch (input_ao_tex, p_l, 0);
+	vec4 ao_r = texelFetch (input_ao_tex, p_r, 0);
+	vec4 ao_t = texelFetch (input_ao_tex, p_t, 0);
+	vec4 ao_b = texelFetch (input_ao_tex, p_b, 0);
+	vec4 edges_l = unpack_edges (ao_l.g);
+	vec4 edges_r = unpack_edges (ao_r.g);
+	vec4 edges_t = unpack_edges (ao_t.g);
+	vec4 edges_b = unpack_edges (ao_b.g);
+	vec4 edges_c = unpack_edges (center.g);
+	edges_c *= vec4 (edges_l.y, edges_r.x, edges_t.w, edges_b.z);
+	float edginess = clamp (1.5f - dot (edges_c, vec4 (1.0f)), 0.0f, 1.5f) / 1.5f * 0.5f;
+	edges_c = clamp (edges_c + edginess, 0.0f, 1.0f);
+	const float diagonal_weight = 0.85f * 0.5f;
+	float weight_tl = diagonal_weight * (edges_c.x * edges_l.z + edges_c.z * edges_t.x);
+	float weight_tr = diagonal_weight * (edges_c.z * edges_t.y + edges_c.y * edges_r.z);
+	float weight_bl = diagonal_weight * (edges_c.w * edges_b.x + edges_c.x * edges_l.w);
+	float weight_br = diagonal_weight * (edges_c.y * edges_r.w + edges_c.w * edges_b.y);
+	float ao_sum = center.r * push_constants.center_weight + ao_l.r * edges_c.x + ao_r.r * edges_c.y +
+		ao_t.r * edges_c.z + ao_b.r * edges_c.w + texelFetch (input_ao_tex, p_tl, 0).r * weight_tl +
+		texelFetch (input_ao_tex, p_tr, 0).r * weight_tr + texelFetch (input_ao_tex, p_bl, 0).r * weight_bl +
+		texelFetch (input_ao_tex, p_br, 0).r * weight_br;
+	float weight_sum = push_constants.center_weight + dot (edges_c, vec4 (1.0f)) + weight_tl + weight_tr + weight_bl + weight_br;
+	center.r = ao_sum / max (weight_sum, 0.0001f);
+	imageStore (output_ao_image, pixel, center);
+}
