@@ -456,6 +456,8 @@ typedef struct
 	vulkan_pipeline_t		 gtao_msaa_pipeline;
 	vulkan_pipeline_t		 gtao_depth_pipeline;
 	vulkan_pipeline_t		 gtao_depth_msaa_pipeline;
+	vulkan_pipeline_t		 gtao_depth_r8_pipeline;
+	vulkan_pipeline_t		 gtao_depth_msaa_r8_pipeline;
 	vulkan_pipeline_t		 gtao_depth_downsample_pipeline;
 	vulkan_pipeline_t		 gtao_denoise_pipeline;
 	vulkan_pipeline_t		 cs_tex_warp_pipeline;

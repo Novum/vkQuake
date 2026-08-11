@@ -2120,6 +2120,8 @@ void R_CreatePipelineLayouts ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.gtao_depth_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "gtao_depth_pipeline_layout");
 		vulkan_globals.gtao_depth_pipeline.layout.push_constant_range = push_constant_range;
 		vulkan_globals.gtao_depth_msaa_pipeline.layout = vulkan_globals.gtao_depth_pipeline.layout;
+		vulkan_globals.gtao_depth_r8_pipeline.layout = vulkan_globals.gtao_depth_pipeline.layout;
+		vulkan_globals.gtao_depth_msaa_r8_pipeline.layout = vulkan_globals.gtao_depth_pipeline.layout;
 		vulkan_globals.gtao_depth_downsample_pipeline.layout = vulkan_globals.gtao_depth_pipeline.layout;
 	}
 
@@ -2607,6 +2609,8 @@ DECLARE_SHADER_MODULE (gtao_comp);
 DECLARE_SHADER_MODULE (gtao_msaa_comp);
 DECLARE_SHADER_MODULE (gtao_depth_comp);
 DECLARE_SHADER_MODULE (gtao_depth_msaa_comp);
+DECLARE_SHADER_MODULE (gtao_depth_r8_comp);
+DECLARE_SHADER_MODULE (gtao_depth_msaa_r8_comp);
 DECLARE_SHADER_MODULE (gtao_depth_downsample_comp);
 DECLARE_SHADER_MODULE (gtao_denoise_comp);
 DECLARE_SHADER_MODULE (cs_tex_warp_comp);
@@ -3958,6 +3962,8 @@ static void R_CreateGTAOPipelines ()
 	R_CreateComputePipeline (&vulkan_globals.gtao_msaa_pipeline, gtao_msaa_comp_module, 0, NULL, "gtao_msaa");
 	R_CreateComputePipeline (&vulkan_globals.gtao_depth_pipeline, gtao_depth_comp_module, 0, NULL, "gtao_depth");
 	R_CreateComputePipeline (&vulkan_globals.gtao_depth_msaa_pipeline, gtao_depth_msaa_comp_module, 0, NULL, "gtao_depth_msaa");
+	R_CreateComputePipeline (&vulkan_globals.gtao_depth_r8_pipeline, gtao_depth_r8_comp_module, 0, NULL, "gtao_depth_r8");
+	R_CreateComputePipeline (&vulkan_globals.gtao_depth_msaa_r8_pipeline, gtao_depth_msaa_r8_comp_module, 0, NULL, "gtao_depth_msaa_r8");
 	R_CreateComputePipeline (&vulkan_globals.gtao_depth_downsample_pipeline, gtao_depth_downsample_comp_module, 0, NULL, "gtao_depth_downsample");
 	R_CreateComputePipeline (&vulkan_globals.gtao_denoise_pipeline, gtao_denoise_comp_module, 0, NULL, "gtao_denoise");
 }
@@ -4061,6 +4067,8 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (gtao_msaa_comp);
 	CREATE_SHADER_MODULE (gtao_depth_comp);
 	CREATE_SHADER_MODULE (gtao_depth_msaa_comp);
+	CREATE_SHADER_MODULE (gtao_depth_r8_comp);
+	CREATE_SHADER_MODULE (gtao_depth_msaa_r8_comp);
 	CREATE_SHADER_MODULE (gtao_depth_downsample_comp);
 	CREATE_SHADER_MODULE (gtao_denoise_comp);
 	CREATE_SHADER_MODULE (cs_tex_warp_comp);
@@ -4137,6 +4145,8 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (gtao_msaa_comp);
 	DESTROY_SHADER_MODULE (gtao_depth_comp);
 	DESTROY_SHADER_MODULE (gtao_depth_msaa_comp);
+	DESTROY_SHADER_MODULE (gtao_depth_r8_comp);
+	DESTROY_SHADER_MODULE (gtao_depth_msaa_r8_comp);
 	DESTROY_SHADER_MODULE (gtao_depth_downsample_comp);
 	DESTROY_SHADER_MODULE (gtao_denoise_comp);
 	DESTROY_SHADER_MODULE (cs_tex_warp_comp);
@@ -4348,6 +4358,10 @@ void R_DestroyPipelines (void)
 	vulkan_globals.gtao_depth_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_depth_msaa_pipeline.handle, NULL);
 	vulkan_globals.gtao_depth_msaa_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_depth_r8_pipeline.handle, NULL);
+	vulkan_globals.gtao_depth_r8_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_depth_msaa_r8_pipeline.handle, NULL);
+	vulkan_globals.gtao_depth_msaa_r8_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_depth_downsample_pipeline.handle, NULL);
 	vulkan_globals.gtao_depth_downsample_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_denoise_pipeline.handle, NULL);

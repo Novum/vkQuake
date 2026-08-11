@@ -154,6 +154,8 @@ shader_variants = [
     ['Shaders/gtao.comp', 'gtao_msaa.comp', ['-DGTAO_MSAA=1']],
     ['Shaders/gtao_depth.comp', 'gtao_depth.comp', []],
     ['Shaders/gtao_depth.comp', 'gtao_depth_msaa.comp', ['-DGTAO_DEPTH_MSAA=1']],
+    ['Shaders/gtao_depth.comp', 'gtao_depth_r8.comp', ['-DGTAO_LIQUID_MASK_R8=1']],
+    ['Shaders/gtao_depth.comp', 'gtao_depth_msaa_r8.comp', ['-DGTAO_DEPTH_MSAA=1', '-DGTAO_LIQUID_MASK_R8=1']],
     ['Shaders/gtao_depth.comp', 'gtao_depth_downsample.comp', ['-DGTAO_DEPTH_DOWNSAMPLE=1']],
     ['Shaders/gtao_denoise.comp', 'gtao_denoise.comp', []],
     ['Shaders/update_lightmap.comp', 'update_lightmap_8bit.comp', []],

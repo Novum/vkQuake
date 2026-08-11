@@ -14,7 +14,11 @@ layout (set = 0, binding = 2) uniform usampler2D input_stencil_tex;
 #endif
 layout (set = 0, binding = 1, r32f) uniform writeonly image2D output_depth_image;
 #ifndef GTAO_DEPTH_DOWNSAMPLE
+#ifdef GTAO_LIQUID_MASK_R8
+layout (set = 0, binding = 3, r8) uniform writeonly image2D output_liquid_mask_image;
+#else
 layout (set = 0, binding = 3, rgba8) uniform writeonly image2D output_liquid_mask_image;
+#endif
 #endif
 
 layout (push_constant) uniform DepthConsts

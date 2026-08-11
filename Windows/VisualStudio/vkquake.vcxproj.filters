@@ -409,6 +409,12 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth_msaa.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth_r8.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth_msaa_r8.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth_downsample.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
@@ -524,6 +530,12 @@
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth_msaa.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth_r8.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth_msaa_r8.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth_downsample.comp.c">

@@ -76,6 +76,8 @@ DECLARE_SHADER_SPV (gtao_comp);
 DECLARE_SHADER_SPV (gtao_msaa_comp);
 DECLARE_SHADER_SPV (gtao_depth_comp);
 DECLARE_SHADER_SPV (gtao_depth_msaa_comp);
+DECLARE_SHADER_SPV (gtao_depth_r8_comp);
+DECLARE_SHADER_SPV (gtao_depth_msaa_r8_comp);
 DECLARE_SHADER_SPV (gtao_depth_downsample_comp);
 DECLARE_SHADER_SPV (gtao_denoise_comp);
 DECLARE_SHADER_SPV (cs_tex_warp_comp);

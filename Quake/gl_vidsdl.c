@@ -199,6 +199,7 @@ static VkImage			gtao_liquid_mask_buffer;
 static vulkan_memory_t	gtao_liquid_mask_buffer_memory;
 static VkImageView		gtao_liquid_mask_buffer_view;
 static qboolean			gtao_liquid_mask_buffer_initialized;
+static VkFormat			gtao_liquid_mask_format = VK_FORMAT_R8G8B8A8_UNORM;
 static qboolean			gtao_supported;
 static vulkan_memory_t	color_buffers_memory[NUM_COLOR_BUFFERS];
 static VkImageView		color_buffers_view[NUM_COLOR_BUFFERS];
@@ -1491,6 +1492,9 @@ static void GL_InitDevice (void)
 	qboolean gtao_image_support = (format_properties.optimalTilingFeatures & gtao_image_features) == gtao_image_features;
 	vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_R32_SFLOAT, &format_properties);
 	qboolean gtao_depth_pyramid_support = (format_properties.optimalTilingFeatures & gtao_image_features) == gtao_image_features;
+	vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_R8_UNORM, &format_properties);
+	if ((format_properties.optimalTilingFeatures & gtao_image_features) == gtao_image_features)
+		gtao_liquid_mask_format = VK_FORMAT_R8_UNORM;
 	gtao_supported = depth_sampling_support && gtao_image_support && gtao_depth_pyramid_support;
 	if (!gtao_supported)
 		Con_Printf ("GTAO unavailable: selected depth or AO image format is not sampleable/storage-capable\n");
@@ -2207,6 +2211,7 @@ static void GL_CreateGTAOBuffer (void)
 	GL_SetObjectName ((uint64_t)gtao_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "GTAO Buffer View");
 	gtao_buffer_initialized = false;
 
+	image_create_info.format = gtao_liquid_mask_format;
 	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &gtao_liquid_mask_buffer);
 	if (err != VK_SUCCESS)
@@ -2222,6 +2227,7 @@ static void GL_CreateGTAOBuffer (void)
 	err = vkBindImageMemory (vulkan_globals.device, gtao_liquid_mask_buffer, gtao_liquid_mask_buffer_memory.handle, 0);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
+	image_view_create_info.format = gtao_liquid_mask_format;
 	image_view_create_info.image = gtao_liquid_mask_buffer;
 	err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &gtao_liquid_mask_buffer_view);
 	if (err != VK_SUCCESS)
@@ -2229,6 +2235,8 @@ static void GL_CreateGTAOBuffer (void)
 	GL_SetObjectName ((uint64_t)gtao_liquid_mask_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "GTAO Liquid Mask Buffer View");
 	gtao_liquid_mask_buffer_initialized = false;
 
+	image_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+	image_view_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
 	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &gtao_denoise_buffer);
 	if (err != VK_SUCCESS)
@@ -4212,7 +4220,13 @@ static void GL_GTAODepthPyramid (cb_context_t *cbx, end_rendering_parms_t *parms
 
 		vulkan_pipeline_t *pipeline;
 		if (mip == 0)
-			pipeline = vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? &vulkan_globals.gtao_depth_pipeline : &vulkan_globals.gtao_depth_msaa_pipeline;
+		{
+			const qboolean single_sample = vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT;
+			if (gtao_liquid_mask_format == VK_FORMAT_R8_UNORM)
+				pipeline = single_sample ? &vulkan_globals.gtao_depth_r8_pipeline : &vulkan_globals.gtao_depth_msaa_r8_pipeline;
+			else
+				pipeline = single_sample ? &vulkan_globals.gtao_depth_pipeline : &vulkan_globals.gtao_depth_msaa_pipeline;
+		}
 		else
 			pipeline = &vulkan_globals.gtao_depth_downsample_pipeline;
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
