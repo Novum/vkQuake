@@ -3019,23 +3019,20 @@ void GL_UpdateDescriptorSets (void)
 		for (uint32_t pass = 0; pass < 2; ++pass)
 		{
 			vulkan_globals.gtao_denoise_desc_sets[pass] = R_AllocateDescriptorSet (&vulkan_globals.gtao_denoise_set_layout);
-			ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, image_infos, 3);
+			ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, image_infos, 2);
 			image_infos[0].imageView = pass == 0 ? gtao_buffer_view : gtao_denoise_buffer_view;
 			image_infos[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			image_infos[0].sampler = vulkan_globals.point_sampler;
-			image_infos[1].imageView = gtao_depth_pyramid_view;
-			image_infos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			image_infos[1].sampler = vulkan_globals.point_sampler;
-			image_infos[2].imageView = pass == 0 ? gtao_denoise_buffer_view : gtao_buffer_view;
-			image_infos[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-			ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 3);
-			for (uint32_t binding = 0; binding < 3; ++binding)
+			image_infos[1].imageView = pass == 0 ? gtao_denoise_buffer_view : gtao_buffer_view;
+			image_infos[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+			ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 2);
+			for (uint32_t binding = 0; binding < 2; ++binding)
 			{
 				writes[binding].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				writes[binding].dstSet = vulkan_globals.gtao_denoise_desc_sets[pass];
 				writes[binding].dstBinding = binding;
 				writes[binding].descriptorCount = 1;
-				writes[binding].descriptorType = binding == 2 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				writes[binding].descriptorType = binding == 1 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 				writes[binding].pImageInfo = &image_infos[binding];
 			}
 			vkUpdateDescriptorSets (vulkan_globals.device, countof (writes), writes, 0, NULL);
@@ -4364,6 +4361,8 @@ GL_GTAO
 static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 {
 	R_BeginDebugUtilsLabel (cbx, "GTAO");
+	const qboolean store_temporal_history = r_gtao_temporal.value > 0.0f && r_gtao_bent_normals.value <= 0.0f &&
+		(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 6 || (int)r_gtao_debug.value == 7);
 
 	ZEROED_STRUCT_ARRAY (VkImageMemoryBarrier, image_barriers, 3);
 
@@ -4405,7 +4404,7 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 
 	vkCmdPipelineBarrier (
 		cbx->cb, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, countof (image_barriers), image_barriers);
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, store_temporal_history ? countof (image_barriers) : 2, image_barriers);
 	GL_GTAODepthPyramid (cbx, parms);
 
 	GL_SetCanvas (cbx, CANVAS_NONE);
@@ -4484,8 +4483,6 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 	const uint32_t gtao_stride = r_gtao_halfres.value > 0.0f ? 2u : 1u;
 	vkCmdDispatch (cbx->cb, (parms->vid_width + 8 * gtao_stride - 1) / (8 * gtao_stride), (parms->vid_height + 8 * gtao_stride - 1) / (8 * gtao_stride), 1);
 
-	const qboolean store_temporal_history = r_gtao_temporal.value > 0.0f && r_gtao_bent_normals.value <= 0.0f &&
-		(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 6 || (int)r_gtao_debug.value == 7);
 	if (store_temporal_history)
 	{
 		ZEROED_STRUCT_ARRAY (VkImageMemoryBarrier, copy_barriers, 2);
