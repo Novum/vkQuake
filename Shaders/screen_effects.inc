@@ -160,7 +160,7 @@ vec4 gtao_resolve (ivec2 target_pixel, vec2 target_uv, bool warped)
 		ivec2 source_pixel = min (candidates[i] * 2, source_max);
 		float sample_depth = texelFetch (gtao_view_depth_tex, source_pixel, 0).r;
 		float depth_difference = gtao_relative_depth_difference (target_depth, sample_depth);
-		vec4 candidate = gtao_fetch (candidates[i]);
+		vec4 candidate = i == 0 ? closest_result : gtao_fetch (candidates[i]);
 		if (depth_difference < closest_depth_difference)
 		{
 			closest_depth_difference = depth_difference;
