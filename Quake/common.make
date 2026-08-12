@@ -164,6 +164,13 @@ SHADER_OBJS = \
 	screen_effects_10bit_comp.o \
 	screen_effects_10bit_scale_comp.o \
 	screen_effects_10bit_scale_sops_comp.o \
+	gtao_comp.o \
+	gtao_depth_comp.o \
+	gtao_depth_msaa_comp.o \
+	gtao_depth_r8_comp.o \
+	gtao_depth_msaa_r8_comp.o \
+	gtao_depth_downsample_comp.o \
+	gtao_denoise_comp.o \
 	cs_tex_warp_comp.o \
 	indirect_comp.o \
 	indirect_clear_comp.o \
@@ -352,6 +359,10 @@ $(eval $(call SHADER_VARIANT,screen_effects_8bit_scale_sops_comp,screen_effects.
 $(eval $(call SHADER_VARIANT,screen_effects_10bit_comp,screen_effects.comp,-DUSE_10BIT=1))
 $(eval $(call SHADER_VARIANT,screen_effects_10bit_scale_comp,screen_effects.comp,-DUSE_10BIT=1 -DSCALING=1))
 $(eval $(call SHADER_VARIANT,screen_effects_10bit_scale_sops_comp,screen_effects.comp,--target-env vulkan1.1 -DUSE_10BIT=1 -DSCALING=1 -DUSE_SUBGROUP_OPS=1))
+$(eval $(call SHADER_VARIANT,gtao_depth_msaa_comp,gtao_depth.comp,-DGTAO_DEPTH_MSAA=1))
+$(eval $(call SHADER_VARIANT,gtao_depth_r8_comp,gtao_depth.comp,-DGTAO_LIQUID_MASK_R8=1))
+$(eval $(call SHADER_VARIANT,gtao_depth_msaa_r8_comp,gtao_depth.comp,-DGTAO_DEPTH_MSAA=1 -DGTAO_LIQUID_MASK_R8=1))
+$(eval $(call SHADER_VARIANT,gtao_depth_downsample_comp,gtao_depth.comp,-DGTAO_DEPTH_DOWNSAMPLE=1))
 $(eval $(call SHADER_VARIANT,update_lightmap_8bit_comp,update_lightmap.comp,))
 $(eval $(call SHADER_VARIANT,update_lightmap_8bit_rt_comp,update_lightmap.comp,-DRAY_QUERIES=1))
 $(eval $(call SHADER_VARIANT,update_lightmap_10bit_comp,update_lightmap.comp,-DUSE_10BIT=1))
