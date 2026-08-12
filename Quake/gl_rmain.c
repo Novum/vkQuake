@@ -116,20 +116,14 @@ qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; //
 
 cvar_t r_scale = {"r_scale", "1", CVAR_ARCHIVE};
 cvar_t r_gtao = {"r_gtao", "1", CVAR_ARCHIVE};
-cvar_t r_gtao_radius = {"r_gtao_radius", "24", CVAR_ARCHIVE};
-cvar_t r_gtao_radius_multiplier = {"r_gtao_radius_multiplier", "1.457", CVAR_ARCHIVE};
+cvar_t r_gtao_radius = {"r_gtao_radius", "32", CVAR_ARCHIVE};
 cvar_t r_gtao_falloff = {"r_gtao_falloff", "0.615", CVAR_ARCHIVE};
-cvar_t r_gtao_thickness = {"r_gtao_thickness", "0", CVAR_ARCHIVE};
+cvar_t r_gtao_thin_occluder_compensation = {"r_gtao_thin_occluder_compensation", "0", CVAR_ARCHIVE};
 cvar_t r_gtao_strength = {"r_gtao_strength", "0.6", CVAR_ARCHIVE};
 cvar_t r_gtao_debug = {"r_gtao_debug", "0", CVAR_NONE};
-cvar_t r_gtao_normal_mode = {"r_gtao_normal_mode", "2", CVAR_ARCHIVE};
 cvar_t r_gtao_quality = {"r_gtao_quality", "2", CVAR_ARCHIVE};
-cvar_t r_gtao_noise_mode = {"r_gtao_noise_mode", "0", CVAR_ARCHIVE};
-cvar_t r_gtao_depth_prefilter = {"r_gtao_depth_prefilter", "1", CVAR_ARCHIVE};
-cvar_t r_gtao_depth_mip_offset = {"r_gtao_depth_mip_offset", "3.30", CVAR_ARCHIVE};
 cvar_t r_gtao_denoise = {"r_gtao_denoise", "2", CVAR_ARCHIVE};
 cvar_t r_gtao_bias = {"r_gtao_bias", "0", CVAR_ARCHIVE};
-cvar_t r_gtao_bent_normals = {"r_gtao_bent_normals", "0", CVAR_NONE};
 cvar_t r_gtao_multibounce = {"r_gtao_multibounce", "1", CVAR_ARCHIVE};
 cvar_t r_gtao_halfres = {"r_gtao_halfres", "1", CVAR_ARCHIVE};
 cvar_t r_gtao_liquid_water = {"r_gtao_liquid_water", "1", CVAR_ARCHIVE};

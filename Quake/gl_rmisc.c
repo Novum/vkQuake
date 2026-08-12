@@ -62,19 +62,13 @@ extern cvar_t r_parallelmark;
 extern cvar_t r_usesops;
 extern cvar_t r_gtao;
 extern cvar_t r_gtao_radius;
-extern cvar_t r_gtao_radius_multiplier;
 extern cvar_t r_gtao_falloff;
-extern cvar_t r_gtao_thickness;
+extern cvar_t r_gtao_thin_occluder_compensation;
 extern cvar_t r_gtao_strength;
 extern cvar_t r_gtao_debug;
-extern cvar_t r_gtao_normal_mode;
 extern cvar_t r_gtao_quality;
-extern cvar_t r_gtao_noise_mode;
-extern cvar_t r_gtao_depth_prefilter;
-extern cvar_t r_gtao_depth_mip_offset;
 extern cvar_t r_gtao_denoise;
 extern cvar_t r_gtao_bias;
-extern cvar_t r_gtao_bent_normals;
 extern cvar_t r_gtao_multibounce;
 extern cvar_t r_gtao_halfres;
 extern cvar_t r_gtao_liquid_water;
@@ -2069,7 +2063,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 8 * sizeof (uint32_t) + 10 * sizeof (float);
+		push_constant_range.size = 7 * sizeof (uint32_t) + 8 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -4431,19 +4425,13 @@ void R_RestoreGTAODefaults (void)
 	cvar_t *gtao_cvars[] = {
 		&r_gtao,
 		&r_gtao_radius,
-		&r_gtao_radius_multiplier,
 		&r_gtao_falloff,
-		&r_gtao_thickness,
+		&r_gtao_thin_occluder_compensation,
 		&r_gtao_strength,
 		&r_gtao_debug,
-		&r_gtao_normal_mode,
 		&r_gtao_quality,
-		&r_gtao_noise_mode,
-		&r_gtao_depth_prefilter,
-		&r_gtao_depth_mip_offset,
 		&r_gtao_denoise,
 		&r_gtao_bias,
-		&r_gtao_bent_normals,
 		&r_gtao_multibounce,
 		&r_gtao_halfres,
 		&r_gtao_liquid_water,
@@ -4536,19 +4524,13 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_scale);
 	Cvar_RegisterVariable (&r_gtao);
 	Cvar_RegisterVariable (&r_gtao_radius);
-	Cvar_RegisterVariable (&r_gtao_radius_multiplier);
 	Cvar_RegisterVariable (&r_gtao_falloff);
-	Cvar_RegisterVariable (&r_gtao_thickness);
+	Cvar_RegisterVariable (&r_gtao_thin_occluder_compensation);
 	Cvar_RegisterVariable (&r_gtao_strength);
 	Cvar_RegisterVariable (&r_gtao_debug);
-	Cvar_RegisterVariable (&r_gtao_normal_mode);
 	Cvar_RegisterVariable (&r_gtao_quality);
-	Cvar_RegisterVariable (&r_gtao_noise_mode);
-	Cvar_RegisterVariable (&r_gtao_depth_prefilter);
-	Cvar_RegisterVariable (&r_gtao_depth_mip_offset);
 	Cvar_RegisterVariable (&r_gtao_denoise);
 	Cvar_RegisterVariable (&r_gtao_bias);
-	Cvar_RegisterVariable (&r_gtao_bent_normals);
 	Cvar_RegisterVariable (&r_gtao_multibounce);
 	Cvar_RegisterVariable (&r_gtao_halfres);
 	Cvar_RegisterVariable (&r_gtao_liquid_water);

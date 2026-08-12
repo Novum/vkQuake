@@ -13,14 +13,11 @@ layout (push_constant) uniform GTAOConsts
 	uvec2 viewport_size;
 	vec4  projection;
 	float radius;
-	float thickness;
-	uint  normal_mode;
+	float thin_occluder_compensation;
 	uint  debug_mode;
 	uint  quality;
-	float depth_mip_offset;
 	float bias;
 	uint  flags;
-	float radius_multiplier;
 	float falloff_range;
 }
 push_constants;
@@ -31,9 +28,8 @@ const float PI = 3.14159265358979323846f;
 const float HALF_PI = 1.57079632679489661923f;
 const uint STENCIL_MASK_SKY = 0x1u;
 const uint STENCIL_MASK_VIEWMODEL = 0x2u;
-const uint GTAO_FLAG_BENT_NORMALS = 0x1u;
-const uint GTAO_FLAG_HALFRES = 0x4u;
-const uint GTAO_FLAG_HILBERT_NOISE = 0x8u;
+const uint GTAO_FLAG_HALFRES = 0x1u;
+const float DEPTH_MIP_OFFSET = 3.30f;
 
 float sample_depth (ivec2 pixel)
 {
@@ -79,10 +75,10 @@ float sample_horizon_depth (ivec2 pixel, float offset_length, out bool valid)
 	valid = inside_viewport (pixel) && depth > 0.00001f;
 	if (valid)
 		valid = (sample_stencil (pixel) & (STENCIL_MASK_SKY | STENCIL_MASK_VIEWMODEL)) == 0u;
-	if (push_constants.depth_mip_offset > 32.0f || !valid)
+	if (!valid)
 		return depth;
 
-	float mip_level = clamp (log2 (max (offset_length, 1.0f)) - push_constants.depth_mip_offset, 0.0f, float (textureQueryLevels (view_depth_pyramid_tex) - 1));
+	float mip_level = clamp (log2 (max (offset_length, 1.0f)) - DEPTH_MIP_OFFSET, 0.0f, float (textureQueryLevels (view_depth_pyramid_tex) - 1));
 	int mip_0 = int (floor (mip_level));
 	int mip_1 = min (mip_0 + 1, textureQueryLevels (view_depth_pyramid_tex) - 1);
 	vec2 uv = (vec2 (pixel) + 0.5f) / vec2 (textureSize (view_depth_pyramid_tex, 0));
@@ -116,52 +112,6 @@ float pack_edges (vec4 edges)
 vec3 safe_normalize (vec3 value)
 {
 	return value * inversesqrt (max (dot (value, value), 0.00000001f));
-}
-
-uint hilbert_index (uint pos_x, uint pos_y)
-{
-	uint index = 0u;
-	for (uint level = 32u; level > 0u; level /= 2u)
-	{
-		uint region_x = (pos_x & level) != 0u ? 1u : 0u;
-		uint region_y = (pos_y & level) != 0u ? 1u : 0u;
-		index += level * level * ((3u * region_x) ^ region_y);
-		if (region_y == 0u)
-		{
-			if (region_x != 0u)
-			{
-				pos_x = 63u - pos_x;
-				pos_y = 63u - pos_y;
-			}
-			uint temp = pos_x;
-			pos_x = pos_y;
-			pos_y = temp;
-		}
-	}
-	return index;
-}
-
-mat3 rotation_from_to (vec3 from, vec3 to)
-{
-	float c = dot (from, to);
-	if (abs (c) > 0.9997f)
-		return mat3 (1.0f);
-	vec3 v = cross (from, to);
-	float h = 1.0f / (1.0f + c);
-	mat3 rows = mat3 (
-		c + h * v.x * v.x, h * v.x * v.y - v.z, h * v.x * v.z + v.y,
-		h * v.x * v.y + v.z, c + h * v.y * v.y, h * v.y * v.z - v.x,
-		h * v.x * v.z - v.y, h * v.y * v.z + v.x, c + h * v.z * v.z);
-	return transpose (rows);
-}
-
-vec2 oct_encode (vec3 normal)
-{
-	normal /= abs (normal.x) + abs (normal.y) + abs (normal.z);
-	vec2 encoded = normal.xy;
-	if (normal.z < 0.0f)
-		encoded = (1.0f - abs (encoded.yx)) * sign (encoded.xy);
-	return encoded * 0.5f + 0.5f;
 }
 
 vec4 classification_color (uint stencil, bool has_depth, bool in_viewport)
@@ -257,45 +207,15 @@ void main ()
 	edges_lrtb *= vec4 (edge_left_valid, edge_right_valid, edge_top_valid, edge_bottom_valid);
 	float packed_edges = pack_edges (edges_lrtb);
 
-	vec3 dx;
-	vec3 dy;
-	if (push_constants.normal_mode == 0u)
-	{
-		dx = normal_right - normal_left;
-		dy = normal_top - normal_bottom;
-	}
-	else if (push_constants.normal_mode == 1u)
-	{
-		if (normal_left_valid && normal_right_valid)
-			dx = abs (normal_right.z - center.z) <= abs (normal_left.z - center.z) ? normal_right - center : center - normal_left;
-		else if (normal_right_valid)
-			dx = normal_right - center;
-		else
-			dx = center - normal_left;
-
-		if (normal_top_valid && normal_bottom_valid)
-			dy = abs (normal_top.z - center.z) <= abs (normal_bottom.z - center.z) ? normal_top - center : center - normal_bottom;
-		else if (normal_top_valid)
-			dy = normal_top - center;
-		else
-			dy = center - normal_bottom;
-	}
-	else
-	{
-		vec4 accepted = clamp (vec4 (
-			normal_edges_lrtb.x * normal_edges_lrtb.z, normal_edges_lrtb.z * normal_edges_lrtb.y,
-			normal_edges_lrtb.y * normal_edges_lrtb.w, normal_edges_lrtb.w * normal_edges_lrtb.x) + 0.01f, 0.0f, 1.0f);
-		vec3 dir_left = safe_normalize (normal_left - center);
-		vec3 dir_right = safe_normalize (normal_right - center);
-		vec3 dir_top = safe_normalize (normal_top - center);
-		vec3 dir_bottom = safe_normalize (normal_bottom - center);
-		vec3 xe_normal = accepted.x * cross (dir_left, dir_top) + accepted.y * cross (dir_top, dir_right) +
-			accepted.z * cross (dir_right, dir_bottom) + accepted.w * cross (dir_bottom, dir_left);
-		dx = xe_normal;
-		dy = vec3 (0.0f, 0.0f, 1.0f);
-	}
-
-	vec3 normal_cross = push_constants.normal_mode == 2u ? dx : cross (dx, dy);
+	vec4 accepted = clamp (vec4 (
+		normal_edges_lrtb.x * normal_edges_lrtb.z, normal_edges_lrtb.z * normal_edges_lrtb.y,
+		normal_edges_lrtb.y * normal_edges_lrtb.w, normal_edges_lrtb.w * normal_edges_lrtb.x) + 0.01f, 0.0f, 1.0f);
+	vec3 dir_left = safe_normalize (normal_left - center);
+	vec3 dir_right = safe_normalize (normal_right - center);
+	vec3 dir_top = safe_normalize (normal_top - center);
+	vec3 dir_bottom = safe_normalize (normal_bottom - center);
+	vec3 normal_cross = accepted.x * cross (dir_left, dir_top) + accepted.y * cross (dir_top, dir_right) +
+		accepted.z * cross (dir_right, dir_bottom) + accepted.w * cross (dir_bottom, dir_left);
 	vec3 view_vector = normalize (-center);
 	vec3 normal = dot (normal_cross, normal_cross) > 0.00000001f ? normalize (normal_cross) : view_vector;
 	if (dot (normal, view_vector) < 0.0f)
@@ -316,28 +236,17 @@ void main ()
 	// Noise belongs to the compact AO working grid.
 	ivec2 noise_pixel = ao_pixel;
 	noise_pixel &= ivec2 (63);
-	vec2 noise;
-	if ((push_constants.flags & GTAO_FLAG_HILBERT_NOISE) != 0u)
-	{
-		uint noise_index = hilbert_index (uint (noise_pixel.x), uint (noise_pixel.y));
-		noise = fract (vec2 (0.5f) + float (noise_index) * vec2 (0.7548776662466928f, 0.5698402909980533f));
-	}
-	else
-	{
-		noise = texelFetch (blue_noise_tex, noise_pixel, 0).rg;
-	}
-	// vkQuake has no TAA to absorb an animated sampling pattern. Reprojection may
-	// accumulate a fixed spatial pattern, but must not make the raw AO vary at rest.
+	vec2 noise = texelFetch (blue_noise_tex, noise_pixel, 0).rg;
 	float noise_slice = noise.x;
 	float noise_sample = noise.y;
-	float effect_radius = max (push_constants.radius, 1.0f) * push_constants.radius_multiplier;
+	float effect_radius = max (push_constants.radius, 1.0f);
 	float falloff_range = effect_radius * push_constants.falloff_range;
 	float falloff_from = effect_radius - falloff_range;
 	float falloff_mul = -1.0f / falloff_range;
 	float falloff_add = falloff_from / falloff_range + 1.0f;
 	float pixel_size_x = max ((-center.z) * push_constants.projection.x * 2.0f / float (push_constants.viewport_size.x), 0.00001f);
 	float pixel_size_y = max ((-center.z) * push_constants.projection.y * 2.0f / float (push_constants.viewport_size.y), 0.00001f);
-	if (push_constants.debug_mode == 5u)
+	if (push_constants.debug_mode == 4u)
 	{
 		float footprint = effect_radius / min (pixel_size_x, pixel_size_y);
 		float mip = float (clamp (int (floor (log2 (max (footprint, 1.0f)))) - 1, 0, textureQueryLevels (view_depth_pyramid_tex) - 1));
@@ -347,9 +256,6 @@ void main ()
 	}
 	float screen_space_radius = effect_radius / pixel_size_x;
 	float visibility = clamp ((10.0f - screen_space_radius) / 100.0f, 0.0f, 1.0f) * 0.5f;
-	bool compute_bent_normal = (push_constants.flags & GTAO_FLAG_BENT_NORMALS) != 0u || push_constants.debug_mode == 4u;
-	vec3 bent_sum = vec3 (0.0f);
-
 	// Use a denser 4x4 spatial tier for vkQuake's non-TAA default; retain
 	// XeGTAO's low, medium and ultra tiers at 1x2, 2x2 and 9x3 respectively.
 	int slice_count = push_constants.quality == 0u ? 1 : (push_constants.quality == 1u ? 2 : (push_constants.quality == 2u ? 4 : 9));
@@ -398,7 +304,7 @@ void main ()
 					float sample_distance_0 = length (sample_delta_0);
 					if (sample_distance_0 > 0.00001f)
 					{
-						float falloff_base_0 = length (vec3 (sample_delta_0.xy, sample_delta_0.z * (1.0f + max (push_constants.thickness, 0.0f))));
+						float falloff_base_0 = length (vec3 (sample_delta_0.xy, sample_delta_0.z * (1.0f + max (push_constants.thin_occluder_compensation, 0.0f))));
 						float weight_0 = clamp (falloff_base_0 * falloff_mul + falloff_add, 0.0f, 1.0f);
 						float sample_horizon_cos_0 = dot (sample_delta_0 / sample_distance_0, view_vector) - clamp (push_constants.bias, 0.0f, 0.5f);
 						sample_horizon_cos_0 = mix (low_horizon_cos_0, sample_horizon_cos_0, weight_0);
@@ -418,7 +324,7 @@ void main ()
 					float sample_distance_1 = length (sample_delta_1);
 					if (sample_distance_1 > 0.00001f)
 					{
-						float falloff_base_1 = length (vec3 (sample_delta_1.xy, sample_delta_1.z * (1.0f + max (push_constants.thickness, 0.0f))));
+						float falloff_base_1 = length (vec3 (sample_delta_1.xy, sample_delta_1.z * (1.0f + max (push_constants.thin_occluder_compensation, 0.0f))));
 						float weight_1 = clamp (falloff_base_1 * falloff_mul + falloff_add, 0.0f, 1.0f);
 						float sample_horizon_cos_1 = dot (sample_delta_1 / sample_distance_1, view_vector) - clamp (push_constants.bias, 0.0f, 0.5f);
 						sample_horizon_cos_1 = mix (low_horizon_cos_1, sample_horizon_cos_1, weight_1);
@@ -434,24 +340,9 @@ void main ()
 		float integrated_arc_0 = (cos_normal + 2.0f * h0 * sin (n) - cos (2.0f * h0 - n)) * 0.25f;
 		float integrated_arc_1 = (cos_normal + 2.0f * h1 * sin (n) - cos (2.0f * h1 - n)) * 0.25f;
 		visibility += projected_normal_length * (integrated_arc_0 + integrated_arc_1);
-		if (compute_bent_normal)
-		{
-			float t0 = (6.0f * sin (h0 - n) - sin (3.0f * h0 - n) + 6.0f * sin (h1 - n) - sin (3.0f * h1 - n) +
-				16.0f * sin (n) - 3.0f * (sin (h0 + n) + sin (h1 + n))) / 12.0f;
-			float t1 = (-cos (3.0f * h0 - n) - cos (3.0f * h1 - n) + 8.0f * cos (n) -
-				3.0f * (cos (h0 + n) + cos (h1 + n))) / 12.0f;
-			vec3 local_bent = vec3 (direction_vector.xy * t0, t1);
-			bent_sum += rotation_from_to (vec3 (0.0f, 0.0f, 1.0f), view_vector) * local_bent * projected_normal_length;
-		}
 	}
 
 	visibility = pow (max (visibility / float (slice_count), 0.0f), 2.2f);
 	visibility = max (visibility, 0.03f);
-	if (push_constants.debug_mode == 4u)
-	{
-		imageStore (ao_image, ao_pixel, vec4 (safe_normalize (bent_sum) * 0.5f + 0.5f, 1.0f));
-		return;
-	}
-	vec2 packed_bent = compute_bent_normal ? oct_encode (safe_normalize (bent_sum)) : vec2 (0.0f);
-	imageStore (ao_image, ao_pixel, vec4 (visibility, packed_edges, packed_bent));
+	imageStore (ao_image, ao_pixel, vec4 (visibility, packed_edges, 0.0f, 0.0f));
 }

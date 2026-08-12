@@ -4029,14 +4029,11 @@ typedef struct gtao_constants_s
 	float	 projection_z;
 	float	 projection_w;
 	float	 radius;
-	float	 thickness;
-	uint32_t normal_mode;
+	float	 thin_occluder_compensation;
 	uint32_t debug_mode;
 	uint32_t quality;
-	float	 depth_mip_offset;
 	float	 bias;
 	uint32_t flags;
-	float	 radius_multiplier;
 	float	 falloff_range;
 } gtao_constants_t;
 
@@ -4152,7 +4149,7 @@ static void GL_GTAODepthPyramid (cb_context_t *cbx, end_rendering_parms_t *parms
 		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.gtao_depth_desc_sets[mip], 0, NULL);
 		const gtao_depth_constants_t constants = {
 			width, height, vulkan_globals.gtao_projection[2], vulkan_globals.gtao_projection[3],
-			q_max (1.0f, r_gtao_radius.value) * CLAMP (0.3f, r_gtao_radius_multiplier.value, 3.0f),
+			q_max (1.0f, r_gtao_radius.value),
 			CLAMP (0.01f, r_gtao_falloff.value, 1.0f)};
 		R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
 		vkCmdDispatch (cbx->cb, (width + 7) / 8, (height + 7) / 8, 1);
@@ -4186,8 +4183,8 @@ typedef struct gtao_denoise_constants_s
 
 static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 {
-	const uint32_t debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 6);
-	const uint32_t pass_count = (debug_mode == 0u || debug_mode == 6u) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
+	const uint32_t debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 5);
+	const uint32_t pass_count = (debug_mode == 0u || debug_mode == 5u) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
 	if (pass_count == 0)
 		return;
 
@@ -4329,15 +4326,11 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 		.projection_z = vulkan_globals.gtao_projection[2],
 		.projection_w = vulkan_globals.gtao_projection[3],
 		.radius = q_max (1.0f, r_gtao_radius.value),
-		.thickness = q_max (0.0f, r_gtao_thickness.value),
-		.normal_mode = (uint32_t)CLAMP (0, (int)r_gtao_normal_mode.value, 2),
-		.debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 6),
+		.thin_occluder_compensation = q_max (0.0f, r_gtao_thin_occluder_compensation.value),
+		.debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 4),
 		.quality = (uint32_t)CLAMP (0, (int)r_gtao_quality.value, 3),
-		.depth_mip_offset = r_gtao_depth_prefilter.value > 0.0f ? CLAMP (0.0f, r_gtao_depth_mip_offset.value, 8.0f) : 64.0f,
 		.bias = CLAMP (0.0f, r_gtao_bias.value, 0.5f),
-		.flags = (r_gtao_bent_normals.value > 0.0f ? 1u : 0u) | (r_gtao_halfres.value > 0.0f ? 4u : 0u) |
-			(r_gtao_noise_mode.value > 0.0f ? 8u : 0u),
-		.radius_multiplier = CLAMP (0.3f, r_gtao_radius_multiplier.value, 3.0f),
+		.flags = r_gtao_halfres.value > 0.0f ? 1u : 0u,
 		.falloff_range = CLAMP (0.01f, r_gtao_falloff.value, 1.0f),
 	};
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
@@ -4470,9 +4463,9 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 			if (R_GTAOEnabled ())
 			{
 				push_constants.gtao_strength = r_gtao_strength.value;
-				push_constants.gtao_debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 7);
+				push_constants.gtao_debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 6);
 				push_constants.gtao_denoise =
-					(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 6) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
+					(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 5) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
 				push_constants.gtao_multibounce = CLAMP (0.0f, r_gtao_multibounce.value, 1.0f);
 				push_constants.gtao_halfres = r_gtao_halfres.value > 0.0f ? 1u : 0u;
 				push_constants.gtao_liquid_water =
