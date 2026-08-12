@@ -79,6 +79,8 @@ float sample_horizon_depth (ivec2 pixel, float offset_length, out bool valid)
 		return depth;
 
 	float mip_level = clamp (log2 (max (offset_length, 1.0f)) - DEPTH_MIP_OFFSET, 0.0f, float (textureQueryLevels (view_depth_pyramid_tex) - 1));
+	if (mip_level <= 0.0f)
+		return depth;
 	int mip_0 = int (floor (mip_level));
 	int mip_1 = min (mip_0 + 1, textureQueryLevels (view_depth_pyramid_tex) - 1);
 	vec2 uv = (vec2 (pixel) + 0.5f) / vec2 (textureSize (view_depth_pyramid_tex, 0));
@@ -86,7 +88,12 @@ float sample_horizon_depth (ivec2 pixel, float offset_length, out bool valid)
 	ivec2 size_1 = textureSize (view_depth_pyramid_tex, mip_1);
 	ivec2 coord_0 = clamp (ivec2 (uv * vec2 (size_0)), ivec2 (0), size_0 - 1);
 	ivec2 coord_1 = clamp (ivec2 (uv * vec2 (size_1)), ivec2 (0), size_1 - 1);
-	float depth_0 = texelFetch (view_depth_pyramid_tex, coord_0, mip_0).r;
+	float depth_0 = mip_0 == 0 ? depth : texelFetch (view_depth_pyramid_tex, coord_0, mip_0).r;
+	if (mip_0 == mip_1)
+	{
+		valid = depth_0 > 0.00001f;
+		return valid ? depth_0 : depth;
+	}
 	float depth_1 = texelFetch (view_depth_pyramid_tex, coord_1, mip_1).r;
 	float view_depth = mix (depth_0, depth_1, fract (mip_level));
 	valid = view_depth > 0.00001f;
