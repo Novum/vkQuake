@@ -2088,7 +2088,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PARTICLES,
 		((int)r_particles.value == 0) ? "off" : (((int)r_particles.value == 2) ? "Classic" : "glQuake"));
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GTAO, "Ambient Occlusion");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GTAO, "Ambient Occl.");
 	{
 		const char *gtao_presets[] = {"off", "low", "medium", "high"};
 		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GTAO, gtao_presets[M_GraphicsOptions_GTAOPreset ()]);
