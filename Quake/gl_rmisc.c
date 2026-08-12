@@ -4429,10 +4429,10 @@ static void R_ScaleChanged_f (cvar_t *var)
 
 /*
 ===================
-R_GTAODefaults_f
+R_RestoreGTAODefaults
 ===================
 */
-static void R_GTAODefaults_f (void)
+void R_RestoreGTAODefaults (void)
 {
 	cvar_t *gtao_cvars[] = {
 		&r_gtao,
@@ -4462,6 +4462,11 @@ static void R_GTAODefaults_f (void)
 
 	for (uint32_t i = 0; i < countof (gtao_cvars); ++i)
 		Cvar_SetQuick (gtao_cvars[i], gtao_cvars[i]->default_string);
+}
+
+static void R_GTAODefaults_f (void)
+{
+	R_RestoreGTAODefaults ();
 	Con_Printf ("GTAO settings restored to renderer defaults\n");
 }
 

@@ -196,6 +196,7 @@ extern refdef_t r_refdef;
 extern vec3_t	r_origin, vpn, vright, vup;
 
 void R_Init (void);
+void R_RestoreGTAODefaults (void);
 void R_InitTextures (void);
 void R_InitEfrags (void);
 void R_RenderView (
