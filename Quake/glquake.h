@@ -530,7 +530,6 @@ typedef struct
 	uint32_t gtao_viewport_width;
 	uint32_t gtao_viewport_height;
 	float gtao_projection[4];
-	float gtao_view_projection[16];
 
 	// Dispatch table
 	PFN_vkCmdBindPipeline			vk_cmd_bind_pipeline;
@@ -620,8 +619,6 @@ extern cvar_t r_gtao_denoise;
 extern cvar_t r_gtao_bias;
 extern cvar_t r_gtao_bent_normals;
 extern cvar_t r_gtao_multibounce;
-extern cvar_t r_gtao_temporal;
-extern cvar_t r_gtao_temporal_blend;
 extern cvar_t r_gtao_halfres;
 extern cvar_t r_gtao_liquid_water;
 extern cvar_t r_gtao_liquid_slime;

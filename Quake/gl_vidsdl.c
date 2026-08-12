@@ -162,33 +162,6 @@ static VkImage			gtao_denoise_buffer;
 static vulkan_memory_t	gtao_denoise_buffer_memory;
 static VkImageView		gtao_denoise_buffer_view;
 static qboolean			gtao_denoise_buffer_initialized;
-static VkImage			gtao_history_buffer;
-static vulkan_memory_t	gtao_history_buffer_memory;
-static VkImageView		gtao_history_buffer_view;
-static qboolean			gtao_history_initialized;
-static float			gtao_previous_view_projection[16];
-static vec3_t			gtao_previous_origin;
-static vec3_t			gtao_previous_forward;
-static int32_t			gtao_previous_viewport_x;
-static int32_t			gtao_previous_viewport_y;
-static uint32_t			gtao_previous_viewport_width;
-static uint32_t			gtao_previous_viewport_height;
-static float			gtao_previous_projection[2];
-static qboolean			gtao_previous_halfres;
-static uint32_t			gtao_previous_debug_mode;
-typedef struct gtao_history_settings_s
-{
-	float	 radius;
-	float	 thickness;
-	float	 depth_mip_offset;
-	float	 bias;
-	float	 radius_multiplier;
-	float	 falloff_range;
-	uint32_t normal_mode;
-	uint32_t quality;
-	uint32_t noise_mode;
-} gtao_history_settings_t;
-static gtao_history_settings_t gtao_previous_history_settings;
 static VkImage			gtao_depth_pyramid;
 static vulkan_memory_t	gtao_depth_pyramid_memory;
 static VkImageView		gtao_depth_pyramid_view;
@@ -2166,7 +2139,7 @@ static void GL_CreateGTAOBuffer (void)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &gtao_buffer);
 	if (err != VK_SUCCESS)
@@ -2260,30 +2233,6 @@ static void GL_CreateGTAOBuffer (void)
 		Sys_Error ("vkCreateImageView failed with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)gtao_denoise_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "GTAO Denoise Buffer View");
 	gtao_denoise_buffer_initialized = false;
-
-	image_create_info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &gtao_history_buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateImage failed with code %i", (int)err);
-	GL_SetObjectName ((uint64_t)gtao_history_buffer, VK_OBJECT_TYPE_IMAGE, "GTAO History Buffer");
-
-	vkGetImageMemoryRequirements (vulkan_globals.device, gtao_history_buffer, &memory_requirements);
-	dedicated_allocation_info.image = gtao_history_buffer;
-	memory_allocate_info.allocationSize = memory_requirements.size;
-	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-	assert (gtao_history_buffer_memory.handle == VK_NULL_HANDLE);
-	R_AllocateVulkanMemory (&gtao_history_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
-	GL_SetObjectName ((uint64_t)gtao_history_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "GTAO History Buffer");
-	err = vkBindImageMemory (vulkan_globals.device, gtao_history_buffer, gtao_history_buffer_memory.handle, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
-
-	image_view_create_info.image = gtao_history_buffer;
-	err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &gtao_history_buffer_view);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateImageView failed with code %i", (int)err);
-	GL_SetObjectName ((uint64_t)gtao_history_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "GTAO History Buffer View");
-	gtao_history_initialized = false;
 
 	image_create_info.format = VK_FORMAT_R32_SFLOAT;
 	image_create_info.mipLevels = GTAO_DEPTH_MIP_LEVELS;
@@ -2936,12 +2885,7 @@ void GL_UpdateDescriptorSets (void)
 		gtao_stencil_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		gtao_stencil_image_info.sampler = vulkan_globals.point_sampler;
 
-		ZEROED_STRUCT (VkDescriptorImageInfo, gtao_history_image_info);
-		gtao_history_image_info.imageView = gtao_history_buffer_view;
-		gtao_history_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		gtao_history_image_info.sampler = vulkan_globals.point_sampler;
-
-		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, gtao_writes, 5);
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, gtao_writes, 4);
 		gtao_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		gtao_writes[0].dstBinding = 0;
 		gtao_writes[0].descriptorCount = 1;
@@ -2969,13 +2913,6 @@ void GL_UpdateDescriptorSets (void)
 		gtao_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		gtao_writes[3].dstSet = vulkan_globals.gtao_desc_set;
 		gtao_writes[3].pImageInfo = &gtao_stencil_image_info;
-
-		gtao_writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		gtao_writes[4].dstBinding = 4;
-		gtao_writes[4].descriptorCount = 1;
-		gtao_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		gtao_writes[4].dstSet = vulkan_globals.gtao_desc_set;
-		gtao_writes[4].pImageInfo = &gtao_history_image_info;
 
 		vkUpdateDescriptorSets (vulkan_globals.device, countof (gtao_writes), gtao_writes, 0, NULL);
 
@@ -3702,13 +3639,6 @@ static void GL_DestroyRenderResources (void)
 	gtao_denoise_buffer = VK_NULL_HANDLE;
 	gtao_denoise_buffer_initialized = false;
 
-	vkDestroyImageView (vulkan_globals.device, gtao_history_buffer_view, NULL);
-	vkDestroyImage (vulkan_globals.device, gtao_history_buffer, NULL);
-	R_FreeVulkanMemory (&gtao_history_buffer_memory, &num_vulkan_misc_allocations);
-	gtao_history_buffer_view = VK_NULL_HANDLE;
-	gtao_history_buffer = VK_NULL_HANDLE;
-	gtao_history_initialized = false;
-
 	for (uint32_t mip = 0; mip < GTAO_DEPTH_MIP_LEVELS; ++mip)
 	{
 		vkDestroyImageView (vulkan_globals.device, gtao_depth_mip_views[mip], NULL);
@@ -4108,11 +4038,6 @@ typedef struct gtao_constants_s
 	uint32_t flags;
 	float	 radius_multiplier;
 	float	 falloff_range;
-	float	 temporal_blend;
-	uint32_t padding;
-	float	 current_to_previous_clip_x[4];
-	float	 current_to_previous_clip_y[4];
-	float	 current_to_previous_clip_w[4];
 } gtao_constants_t;
 
 typedef struct ray_debug_constants_s
@@ -4261,8 +4186,8 @@ typedef struct gtao_denoise_constants_s
 
 static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 {
-	const uint32_t debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 7);
-	const uint32_t pass_count = (debug_mode == 0u || debug_mode == 7u) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
+	const uint32_t debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 6);
+	const uint32_t pass_count = (debug_mode == 0u || debug_mode == 6u) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
 	if (pass_count == 0)
 		return;
 
@@ -4358,10 +4283,7 @@ GL_GTAO
 static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 {
 	R_BeginDebugUtilsLabel (cbx, "GTAO");
-	const qboolean store_temporal_history = r_gtao_temporal.value > 0.0f && r_gtao_bent_normals.value <= 0.0f &&
-		(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 6 || (int)r_gtao_debug.value == 7);
-
-	ZEROED_STRUCT_ARRAY (VkImageMemoryBarrier, image_barriers, 3);
+	ZEROED_STRUCT_ARRAY (VkImageMemoryBarrier, image_barriers, 2);
 
 	image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	image_barriers[0].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
@@ -4387,66 +4309,15 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 	image_barriers[1].subresourceRange.levelCount = 1;
 	image_barriers[1].subresourceRange.layerCount = 1;
 
-	image_barriers[2].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	image_barriers[2].srcAccessMask = gtao_history_initialized ? VK_ACCESS_SHADER_READ_BIT : 0;
-	image_barriers[2].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	image_barriers[2].oldLayout = gtao_history_initialized ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
-	image_barriers[2].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	image_barriers[2].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	image_barriers[2].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	image_barriers[2].image = gtao_history_buffer;
-	image_barriers[2].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	image_barriers[2].subresourceRange.levelCount = 1;
-	image_barriers[2].subresourceRange.layerCount = 1;
-
 	vkCmdPipelineBarrier (
 		cbx->cb, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, store_temporal_history ? countof (image_barriers) : 2, image_barriers);
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, countof (image_barriers), image_barriers);
 	GL_GTAODepthPyramid (cbx, parms);
 
 	GL_SetCanvas (cbx, CANVAS_NONE);
 	vulkan_pipeline_t *pipeline = &vulkan_globals.gtao_pipeline;
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
 	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.gtao_desc_set, 0, NULL);
-
-	vec3_t origin_delta;
-	VectorSubtract (parms->origin, gtao_previous_origin, origin_delta);
-	const gtao_history_settings_t history_settings = {
-		.radius = q_max (1.0f, r_gtao_radius.value),
-		.thickness = q_max (0.0f, r_gtao_thickness.value),
-		.depth_mip_offset = r_gtao_depth_prefilter.value > 0.0f ? CLAMP (0.0f, r_gtao_depth_mip_offset.value, 8.0f) : 64.0f,
-		.bias = CLAMP (0.0f, r_gtao_bias.value, 0.5f),
-		.radius_multiplier = CLAMP (0.3f, r_gtao_radius_multiplier.value, 3.0f),
-		.falloff_range = CLAMP (0.01f, r_gtao_falloff.value, 1.0f),
-		.normal_mode = (uint32_t)CLAMP (0, (int)r_gtao_normal_mode.value, 2),
-		.quality = (uint32_t)CLAMP (0, (int)r_gtao_quality.value, 3),
-		.noise_mode = r_gtao_noise_mode.value > 0.0f ? 1u : 0u,
-	};
-	const qboolean temporal_history_valid = gtao_history_initialized &&
-		gtao_previous_viewport_x == vulkan_globals.gtao_viewport_x && gtao_previous_viewport_y == vulkan_globals.gtao_viewport_y &&
-		gtao_previous_viewport_width == vulkan_globals.gtao_viewport_width && gtao_previous_viewport_height == vulkan_globals.gtao_viewport_height &&
-		fabsf (gtao_previous_projection[0] - vulkan_globals.gtao_projection[0]) < 0.0001f &&
-		fabsf (gtao_previous_projection[1] - vulkan_globals.gtao_projection[1]) < 0.0001f &&
-		gtao_previous_halfres == (r_gtao_halfres.value > 0.0f) &&
-		gtao_previous_debug_mode == (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 7) &&
-		memcmp (&gtao_previous_history_settings, &history_settings, sizeof (history_settings)) == 0 &&
-		DotProduct (origin_delta, origin_delta) < 4096.0f && DotProduct (parms->forward, gtao_previous_forward) > 0.5f;
-
-	float reprojection[3][4];
-	const int previous_clip_rows[3] = {0, 1, 3};
-	for (int output_row = 0; output_row < 3; ++output_row)
-	{
-		const int row = previous_clip_rows[output_row];
-		vec3_t previous_row = {
-			gtao_previous_view_projection[0 * 4 + row],
-			gtao_previous_view_projection[1 * 4 + row],
-			gtao_previous_view_projection[2 * 4 + row],
-		};
-		reprojection[output_row][0] = DotProduct (previous_row, parms->right);
-		reprojection[output_row][1] = -DotProduct (previous_row, parms->down);
-		reprojection[output_row][2] = -DotProduct (previous_row, parms->forward);
-		reprojection[output_row][3] = DotProduct (previous_row, parms->origin) + gtao_previous_view_projection[3 * 4 + row];
-	}
 
 	gtao_constants_t push_constants = {
 		.viewport_x = vulkan_globals.gtao_viewport_x,
@@ -4460,102 +4331,36 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 		.radius = q_max (1.0f, r_gtao_radius.value),
 		.thickness = q_max (0.0f, r_gtao_thickness.value),
 		.normal_mode = (uint32_t)CLAMP (0, (int)r_gtao_normal_mode.value, 2),
-		.debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 7),
+		.debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 6),
 		.quality = (uint32_t)CLAMP (0, (int)r_gtao_quality.value, 3),
 		.depth_mip_offset = r_gtao_depth_prefilter.value > 0.0f ? CLAMP (0.0f, r_gtao_depth_mip_offset.value, 8.0f) : 64.0f,
 		.bias = CLAMP (0.0f, r_gtao_bias.value, 0.5f),
-		.flags = (r_gtao_bent_normals.value > 0.0f ? 1u : 0u) |
-			((r_gtao_temporal.value > 0.0f && r_gtao_bent_normals.value <= 0.0f && temporal_history_valid &&
-			  (r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 6 || (int)r_gtao_debug.value == 7)) ? 2u : 0u) |
-			(r_gtao_halfres.value > 0.0f ? 4u : 0u) | (r_gtao_noise_mode.value > 0.0f ? 8u : 0u),
+		.flags = (r_gtao_bent_normals.value > 0.0f ? 1u : 0u) | (r_gtao_halfres.value > 0.0f ? 4u : 0u) |
+			(r_gtao_noise_mode.value > 0.0f ? 8u : 0u),
 		.radius_multiplier = CLAMP (0.3f, r_gtao_radius_multiplier.value, 3.0f),
 		.falloff_range = CLAMP (0.01f, r_gtao_falloff.value, 1.0f),
-		.temporal_blend = CLAMP (0.0f, r_gtao_temporal_blend.value, 0.97f),
-		.padding = 0u,
 	};
-	memcpy (push_constants.current_to_previous_clip_x, reprojection[0], sizeof (reprojection[0]));
-	memcpy (push_constants.current_to_previous_clip_y, reprojection[1], sizeof (reprojection[1]));
-	memcpy (push_constants.current_to_previous_clip_w, reprojection[2], sizeof (reprojection[2]));
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
 	const uint32_t gtao_stride = r_gtao_halfres.value > 0.0f ? 2u : 1u;
 	vkCmdDispatch (cbx->cb, (parms->vid_width + 8 * gtao_stride - 1) / (8 * gtao_stride), (parms->vid_height + 8 * gtao_stride - 1) / (8 * gtao_stride), 1);
 
-	if (store_temporal_history)
-	{
-		ZEROED_STRUCT_ARRAY (VkImageMemoryBarrier, copy_barriers, 2);
-		copy_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		copy_barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		copy_barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		copy_barriers[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-		copy_barriers[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		copy_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		copy_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		copy_barriers[0].image = gtao_buffer;
-		copy_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		copy_barriers[0].subresourceRange.levelCount = 1;
-		copy_barriers[0].subresourceRange.layerCount = 1;
-		copy_barriers[1] = copy_barriers[0];
-		copy_barriers[1].srcAccessMask = gtao_history_initialized ? VK_ACCESS_SHADER_READ_BIT : 0;
-		copy_barriers[1].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		copy_barriers[1].oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		copy_barriers[1].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		copy_barriers[1].image = gtao_history_buffer;
-		vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 2, copy_barriers);
-
-		const uint32_t history_stride = r_gtao_halfres.value > 0.0f ? 2u : 1u;
-		ZEROED_STRUCT (VkImageCopy, history_copy);
-		history_copy.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		history_copy.srcSubresource.layerCount = 1;
-		history_copy.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		history_copy.dstSubresource.layerCount = 1;
-		history_copy.extent.width = (parms->vid_width + history_stride - 1) / history_stride;
-		history_copy.extent.height = (parms->vid_height + history_stride - 1) / history_stride;
-		history_copy.extent.depth = 1;
-		vkCmdCopyImage (cbx->cb, gtao_buffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, gtao_history_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &history_copy);
-
-		copy_barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		copy_barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		copy_barriers[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		copy_barriers[0].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		copy_barriers[1].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		copy_barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		copy_barriers[1].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		copy_barriers[1].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 2, copy_barriers);
-	}
-	else
-	{
-		ZEROED_STRUCT (VkImageMemoryBarrier, ao_barrier);
-		ao_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		ao_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		ao_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		ao_barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-		ao_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		ao_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		ao_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		ao_barrier.image = gtao_buffer;
-		ao_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		ao_barrier.subresourceRange.levelCount = 1;
-		ao_barrier.subresourceRange.layerCount = 1;
-		vkCmdPipelineBarrier (
-			cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &ao_barrier);
-	}
+	ZEROED_STRUCT (VkImageMemoryBarrier, ao_barrier);
+	ao_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	ao_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	ao_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	ao_barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+	ao_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	ao_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	ao_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	ao_barrier.image = gtao_buffer;
+	ao_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	ao_barrier.subresourceRange.levelCount = 1;
+	ao_barrier.subresourceRange.layerCount = 1;
+	vkCmdPipelineBarrier (
+		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &ao_barrier);
 	GL_GTAODenoise (cbx, parms);
 
 	gtao_buffer_initialized = true;
-	gtao_history_initialized = store_temporal_history;
-	memcpy (gtao_previous_view_projection, vulkan_globals.gtao_view_projection, sizeof (gtao_previous_view_projection));
-	VectorCopy (parms->origin, gtao_previous_origin);
-	VectorCopy (parms->forward, gtao_previous_forward);
-	gtao_previous_viewport_x = vulkan_globals.gtao_viewport_x;
-	gtao_previous_viewport_y = vulkan_globals.gtao_viewport_y;
-	gtao_previous_viewport_width = vulkan_globals.gtao_viewport_width;
-	gtao_previous_viewport_height = vulkan_globals.gtao_viewport_height;
-	gtao_previous_projection[0] = vulkan_globals.gtao_projection[0];
-	gtao_previous_projection[1] = vulkan_globals.gtao_projection[1];
-	gtao_previous_halfres = r_gtao_halfres.value > 0.0f;
-	gtao_previous_debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 7);
-	gtao_previous_history_settings = history_settings;
 	R_EndDebugUtilsLabel (cbx);
 }
 
@@ -4665,9 +4470,9 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 			if (R_GTAOEnabled ())
 			{
 				push_constants.gtao_strength = r_gtao_strength.value;
-				push_constants.gtao_debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 8);
+				push_constants.gtao_debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 7);
 				push_constants.gtao_denoise =
-					(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 7) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
+					(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 6) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
 				push_constants.gtao_multibounce = CLAMP (0.0f, r_gtao_multibounce.value, 1.0f);
 				push_constants.gtao_halfres = r_gtao_halfres.value > 0.0f ? 1u : 0u;
 				push_constants.gtao_liquid_water =

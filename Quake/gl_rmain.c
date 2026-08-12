@@ -131,8 +131,6 @@ cvar_t r_gtao_denoise = {"r_gtao_denoise", "2", CVAR_ARCHIVE};
 cvar_t r_gtao_bias = {"r_gtao_bias", "0", CVAR_ARCHIVE};
 cvar_t r_gtao_bent_normals = {"r_gtao_bent_normals", "0", CVAR_NONE};
 cvar_t r_gtao_multibounce = {"r_gtao_multibounce", "1", CVAR_ARCHIVE};
-cvar_t r_gtao_temporal = {"r_gtao_temporal", "0", CVAR_ARCHIVE};
-cvar_t r_gtao_temporal_blend = {"r_gtao_temporal_blend", "0.85", CVAR_ARCHIVE};
 cvar_t r_gtao_halfres = {"r_gtao_halfres", "1", CVAR_ARCHIVE};
 cvar_t r_gtao_liquid_water = {"r_gtao_liquid_water", "1", CVAR_ARCHIVE};
 cvar_t r_gtao_liquid_slime = {"r_gtao_liquid_slime", "1", CVAR_ARCHIVE};
@@ -450,7 +448,6 @@ static void R_SetupViewBeforeMark (void *unused)
 		vulkan_globals.gtao_projection[1] = 1.0f / (-vulkan_globals.projection_matrix[5]);
 		vulkan_globals.gtao_projection[2] = vulkan_globals.projection_matrix[10];
 		vulkan_globals.gtao_projection[3] = vulkan_globals.projection_matrix[14];
-		memcpy (vulkan_globals.gtao_view_projection, vulkan_globals.view_projection_matrix, sizeof (vulkan_globals.gtao_view_projection));
 	}
 
 	// johnfitz -- cheat-protect some draw modes

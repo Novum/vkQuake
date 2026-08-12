@@ -76,8 +76,6 @@ extern cvar_t r_gtao_denoise;
 extern cvar_t r_gtao_bias;
 extern cvar_t r_gtao_bent_normals;
 extern cvar_t r_gtao_multibounce;
-extern cvar_t r_gtao_temporal;
-extern cvar_t r_gtao_temporal_blend;
 extern cvar_t r_gtao_halfres;
 extern cvar_t r_gtao_liquid_water;
 extern cvar_t r_gtao_liquid_slime;
@@ -1512,7 +1510,7 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, gtao_layout_bindings, 5);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, gtao_layout_bindings, 4);
 		gtao_layout_bindings[0].binding = 0;
 		gtao_layout_bindings[0].descriptorCount = 1;
 		gtao_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1529,15 +1527,11 @@ void R_CreateDescriptorSetLayouts ()
 		gtao_layout_bindings[3].descriptorCount = 1;
 		gtao_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		gtao_layout_bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		gtao_layout_bindings[4].binding = 4;
-		gtao_layout_bindings[4].descriptorCount = 1;
-		gtao_layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		gtao_layout_bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		descriptor_set_layout_create_info.bindingCount = countof (gtao_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = gtao_layout_bindings;
 
 		memset (&vulkan_globals.gtao_set_layout, 0, sizeof (vulkan_globals.gtao_set_layout));
-		vulkan_globals.gtao_set_layout.num_combined_image_samplers = 4;
+		vulkan_globals.gtao_set_layout.num_combined_image_samplers = 3;
 		vulkan_globals.gtao_set_layout.num_storage_images = 1;
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.gtao_set_layout.handle);
@@ -2075,7 +2069,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 12 * sizeof (uint32_t) + 20 * sizeof (float);
+		push_constant_range.size = 8 * sizeof (uint32_t) + 10 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -4451,8 +4445,6 @@ void R_RestoreGTAODefaults (void)
 		&r_gtao_bias,
 		&r_gtao_bent_normals,
 		&r_gtao_multibounce,
-		&r_gtao_temporal,
-		&r_gtao_temporal_blend,
 		&r_gtao_halfres,
 		&r_gtao_liquid_water,
 		&r_gtao_liquid_slime,
@@ -4558,8 +4550,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_gtao_bias);
 	Cvar_RegisterVariable (&r_gtao_bent_normals);
 	Cvar_RegisterVariable (&r_gtao_multibounce);
-	Cvar_RegisterVariable (&r_gtao_temporal);
-	Cvar_RegisterVariable (&r_gtao_temporal_blend);
 	Cvar_RegisterVariable (&r_gtao_halfres);
 	Cvar_RegisterVariable (&r_gtao_liquid_water);
 	Cvar_RegisterVariable (&r_gtao_liquid_slime);

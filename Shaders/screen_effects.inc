@@ -292,9 +292,9 @@ void main ()
 		const ivec2 liquid_pixel = gtao_warped ?
 			clamp (ivec2 (effect_texcoord / push_constants.screen_size_rcp), ivec2 (0), ivec2 (push_constants.clamp_size)) : ao_pixel;
 		const uint liquid_mask = gtao_liquid_mask (liquid_pixel);
-		if (push_constants.gtao_debug_mode == 8u)
+		if (push_constants.gtao_debug_mode == 7u)
 			color.rgb = gtao_liquid_debug_color (liquid_mask);
-		else if (push_constants.gtao_debug_mode == 1u || push_constants.gtao_debug_mode == 7u)
+		else if (push_constants.gtao_debug_mode == 1u || push_constants.gtao_debug_mode == 6u)
 			color.rgb = vec3 (clamp (ao_sample.r, 0.0f, 1.0f));
 		else if (push_constants.gtao_debug_mode > 1u)
 			color.rgb = ao_sample.rgb;

@@ -6,7 +6,6 @@ layout (set = 0, binding = 0) uniform sampler2D view_depth_pyramid_tex;
 layout (set = 0, binding = 1) uniform sampler2D blue_noise_tex;
 layout (set = 0, binding = 2, rgba8) uniform writeonly image2D ao_image;
 layout (set = 0, binding = 3) uniform sampler2D classification_mask_tex;
-layout (set = 0, binding = 4) uniform sampler2D ao_history_tex;
 
 layout (push_constant) uniform GTAOConsts
 {
@@ -23,11 +22,6 @@ layout (push_constant) uniform GTAOConsts
 	uint  flags;
 	float radius_multiplier;
 	float falloff_range;
-	float temporal_blend;
-	uint  padding;
-	vec4  current_to_previous_clip_x;
-	vec4  current_to_previous_clip_y;
-	vec4  current_to_previous_clip_w;
 }
 push_constants;
 
@@ -38,7 +32,6 @@ const float HALF_PI = 1.57079632679489661923f;
 const uint STENCIL_MASK_SKY = 0x1u;
 const uint STENCIL_MASK_VIEWMODEL = 0x2u;
 const uint GTAO_FLAG_BENT_NORMALS = 0x1u;
-const uint GTAO_FLAG_TEMPORAL = 0x2u;
 const uint GTAO_FLAG_HALFRES = 0x4u;
 const uint GTAO_FLAG_HILBERT_NOISE = 0x8u;
 
@@ -459,38 +452,6 @@ void main ()
 		imageStore (ao_image, ao_pixel, vec4 (safe_normalize (bent_sum) * 0.5f + 0.5f, 1.0f));
 		return;
 	}
-	float packed_depth = clamp (log2 (1.0f + max (-center.z, 0.0f)) / 16.0f, 0.0f, 1.0f);
-	float temporal_weight = 0.0f;
-	if ((push_constants.flags & GTAO_FLAG_TEMPORAL) != 0u)
-	{
-		vec4 view_position = vec4 (center, 1.0f);
-		vec3 previous_clip = vec3 (
-			dot (push_constants.current_to_previous_clip_x, view_position),
-			dot (push_constants.current_to_previous_clip_y, view_position),
-			dot (push_constants.current_to_previous_clip_w, view_position));
-		if (previous_clip.z > 0.0001f)
-		{
-			vec2 previous_ndc = previous_clip.xy / previous_clip.z;
-			ivec2 previous_pixel = push_constants.viewport_origin + ivec2 ((previous_ndc * 0.5f + 0.5f) * vec2 (push_constants.viewport_size));
-			if (inside_viewport (previous_pixel))
-			{
-				ivec2 history_pixel = half_res ? previous_pixel / 2 : previous_pixel;
-				vec4 history = texelFetch (ao_history_tex, history_pixel, 0);
-				float previous_packed_depth = clamp (log2 (1.0f + previous_clip.z) / 16.0f, 0.0f, 1.0f);
-				if (abs (history.a - previous_packed_depth) < 0.004f)
-				{
-					float clamped_history = clamp (history.r, visibility - 0.15f, visibility + 0.15f);
-					temporal_weight = clamp (push_constants.temporal_blend, 0.0f, 0.97f);
-					visibility = mix (visibility, clamped_history, temporal_weight);
-				}
-			}
-		}
-	}
-	if (push_constants.debug_mode == 6u)
-	{
-		imageStore (ao_image, ao_pixel, vec4 (temporal_weight, 1.0f - temporal_weight, 0.0f, packed_depth));
-		return;
-	}
-	vec2 packed_bent = compute_bent_normal ? oct_encode (safe_normalize (bent_sum)) : vec2 (0.0f, packed_depth);
+	vec2 packed_bent = compute_bent_normal ? oct_encode (safe_normalize (bent_sum)) : vec2 (0.0f);
 	imageStore (ao_image, ao_pixel, vec4 (visibility, packed_edges, packed_bent));
 }
