@@ -614,7 +614,6 @@ extern cvar_t r_gtao_denoise;
 extern cvar_t r_gtao_bias;
 extern cvar_t r_gtao_multibounce;
 extern cvar_t r_gtao_halfres;
-extern cvar_t r_gtao_halfres_depth_aware;
 extern cvar_t r_gtao_liquid_water;
 extern cvar_t r_gtao_liquid_slime;
 extern cvar_t r_gtao_liquid_lava;

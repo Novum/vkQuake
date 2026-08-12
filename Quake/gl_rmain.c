@@ -126,7 +126,6 @@ cvar_t r_gtao_denoise = {"r_gtao_denoise", "2", CVAR_ARCHIVE};
 cvar_t r_gtao_bias = {"r_gtao_bias", "0", CVAR_ARCHIVE};
 cvar_t r_gtao_multibounce = {"r_gtao_multibounce", "1", CVAR_ARCHIVE};
 cvar_t r_gtao_halfres = {"r_gtao_halfres", "1", CVAR_ARCHIVE};
-cvar_t r_gtao_halfres_depth_aware = {"r_gtao_halfres_depth_aware", "0", CVAR_ARCHIVE};
 cvar_t r_gtao_liquid_water = {"r_gtao_liquid_water", "1", CVAR_ARCHIVE};
 cvar_t r_gtao_liquid_slime = {"r_gtao_liquid_slime", "1", CVAR_ARCHIVE};
 cvar_t r_gtao_liquid_lava = {"r_gtao_liquid_lava", "1", CVAR_ARCHIVE};

@@ -71,7 +71,6 @@ extern cvar_t r_gtao_denoise;
 extern cvar_t r_gtao_bias;
 extern cvar_t r_gtao_multibounce;
 extern cvar_t r_gtao_halfres;
-extern cvar_t r_gtao_halfres_depth_aware;
 extern cvar_t r_gtao_liquid_water;
 extern cvar_t r_gtao_liquid_slime;
 extern cvar_t r_gtao_liquid_lava;
@@ -2039,7 +2038,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 7 * sizeof (uint32_t) + 14 * sizeof (float);
+		push_constant_range.size = 6 * sizeof (uint32_t) + 14 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -4439,7 +4438,6 @@ void R_RestoreGTAODefaults (void)
 		&r_gtao_bias,
 		&r_gtao_multibounce,
 		&r_gtao_halfres,
-		&r_gtao_halfres_depth_aware,
 		&r_gtao_liquid_water,
 		&r_gtao_liquid_slime,
 		&r_gtao_liquid_lava,
@@ -4539,7 +4537,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_gtao_bias);
 	Cvar_RegisterVariable (&r_gtao_multibounce);
 	Cvar_RegisterVariable (&r_gtao_halfres);
-	Cvar_RegisterVariable (&r_gtao_halfres_depth_aware);
 	Cvar_RegisterVariable (&r_gtao_liquid_water);
 	Cvar_RegisterVariable (&r_gtao_liquid_slime);
 	Cvar_RegisterVariable (&r_gtao_liquid_lava);

@@ -4028,7 +4028,6 @@ typedef struct screen_effect_constants_s
 	uint32_t gtao_denoise;
 	float	 gtao_multibounce;
 	uint32_t gtao_halfres;
-	uint32_t gtao_halfres_depth_aware;
 	float	 gtao_liquid_water;
 	float	 gtao_liquid_slime;
 	float	 gtao_liquid_lava;
@@ -4196,7 +4195,7 @@ typedef struct gtao_denoise_constants_s
 	uint32_t clamp_height;
 	uint32_t sample_stride;
 	float	 center_weight;
-	uint32_t depth_aware;
+	uint32_t half_res;
 } gtao_denoise_constants_t;
 
 static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
@@ -4232,7 +4231,7 @@ static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 		working_height - 1,
 		1u,
 		pass_count == 1 ? 1.2f : 0.24f,
-		r_gtao_halfres.value > 0.0f && r_gtao_halfres_depth_aware.value > 0.0f ? 1u : 0u,
+		r_gtao_halfres.value > 0.0f ? 1u : 0u,
 	};
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
 	vkCmdDispatch (cbx->cb, (working_width + 15) / 16, (working_height + 7) / 8, 1);
@@ -4355,8 +4354,7 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 		.debug_mode = gtao_debug >= 1 && gtao_debug <= 4 ? (uint32_t)gtao_debug : 0u,
 		.quality = (uint32_t)CLAMP (0, (int)r_gtao_quality.value, 4),
 		.bias = CLAMP (0.0f, r_gtao_bias.value, 0.5f),
-		.flags = (r_gtao_halfres.value > 0.0f ? 1u : 0u) |
-			(r_gtao_halfres.value > 0.0f && r_gtao_halfres_depth_aware.value > 0.0f ? 2u : 0u),
+		.flags = r_gtao_halfres.value > 0.0f ? 1u : 0u,
 		.falloff_range = CLAMP (0.01f, r_gtao_falloff.value, 1.0f),
 	};
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
@@ -4494,8 +4492,6 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 					(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 5) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
 				push_constants.gtao_multibounce = CLAMP (0.0f, r_gtao_multibounce.value, 1.0f);
 				push_constants.gtao_halfres = r_gtao_halfres.value > 0.0f ? 1u : 0u;
-				push_constants.gtao_halfres_depth_aware =
-					r_gtao_halfres.value > 0.0f && r_gtao_halfres_depth_aware.value > 0.0f ? 1u : 0u;
 				push_constants.gtao_liquid_water =
 					CLAMP (0.0f, r_gtao_liquid_water.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_WATER), 1.0f);
 				push_constants.gtao_liquid_slime =

@@ -36,7 +36,6 @@ layout (push_constant) uniform PushConsts
 	uint  gtao_denoise;
 	float gtao_multibounce;
 	uint  gtao_halfres;
-	uint  gtao_halfres_depth_aware;
 	float gtao_liquid_water;
 	float gtao_liquid_slime;
 	float gtao_liquid_lava;
@@ -115,8 +114,6 @@ vec4 gtao_fetch (ivec2 pixel)
 
 ivec2 gtao_representative_offset (vec4 ao_sample)
 {
-	if (push_constants.gtao_halfres_depth_aware == 0u)
-		return ivec2 (0);
 	uint index = uint (round (clamp (ao_sample.a, 0.0f, 1.0f) * 3.0f));
 	return ivec2 (int (index & 1u), int (index >> 1u));
 }
@@ -126,13 +123,6 @@ float gtao_depth_similarity (float center_depth, float sample_depth)
 	if (center_depth <= 0.0f || sample_depth <= 0.0f)
 		return center_depth == sample_depth ? 1.0f : 0.0f;
 	return clamp (1.25f - abs (sample_depth - center_depth) / max (center_depth * 0.011f, 0.00001f), 0.0f, 1.0f);
-}
-
-float gtao_relative_depth_difference (float center_depth, float sample_depth)
-{
-	if (center_depth <= 0.0f || sample_depth <= 0.0f)
-		return center_depth == sample_depth ? 0.0f : 1e30f;
-	return abs (sample_depth - center_depth) / max (center_depth, 0.00001f);
 }
 
 vec4 gtao_resolve_depth_aware (ivec2 target_pixel)
@@ -182,55 +172,7 @@ vec4 gtao_resolve (ivec2 target_pixel, vec2 target_uv, bool warped)
 		target_pixel = clamp (ivec2 (target_uv / push_constants.screen_size_rcp), ivec2 (0), ivec2 (push_constants.clamp_size));
 	if (push_constants.gtao_halfres == 0u)
 		return gtao_fetch (target_pixel);
-	if (push_constants.gtao_halfres_depth_aware != 0u)
-		return gtao_resolve_depth_aware (target_pixel);
-
-	// Half-resolution AO is stored contiguously in the upper-left working
-	// region. AO texel q represents source pixel 2*q.
-	ivec2 source_max = ivec2 (push_constants.clamp_size);
-	ivec2 working_max = source_max / 2;
-	ivec2 base = clamp (target_pixel / 2, ivec2 (0), working_max);
-	if (all (equal (target_pixel, base * 2)))
-		return gtao_fetch (base);
-	ivec2 candidates[4] = ivec2[4] (
-		base, min (base + ivec2 (1, 0), working_max),
-		min (base + ivec2 (0, 1), working_max), min (base + ivec2 (1, 1), working_max));
-	float target_depth = texelFetch (gtao_view_depth_tex, target_pixel, 0).r;
-	vec2 fraction = clamp (vec2 (target_pixel - base * 2) * 0.5f, 0.0f, 1.0f);
-	vec4 spatial_weights = vec4 ((1.0f - fraction.x) * (1.0f - fraction.y), fraction.x * (1.0f - fraction.y),
-		(1.0f - fraction.x) * fraction.y, fraction.x * fraction.y);
-	vec4 closest_result = gtao_fetch (base);
-	vec4 best_result = closest_result;
-	float visibility_sum = 0.0f;
-	float weight_sum = 0.0f;
-	float best_weight = 0.0f;
-	float closest_depth_difference = 1e30f;
-	for (int i = 0; i < 4; ++i)
-	{
-		if (spatial_weights[i] <= 0.0f)
-			continue;
-		vec4 candidate = i == 0 ? closest_result : gtao_fetch (candidates[i]);
-		ivec2 source_pixel = min (candidates[i] * 2, source_max);
-		float sample_depth = texelFetch (gtao_view_depth_tex, source_pixel, 0).r;
-		float depth_difference = gtao_relative_depth_difference (target_depth, sample_depth);
-		if (depth_difference < closest_depth_difference)
-		{
-			closest_depth_difference = depth_difference;
-			closest_result = candidate;
-		}
-		float weight = spatial_weights[i] * gtao_depth_similarity (target_depth, sample_depth);
-		visibility_sum += candidate.r * weight;
-		weight_sum += weight;
-		if (weight > best_weight)
-		{
-			best_weight = weight;
-			best_result = candidate;
-		}
-	}
-	vec4 result = weight_sum > 0.0001f ? best_result : closest_result;
-	if (weight_sum > 0.0001f)
-		result.r = visibility_sum / weight_sum;
-	return result;
+	return gtao_resolve_depth_aware (target_pixel);
 }
 
 vec3 gtao_multibounce_visibility (float visibility, vec3 albedo)

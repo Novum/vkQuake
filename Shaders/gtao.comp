@@ -29,7 +29,6 @@ const float HALF_PI = 1.57079632679489661923f;
 const uint STENCIL_MASK_SKY = 0x1u;
 const uint STENCIL_MASK_VIEWMODEL = 0x2u;
 const uint GTAO_FLAG_HALFRES = 0x1u;
-const uint GTAO_FLAG_HALFRES_DEPTH_AWARE = 0x2u;
 const float DEPTH_MIP_OFFSET = 3.30f;
 
 float sample_depth (ivec2 pixel)
@@ -145,7 +144,7 @@ void main ()
 		return;
 	ivec2 pixel = ao_pixel * working_stride;
 	uint representative_index = 0u;
-	if (half_res && (push_constants.flags & GTAO_FLAG_HALFRES_DEPTH_AWARE) != 0u)
+	if (half_res)
 	{
 		float closest_depth = 3.402823466e+38f;
 		for (uint index = 0u; index < 4u; ++index)

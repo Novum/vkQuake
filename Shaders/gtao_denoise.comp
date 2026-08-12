@@ -11,7 +11,7 @@ layout (push_constant) uniform DenoiseConsts
 	uvec2 clamp_size;
 	uint sample_stride;
 	float center_weight;
-	uint depth_aware;
+	uint half_res;
 }
 push_constants;
 
@@ -59,7 +59,7 @@ vec4 denoise_value (
 	edges_c *= vec4 (edges_l.y, edges_r.x, edges_t.w, edges_b.z);
 	vec4 depth_weights = vec4 (1.0f);
 	vec4 diagonal_depth_weights = vec4 (1.0f);
-	if (push_constants.depth_aware != 0u)
+	if (push_constants.half_res != 0u)
 	{
 		int stride = int (push_constants.sample_stride);
 		ivec2 limit = ivec2 (push_constants.clamp_size);
@@ -136,7 +136,7 @@ void main ()
 		return;
 
 	ivec2 pixel_next = pixel_base + ivec2 (stride, 0);
-	bool pair_inside = push_constants.depth_aware == 0u && stride == 1 && pixel_base.x > 0 && pixel_next.x < limit.x && pixel_base.y > 0 && pixel_base.y < limit.y;
+	bool pair_inside = push_constants.half_res == 0u && stride == 1 && pixel_base.x > 0 && pixel_next.x < limit.x && pixel_base.y > 0 && pixel_base.y < limit.y;
 	if (!pair_inside)
 	{
 		imageStore (output_ao_image, pixel_base, denoise_fetch (pixel_base));
