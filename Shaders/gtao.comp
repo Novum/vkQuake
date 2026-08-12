@@ -285,9 +285,8 @@ void main ()
 	}
 	float screen_space_radius = effect_radius / pixel_size_x;
 	float visibility = clamp ((10.0f - screen_space_radius) / 100.0f, 0.0f, 1.0f) * 0.5f;
-	// Use a denser 4x4 spatial tier for vkQuake's non-TAA default; retain
-	// XeGTAO's low, medium and ultra tiers at 1x2, 2x2 and 9x3 respectively.
-	// Quality 4 is an experimental no-TAA tier with 12 slices and 4 steps.
+	// Use denser spatial tiers for vkQuake's non-TAA renderer. Quality 4 is the
+	// high menu tier, with 12 slices and 4 steps.
 	int slice_count = push_constants.quality == 0u ? 1 :
 		(push_constants.quality == 1u ? 2 : (push_constants.quality == 2u ? 4 : (push_constants.quality == 3u ? 9 : 12)));
 	int steps_per_slice = push_constants.quality < 2u ? 2 : (push_constants.quality == 2u ? 4 : (push_constants.quality == 3u ? 3 : 4));

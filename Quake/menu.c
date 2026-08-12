@@ -1849,9 +1849,9 @@ static int M_GraphicsOptions_GTAOPreset (void)
 {
 	if (r_gtao.value <= 0.0f)
 		return 0;
-	if (r_gtao_halfres.value > 0.0f)
-		return r_gtao_quality.value >= 3.0f ? 2 : 1;
-	return 3;
+	if (r_gtao_quality.value >= 4.0f)
+		return 3;
+	return r_gtao_quality.value >= 3.0f ? 2 : 1;
 }
 
 static void M_GraphicsOptions_ChooseNextGTAOPreset (int dir)
@@ -1864,8 +1864,8 @@ static void M_GraphicsOptions_ChooseNextGTAOPreset (int dir)
 	}
 
 	R_RestoreGTAODefaults ();
-	Cvar_SetValueQuick (&r_gtao_halfres, preset < 3 ? 1.0f : 0.0f);
-	Cvar_SetValueQuick (&r_gtao_quality, preset == 1 ? 2.0f : 3.0f);
+	Cvar_SetValueQuick (&r_gtao_halfres, 1.0f);
+	Cvar_SetValueQuick (&r_gtao_quality, (float)(preset + 1));
 }
 
 static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
