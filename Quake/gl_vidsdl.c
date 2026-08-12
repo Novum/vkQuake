@@ -4196,7 +4196,7 @@ typedef struct gtao_denoise_constants_s
 
 static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 {
-	const uint32_t debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 5);
+	const uint32_t debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 6);
 	const uint32_t pass_count = (debug_mode == 0u || debug_mode == 5u) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
 	if (pass_count == 0)
 		return;
