@@ -115,7 +115,7 @@ float map_fallbackalpha;
 qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; // johnfitz
 
 cvar_t r_scale = {"r_scale", "1", CVAR_ARCHIVE};
-cvar_t r_gtao = {"r_gtao", "1", CVAR_ARCHIVE};
+cvar_t r_gtao = {"r_gtao", "0", CVAR_ARCHIVE};
 cvar_t r_gtao_radius = {"r_gtao_radius", "32", CVAR_ARCHIVE};
 cvar_t r_gtao_falloff = {"r_gtao_falloff", "0.615", CVAR_ARCHIVE};
 cvar_t r_gtao_thin_occluder_compensation = {"r_gtao_thin_occluder_compensation", "0", CVAR_ARCHIVE};
