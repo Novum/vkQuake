@@ -459,7 +459,6 @@ typedef struct
 	vulkan_pipeline_t		 screen_effects_scale_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;
 	vulkan_pipeline_t		 gtao_pipeline;
-	vulkan_pipeline_t		 gtao_msaa_pipeline;
 	vulkan_pipeline_t		 gtao_depth_pipeline;
 	vulkan_pipeline_t		 gtao_depth_msaa_pipeline;
 	vulkan_pipeline_t		 gtao_depth_r8_pipeline;

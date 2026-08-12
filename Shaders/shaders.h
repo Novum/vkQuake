@@ -73,7 +73,6 @@ DECLARE_SHADER_SPV (screen_effects_10bit_comp);
 DECLARE_SHADER_SPV (screen_effects_10bit_scale_comp);
 DECLARE_SHADER_SPV (screen_effects_10bit_scale_sops_comp);
 DECLARE_SHADER_SPV (gtao_comp);
-DECLARE_SHADER_SPV (gtao_msaa_comp);
 DECLARE_SHADER_SPV (gtao_depth_comp);
 DECLARE_SHADER_SPV (gtao_depth_msaa_comp);
 DECLARE_SHADER_SPV (gtao_depth_r8_comp);

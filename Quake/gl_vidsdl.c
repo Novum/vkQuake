@@ -2923,8 +2923,8 @@ void GL_UpdateDescriptorSets (void)
 		vulkan_globals.gtao_desc_set = R_AllocateDescriptorSet (&vulkan_globals.gtao_set_layout);
 
 		ZEROED_STRUCT (VkDescriptorImageInfo, gtao_depth_image_info);
-		gtao_depth_image_info.imageView = depth_buffer_view;
-		gtao_depth_image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		gtao_depth_image_info.imageView = gtao_depth_pyramid_view;
+		gtao_depth_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		gtao_depth_image_info.sampler = vulkan_globals.point_sampler;
 
 		ZEROED_STRUCT (VkDescriptorImageInfo, gtao_output_image_info);
@@ -2932,8 +2932,8 @@ void GL_UpdateDescriptorSets (void)
 		gtao_output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 		ZEROED_STRUCT (VkDescriptorImageInfo, gtao_stencil_image_info);
-		gtao_stencil_image_info.imageView = stencil_buffer_view;
-		gtao_stencil_image_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		gtao_stencil_image_info.imageView = gtao_liquid_mask_buffer_view;
+		gtao_stencil_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		gtao_stencil_image_info.sampler = vulkan_globals.point_sampler;
 
 		ZEROED_STRUCT (VkDescriptorImageInfo, gtao_history_image_info);
@@ -2941,12 +2941,7 @@ void GL_UpdateDescriptorSets (void)
 		gtao_history_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		gtao_history_image_info.sampler = vulkan_globals.point_sampler;
 
-		ZEROED_STRUCT (VkDescriptorImageInfo, gtao_depth_pyramid_image_info);
-		gtao_depth_pyramid_image_info.imageView = gtao_depth_pyramid_view;
-		gtao_depth_pyramid_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		gtao_depth_pyramid_image_info.sampler = vulkan_globals.point_sampler;
-
-		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, gtao_writes, 6);
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, gtao_writes, 5);
 		gtao_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		gtao_writes[0].dstBinding = 0;
 		gtao_writes[0].descriptorCount = 1;
@@ -2981,13 +2976,6 @@ void GL_UpdateDescriptorSets (void)
 		gtao_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		gtao_writes[4].dstSet = vulkan_globals.gtao_desc_set;
 		gtao_writes[4].pImageInfo = &gtao_history_image_info;
-
-		gtao_writes[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		gtao_writes[5].dstBinding = 5;
-		gtao_writes[5].descriptorCount = 1;
-		gtao_writes[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		gtao_writes[5].dstSet = vulkan_globals.gtao_desc_set;
-		gtao_writes[5].pImageInfo = &gtao_depth_pyramid_image_info;
 
 		vkUpdateDescriptorSets (vulkan_globals.device, countof (gtao_writes), gtao_writes, 0, NULL);
 
@@ -4417,7 +4405,7 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 	GL_GTAODepthPyramid (cbx, parms);
 
 	GL_SetCanvas (cbx, CANVAS_NONE);
-	vulkan_pipeline_t *pipeline = vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? &vulkan_globals.gtao_pipeline : &vulkan_globals.gtao_msaa_pipeline;
+	vulkan_pipeline_t *pipeline = &vulkan_globals.gtao_pipeline;
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
 	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.gtao_desc_set, 0, NULL);
 

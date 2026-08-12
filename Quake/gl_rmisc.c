@@ -1512,7 +1512,7 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, gtao_layout_bindings, 6);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, gtao_layout_bindings, 5);
 		gtao_layout_bindings[0].binding = 0;
 		gtao_layout_bindings[0].descriptorCount = 1;
 		gtao_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1533,16 +1533,11 @@ void R_CreateDescriptorSetLayouts ()
 		gtao_layout_bindings[4].descriptorCount = 1;
 		gtao_layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		gtao_layout_bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		gtao_layout_bindings[5].binding = 5;
-		gtao_layout_bindings[5].descriptorCount = 1;
-		gtao_layout_bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		gtao_layout_bindings[5].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
 		descriptor_set_layout_create_info.bindingCount = countof (gtao_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = gtao_layout_bindings;
 
 		memset (&vulkan_globals.gtao_set_layout, 0, sizeof (vulkan_globals.gtao_set_layout));
-		vulkan_globals.gtao_set_layout.num_combined_image_samplers = 5;
+		vulkan_globals.gtao_set_layout.num_combined_image_samplers = 4;
 		vulkan_globals.gtao_set_layout.num_storage_images = 1;
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.gtao_set_layout.handle);
@@ -2095,8 +2090,6 @@ void R_CreatePipelineLayouts ()
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.gtao_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "gtao_pipeline_layout");
 		vulkan_globals.gtao_pipeline.layout.push_constant_range = push_constant_range;
-		vulkan_globals.gtao_msaa_pipeline.layout.handle = vulkan_globals.gtao_pipeline.layout.handle;
-		vulkan_globals.gtao_msaa_pipeline.layout.push_constant_range = push_constant_range;
 	}
 
 	{
@@ -2603,7 +2596,6 @@ DECLARE_SHADER_MODULE (screen_effects_10bit_comp);
 DECLARE_SHADER_MODULE (screen_effects_10bit_scale_comp);
 DECLARE_SHADER_MODULE (screen_effects_10bit_scale_sops_comp);
 DECLARE_SHADER_MODULE (gtao_comp);
-DECLARE_SHADER_MODULE (gtao_msaa_comp);
 DECLARE_SHADER_MODULE (gtao_depth_comp);
 DECLARE_SHADER_MODULE (gtao_depth_msaa_comp);
 DECLARE_SHADER_MODULE (gtao_depth_r8_comp);
@@ -3971,7 +3963,6 @@ R_CreateGTAOPipelines
 static void R_CreateGTAOPipelines ()
 {
 	R_CreateComputePipeline (&vulkan_globals.gtao_pipeline, gtao_comp_module, 0, NULL, "gtao");
-	R_CreateComputePipeline (&vulkan_globals.gtao_msaa_pipeline, gtao_msaa_comp_module, 0, NULL, "gtao_msaa");
 	R_CreateComputePipeline (&vulkan_globals.gtao_depth_pipeline, gtao_depth_comp_module, 0, NULL, "gtao_depth");
 	R_CreateComputePipeline (&vulkan_globals.gtao_depth_msaa_pipeline, gtao_depth_msaa_comp_module, 0, NULL, "gtao_depth_msaa");
 	R_CreateComputePipeline (&vulkan_globals.gtao_depth_r8_pipeline, gtao_depth_r8_comp_module, 0, NULL, "gtao_depth_r8");
@@ -4078,7 +4069,6 @@ static void R_CreateShaderModules ()
 	if (R_GTAOEnabled ())
 	{
 		CREATE_SHADER_MODULE (gtao_comp);
-		CREATE_SHADER_MODULE (gtao_msaa_comp);
 		CREATE_SHADER_MODULE (gtao_depth_comp);
 		CREATE_SHADER_MODULE (gtao_depth_msaa_comp);
 		CREATE_SHADER_MODULE (gtao_depth_r8_comp);
@@ -4157,7 +4147,6 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (screen_effects_10bit_scale_comp);
 	DESTROY_SHADER_MODULE (screen_effects_10bit_scale_sops_comp);
 	DESTROY_SHADER_MODULE (gtao_comp);
-	DESTROY_SHADER_MODULE (gtao_msaa_comp);
 	DESTROY_SHADER_MODULE (gtao_depth_comp);
 	DESTROY_SHADER_MODULE (gtao_depth_msaa_comp);
 	DESTROY_SHADER_MODULE (gtao_depth_r8_comp);
@@ -4382,8 +4371,6 @@ void R_DestroyPipelines (void)
 	vulkan_globals.gtao_depth_downsample_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_denoise_pipeline.handle, NULL);
 	vulkan_globals.gtao_denoise_pipeline.handle = VK_NULL_HANDLE;
-	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gtao_msaa_pipeline.handle, NULL);
-	vulkan_globals.gtao_msaa_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.cs_tex_warp_pipeline.handle, NULL);
 	vulkan_globals.cs_tex_warp_pipeline.handle = VK_NULL_HANDLE;
 	if (vulkan_globals.showtris_pipeline[MAIN_RENDER_PASS_STANDARD].handle != VK_NULL_HANDLE)

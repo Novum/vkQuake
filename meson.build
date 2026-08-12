@@ -151,7 +151,6 @@ shader_variants = [
     ['Shaders/screen_effects.comp', 'screen_effects_10bit_scale.comp', ['-DUSE_10BIT=1', '-DSCALING=1']],
     ['Shaders/screen_effects.comp', 'screen_effects_10bit_scale_sops.comp', ['--target-env', 'vulkan1.1', '-DUSE_10BIT=1', '-DSCALING=1', '-DUSE_SUBGROUP_OPS=1']],
     ['Shaders/gtao.comp', 'gtao.comp', []],
-    ['Shaders/gtao.comp', 'gtao_msaa.comp', ['-DGTAO_MSAA=1']],
     ['Shaders/gtao_depth.comp', 'gtao_depth.comp', []],
     ['Shaders/gtao_depth.comp', 'gtao_depth_msaa.comp', ['-DGTAO_DEPTH_MSAA=1']],
     ['Shaders/gtao_depth.comp', 'gtao_depth_r8.comp', ['-DGTAO_LIQUID_MASK_R8=1']],

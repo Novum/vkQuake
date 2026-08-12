@@ -33,7 +33,6 @@ push_constants;
 layout (local_size_x = 8, local_size_y = 8) in;
 
 const uint STENCIL_EXCLUDED = 0x3u;
-const uint STENCIL_MASK_LIQUID = 0x3cu;
 
 float depth_mip_filter (vec4 depths)
 {
@@ -86,6 +85,8 @@ void main ()
 #endif
 	float view_depth = device_depth > 0.00001f ? push_constants.projection.y / (device_depth + push_constants.projection.x) : 0.0f;
 	imageStore (output_depth_image, pixel, vec4 (max (view_depth, 0.0f)));
-	imageStore (output_liquid_mask_image, pixel, vec4 (float (stencil & STENCIL_MASK_LIQUID) / 255.0f, 0.0f, 0.0f, 1.0f));
+	// Preserve the complete resolved stencil byte. GTAO uses the exclusion bits,
+	// while screen effects mask out the liquid bits from the same R8 value.
+	imageStore (output_liquid_mask_image, pixel, vec4 (float (stencil) / 255.0f, 0.0f, 0.0f, 1.0f));
 #endif
 }

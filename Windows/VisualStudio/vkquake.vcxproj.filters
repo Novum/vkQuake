@@ -400,9 +400,6 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_msaa.comp.c">
-      <Filter>Shaders\Debug</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
@@ -521,9 +518,6 @@
       <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\gtao.comp.c">
-      <Filter>Shaders\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_msaa.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth.comp.c">
