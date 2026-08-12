@@ -1158,16 +1158,17 @@ static void R_FlushBatch (
 {
 	if (cbx->num_vbo_indices > 0)
 	{
+		const qboolean gtao_liquid = TEXTYPE_ISLIQUID (liquid_type) && R_GTAOEnabled ();
 		int pipeline_index =
 			(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-		if (TEXTYPE_ISLIQUID (liquid_type))
+		if (gtao_liquid)
 			pipeline_index |= WORLD_PIPELINE_LIQUID_BIT;
 		vulkan_pipeline_t pipeline = R_PipelineForRenderPass (
 			cbx->render_pass_index, vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
 			vulkan_globals.world_wboit_pipelines[pipeline_index], vulkan_globals.world_mboit_moment_pipelines[pipeline_index],
 			vulkan_globals.world_mboit_composite_pipelines[pipeline_index]);
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-		if (TEXTYPE_ISLIQUID (liquid_type))
+		if (gtao_liquid)
 		{
 			const uint32_t stencil_reference = liquid_type == TEXTYPE_WATER	  ? STENCIL_MASK_WATER
 											   : liquid_type == TEXTYPE_SLIME ? STENCIL_MASK_SLIME

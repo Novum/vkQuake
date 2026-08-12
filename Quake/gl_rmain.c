@@ -440,15 +440,18 @@ static void R_SetupViewBeforeMark (void *unused)
 
 	R_SetFrustum (r_fovx, r_fovy); // johnfitz -- use r_fov* vars
 	R_SetupMatrices ();
-	vulkan_globals.gtao_viewport_x = r_refdef.vrect.x;
-	vulkan_globals.gtao_viewport_y = r_refdef.vrect.y;
-	vulkan_globals.gtao_viewport_width = r_refdef.vrect.width;
-	vulkan_globals.gtao_viewport_height = r_refdef.vrect.height;
-	vulkan_globals.gtao_projection[0] = 1.0f / vulkan_globals.projection_matrix[0];
-	vulkan_globals.gtao_projection[1] = 1.0f / (-vulkan_globals.projection_matrix[5]);
-	vulkan_globals.gtao_projection[2] = vulkan_globals.projection_matrix[10];
-	vulkan_globals.gtao_projection[3] = vulkan_globals.projection_matrix[14];
-	memcpy (vulkan_globals.gtao_view_projection, vulkan_globals.view_projection_matrix, sizeof (vulkan_globals.gtao_view_projection));
+	if (R_GTAOEnabled ())
+	{
+		vulkan_globals.gtao_viewport_x = r_refdef.vrect.x;
+		vulkan_globals.gtao_viewport_y = r_refdef.vrect.y;
+		vulkan_globals.gtao_viewport_width = r_refdef.vrect.width;
+		vulkan_globals.gtao_viewport_height = r_refdef.vrect.height;
+		vulkan_globals.gtao_projection[0] = 1.0f / vulkan_globals.projection_matrix[0];
+		vulkan_globals.gtao_projection[1] = 1.0f / (-vulkan_globals.projection_matrix[5]);
+		vulkan_globals.gtao_projection[2] = vulkan_globals.projection_matrix[10];
+		vulkan_globals.gtao_projection[3] = vulkan_globals.projection_matrix[14];
+		memcpy (vulkan_globals.gtao_view_projection, vulkan_globals.view_projection_matrix, sizeof (vulkan_globals.gtao_view_projection));
+	}
 
 	// johnfitz -- cheat-protect some draw modes
 	r_fullbright_cheatsafe = false;
@@ -1185,9 +1188,12 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 	{
 		task_handle_t before_mark = Task_AllocateAndAssignFunc (R_SetupViewBeforeMark, NULL, 0);
 		Task_AddDependency (setup_frame_task, before_mark);
-		// Keep frame-local projection/viewport state from being overwritten while
-		// the previous frame's asynchronous end-render task is consuming it.
-		Task_AddDependency (begin_rendering_task, before_mark);
+		if (R_GTAOEnabled ())
+		{
+			// Keep frame-local projection/viewport state from being overwritten while
+			// the previous frame's asynchronous end-render task is consuming it.
+			Task_AddDependency (begin_rendering_task, before_mark);
+		}
 
 		task_handle_t store_efrags = INVALID_TASK_HANDLE;
 		task_handle_t cull_surfaces = INVALID_TASK_HANDLE;

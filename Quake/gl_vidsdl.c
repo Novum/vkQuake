@@ -96,7 +96,6 @@ static void GL_CreateGTAOBuffer (void);
 static void GL_DestroyOITBuffers (void);
 static void GL_DestroyMainRenderPasses (void);
 static void GL_DestroyRenderResources (void);
-static qboolean GL_GTAOEnabled (void);
 
 viddef_t		vid; // global video state
 modestate_t		modestate = MS_UNINIT;
@@ -1661,9 +1660,9 @@ static void GL_CreateRenderPasses ()
 			attachment_descriptions[1].samples = vulkan_globals.sample_count;
 			attachment_descriptions[1].format = vulkan_globals.depth_format;
 			attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-			attachment_descriptions[1].storeOp = (gtao_supported || use_oit) ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			attachment_descriptions[1].storeOp = (R_GTAOEnabled () || use_oit) ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
 			attachment_descriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-			attachment_descriptions[1].stencilStoreOp = gtao_supported ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			attachment_descriptions[1].stencilStoreOp = R_GTAOEnabled () ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 			if (resolve)
 			{
@@ -2080,7 +2079,7 @@ static void GL_CreateDepthBuffer (void)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = vulkan_globals.sample_count;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | (gtao_supported ? VK_IMAGE_USAGE_SAMPLED_BIT : 0);
+	image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | (R_GTAOEnabled () ? VK_IMAGE_USAGE_SAMPLED_BIT : 0);
 
 	assert (depth_buffer == VK_NULL_HANDLE);
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &depth_buffer);
@@ -2131,12 +2130,15 @@ static void GL_CreateDepthBuffer (void)
 
 	GL_SetObjectName ((uint64_t)depth_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "Depth Buffer View");
 
-	image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
-	assert (stencil_buffer_view == VK_NULL_HANDLE);
-	err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &stencil_buffer_view);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateImageView failed with code %i", (int)err);
-	GL_SetObjectName ((uint64_t)stencil_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "Stencil Buffer View");
+	if (R_GTAOEnabled ())
+	{
+		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+		assert (stencil_buffer_view == VK_NULL_HANDLE);
+		err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &stencil_buffer_view);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateImageView failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)stencil_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "Stencil Buffer View");
+	}
 }
 
 /*
@@ -2916,7 +2918,7 @@ void GL_UpdateDescriptorSets (void)
 	blue_noise_image_info.sampler = vulkan_globals.linear_sampler;
 
 	VkImageView gtao_input_view = color_buffers_view[1];
-	if (gtao_supported)
+	if (R_GTAOEnabled ())
 	{
 		vulkan_globals.gtao_desc_set = R_AllocateDescriptorSet (&vulkan_globals.gtao_set_layout);
 
@@ -3045,15 +3047,15 @@ void GL_UpdateDescriptorSets (void)
 	gtao_input_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	gtao_input_image_info.sampler = vulkan_globals.point_sampler;
 	ZEROED_STRUCT (VkDescriptorImageInfo, gtao_resolve_depth_image_info);
-	gtao_resolve_depth_image_info.imageView = gtao_supported ? gtao_depth_pyramid_view : color_buffers_view[1];
+	gtao_resolve_depth_image_info.imageView = R_GTAOEnabled () ? gtao_depth_pyramid_view : color_buffers_view[1];
 	gtao_resolve_depth_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	gtao_resolve_depth_image_info.sampler = vulkan_globals.point_sampler;
 	ZEROED_STRUCT (VkDescriptorImageInfo, gtao_denoise_image_info);
-	gtao_denoise_image_info.imageView = gtao_supported ? gtao_denoise_buffer_view : color_buffers_view[1];
+	gtao_denoise_image_info.imageView = R_GTAOEnabled () ? gtao_denoise_buffer_view : color_buffers_view[1];
 	gtao_denoise_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	gtao_denoise_image_info.sampler = vulkan_globals.point_sampler;
 	ZEROED_STRUCT (VkDescriptorImageInfo, gtao_liquid_mask_image_info);
-	gtao_liquid_mask_image_info.imageView = gtao_supported ? gtao_liquid_mask_buffer_view : color_buffers_view[1];
+	gtao_liquid_mask_image_info.imageView = R_GTAOEnabled () ? gtao_liquid_mask_buffer_view : color_buffers_view[1];
 	gtao_liquid_mask_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	gtao_liquid_mask_image_info.sampler = vulkan_globals.point_sampler;
 
@@ -3572,7 +3574,7 @@ static void GL_CreateRenderResources (void)
 
 	GL_CreateColorBuffer ();
 	GL_CreateDepthBuffer ();
-	if (gtao_supported)
+	if (R_GTAOEnabled ())
 		GL_CreateGTAOBuffer ();
 	GL_CreateRenderPasses ();
 	GL_CreateFrameBuffers ();
@@ -3837,7 +3839,8 @@ void GL_BeginRenderingTask (void *unused)
 
 			if (scbx_index <= SCBX_OIT_RESOLVE)
 			{
-				const int main_render_pass_stencil = (Sky_NeedStencil () || GL_GTAOEnabled ()) ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL;
+				const qboolean gtao_enabled = R_GTAOEnabled ();
+				const int main_render_pass_stencil = (Sky_NeedStencil () || gtao_enabled) ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL;
 				cbx->render_pass = vulkan_globals.main_render_pass
 									   [R_UseMBOIT ()	? MAIN_RENDER_PASS_MBOIT
 										: R_UseWBOIT () ? MAIN_RENDER_PASS_OIT
@@ -3976,13 +3979,24 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 	const int		 requested_oit_value = (int)r_oit.value;
 	const oit_mode_t requested_oit_mode = GL_FrameOITModeForCvarValue (requested_oit_value);
 	const qboolean	 oit_mode_changed = (requested_oit_mode != frame_oit_mode);
-	frame_oit_mode = requested_oit_mode;
+	const qboolean requested_gtao_enabled = gtao_supported && r_gtao.value > 0.0f;
+	const qboolean gtao_mode_changed = requested_gtao_enabled != frame_gtao_enabled;
 
-	if (vid.restart_next_frame || (render_resources_created && oit_mode_changed))
+	if (vid.restart_next_frame || (render_resources_created && (oit_mode_changed || gtao_mode_changed)))
 	{
+		// Finish the previous frame before changing the configuration it observes.
+		// VID_Restart synchronizes too, but the frame flags must remain unchanged
+		// until that synchronization is complete.
+		GL_SynchronizeEndRenderingTask ();
+		frame_oit_mode = requested_oit_mode;
+		frame_gtao_enabled = requested_gtao_enabled;
 		VID_Restart (false);
 		vid.restart_next_frame = false;
-		frame_oit_mode = GL_FrameOITModeForCvarValue (requested_oit_value);
+	}
+	else
+	{
+		frame_oit_mode = requested_oit_mode;
+		frame_gtao_enabled = requested_gtao_enabled;
 	}
 
 	if (!render_resources_created)
@@ -4162,11 +4176,6 @@ typedef struct end_rendering_parms_s
 #define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
 #define SCREEN_EFFECT_FLAG_MENU		  0x10
 #define SCREEN_EFFECT_FLAG_GTAO		  0x20
-
-static qboolean GL_GTAOEnabled (void)
-{
-	return gtao_supported && (r_gtao.value > 0.0f || r_gtao_debug.value > 0.0f);
-}
 
 typedef struct gtao_depth_constants_s
 {
@@ -4648,10 +4657,10 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_PALETTIZE;
 			if (parms->menu)
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_MENU;
-			if (GL_GTAOEnabled ())
+			if (R_GTAOEnabled ())
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_GTAO;
 
-			const screen_effect_constants_t push_constants = {
+			screen_effect_constants_t push_constants = {
 				parms->vid_width - 1,
 				parms->vid_height - 1,
 				1.0f / (float)parms->vid_width,
@@ -4663,17 +4672,27 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 				(float)parms->v_blend[1] / 255.0f,
 				(float)parms->v_blend[2] / 255.0f,
 				(float)parms->v_blend[3] / 255.0f,
-				r_gtao_strength.value,
-				(uint32_t)CLAMP (0, (int)r_gtao_debug.value, 8),
-				(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 7) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u,
-				CLAMP (0.0f, r_gtao_multibounce.value, 1.0f),
-				r_gtao_halfres.value > 0.0f ? 1u : 0u,
-				CLAMP (0.0f, r_gtao_liquid_water.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_WATER), 1.0f),
-				CLAMP (0.0f, r_gtao_liquid_slime.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_SLIME), 1.0f),
-				CLAMP (0.0f, r_gtao_liquid_lava.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_LAVA), 1.0f),
-				CLAMP (0.0f, r_gtao_liquid_tele.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_TELE), 1.0f),
 			};
-			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
+			uint32_t push_constant_size = offsetof (screen_effect_constants_t, gtao_strength);
+			if (R_GTAOEnabled ())
+			{
+				push_constants.gtao_strength = r_gtao_strength.value;
+				push_constants.gtao_debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 8);
+				push_constants.gtao_denoise =
+					(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 7) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
+				push_constants.gtao_multibounce = CLAMP (0.0f, r_gtao_multibounce.value, 1.0f);
+				push_constants.gtao_halfres = r_gtao_halfres.value > 0.0f ? 1u : 0u;
+				push_constants.gtao_liquid_water =
+					CLAMP (0.0f, r_gtao_liquid_water.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_WATER), 1.0f);
+				push_constants.gtao_liquid_slime =
+					CLAMP (0.0f, r_gtao_liquid_slime.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_SLIME), 1.0f);
+				push_constants.gtao_liquid_lava =
+					CLAMP (0.0f, r_gtao_liquid_lava.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_LAVA), 1.0f);
+				push_constants.gtao_liquid_tele =
+					CLAMP (0.0f, r_gtao_liquid_tele.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_TELE), 1.0f);
+				push_constant_size = sizeof (push_constants);
+			}
+			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size, &push_constants);
 		}
 #if defined(_DEBUG)
 		else
@@ -4978,7 +4997,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	depth_clear_value.depthStencil.stencil = 0;
 
 	const qboolean screen_effects =
-		parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (parms->polyblend && parms->v_blend[3]) || parms->menu || parms->ray_debug || GL_GTAOEnabled ();
+		parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (parms->polyblend && parms->v_blend[3]) || parms->menu || parms->ray_debug || R_GTAOEnabled ();
 	{
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		const qboolean use_mboit = parms->use_mboit;
@@ -5017,11 +5036,12 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		}
 		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		const qboolean gtao_enabled = R_GTAOEnabled ();
 		render_pass_begin_info.renderPass =
 			vulkan_globals.main_render_pass
 				[use_mboit	 ? MAIN_RENDER_PASS_MBOIT
 				 : use_wboit ? MAIN_RENDER_PASS_OIT
-							 : MAIN_RENDER_PASS_STANDARD][(Sky_NeedStencil () || GL_GTAOEnabled ()) ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL];
+							 : MAIN_RENDER_PASS_STANDARD][(Sky_NeedStencil () || gtao_enabled) ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL];
 		render_pass_begin_info.framebuffer = main_framebuffers[screen_effects ? 1 : 0];
 		render_pass_begin_info.renderArea = render_area;
 		render_pass_begin_info.clearValueCount = use_mboit ? (resolve ? 6 : 5) : resolve ? (use_wboit ? 5 : 3) : (use_wboit ? 4 : 2);
@@ -5055,7 +5075,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		vkCmdEndRenderPass (render_passes_cb);
 	}
 
-	if (GL_GTAOEnabled ())
+	if (R_GTAOEnabled ())
 		GL_GTAO (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], parms);
 
 	GL_ScreenEffects (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], screen_effects, parms);

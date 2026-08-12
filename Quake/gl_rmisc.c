@@ -109,6 +109,7 @@ atomic_uint64_t total_host_vulkan_allocation_size;
 
 qboolean   use_simd;
 oit_mode_t frame_oit_mode;
+qboolean   frame_gtao_enabled;
 
 static SDL_Mutex *vertex_allocate_mutex;
 static SDL_Mutex *index_allocate_mutex;
@@ -3340,14 +3341,17 @@ static void R_CreateSkyPipelines ()
 
 		base.depth_stencil_state.depthTestEnable = VK_TRUE;
 		base.depth_stencil_state.depthWriteEnable = VK_TRUE;
-		base.depth_stencil_state.stencilTestEnable = VK_TRUE;
-		base.depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
-		base.depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
-		base.depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
-		base.depth_stencil_state.front.passOp = VK_STENCIL_OP_REPLACE;
-		base.depth_stencil_state.front.compareMask = 0x1;
-		base.depth_stencil_state.front.writeMask = 0x1;
-		base.depth_stencil_state.front.reference = 0x1;
+		if (R_GTAOEnabled ())
+		{
+			base.depth_stencil_state.stencilTestEnable = VK_TRUE;
+			base.depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
+			base.depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
+			base.depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
+			base.depth_stencil_state.front.passOp = VK_STENCIL_OP_REPLACE;
+			base.depth_stencil_state.front.compareMask = STENCIL_MASK_SKY;
+			base.depth_stencil_state.front.writeMask = STENCIL_MASK_SKY;
+			base.depth_stencil_state.front.reference = STENCIL_MASK_SKY;
+		}
 
 		pipeline_create_infos_t infos;
 		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
@@ -3365,7 +3369,7 @@ static void R_CreateSkyPipelines ()
 			infos.depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
 			infos.depth_stencil_state.front.passOp = VK_STENCIL_OP_REPLACE;
 			infos.depth_stencil_state.front.compareMask = 0xFF;
-			infos.depth_stencil_state.front.writeMask = 0x1;
+			infos.depth_stencil_state.front.writeMask = R_GTAOEnabled () ? STENCIL_MASK_SKY : 0xFF;
 			infos.depth_stencil_state.front.reference = 0x1;
 			infos.blend_attachment_states[0].colorWriteMask = 0; // We only want to write stencil
 			R_CreateGraphicsPipeline (
@@ -3571,7 +3575,7 @@ static void R_CreateWorldPipelines ()
 	base.shader_stages[1].pSpecializationInfo = &specialization_info;
 
 	pipeline_create_infos_t infos;
-	for (int liquid = 0; liquid < 2; ++liquid)
+	for (int liquid = 0; liquid < (R_GTAOEnabled () ? 2 : 1); ++liquid)
 	{
 		for (int alpha_blend = 0; alpha_blend < 2; ++alpha_blend)
 		{
@@ -3702,10 +3706,13 @@ static void R_CreateAliasPipelines ()
 			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
 			R_CreateGraphicsPipeline (
 				&vulkan_globals.alias_pipelines[variant][pipeline_index], &infos, layout, va (variant ? "alias_main_oit %d" : "alias %d", pipeline_index));
-			R_SetViewModelStencilState (&infos);
-			R_CreateGraphicsPipeline (
-				&vulkan_globals.alias_viewmodel_pipelines[variant][pipeline_index], &infos, layout,
-				va (variant ? "alias_viewmodel_main_oit %d" : "alias_viewmodel %d", pipeline_index));
+			if (R_GTAOEnabled ())
+			{
+				R_SetViewModelStencilState (&infos);
+				R_CreateGraphicsPipeline (
+					&vulkan_globals.alias_viewmodel_pipelines[variant][pipeline_index], &infos, layout,
+					va (variant ? "alias_viewmodel_main_oit %d" : "alias_viewmodel %d", pipeline_index));
+			}
 		}
 
 		if (alpha_blend)
@@ -3805,10 +3812,13 @@ static void R_CreateMD5Pipelines ()
 			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
 			R_CreateGraphicsPipeline (
 				&vulkan_globals.md5_pipelines[variant][pipeline_index], &infos, layout, va (variant ? "md5_main_oit %d" : "md5 %d", pipeline_index));
-			R_SetViewModelStencilState (&infos);
-			R_CreateGraphicsPipeline (
-				&vulkan_globals.md5_viewmodel_pipelines[variant][pipeline_index], &infos, layout,
-				va (variant ? "md5_viewmodel_main_oit %d" : "md5_viewmodel %d", pipeline_index));
+			if (R_GTAOEnabled ())
+			{
+				R_SetViewModelStencilState (&infos);
+				R_CreateGraphicsPipeline (
+					&vulkan_globals.md5_viewmodel_pipelines[variant][pipeline_index], &infos, layout,
+					va (variant ? "md5_viewmodel_main_oit %d" : "md5_viewmodel %d", pipeline_index));
+			}
 		}
 
 		if (alpha_blend)
@@ -3933,17 +3943,23 @@ R_CreateScreenEffectsPipelines
 static void R_CreateScreenEffectsPipelines ()
 {
 	const qboolean ten_bit = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+	const VkBool32 gtao_enabled = R_GTAOEnabled () ? VK_TRUE : VK_FALSE;
+	const VkSpecializationMapEntry specialization_entry = {0, 0, sizeof (gtao_enabled)};
+	const VkSpecializationInfo specialization_info = {1, &specialization_entry, sizeof (gtao_enabled), &gtao_enabled};
 
 	R_CreateComputePipeline (
-		&vulkan_globals.screen_effects_pipeline, ten_bit ? screen_effects_10bit_comp_module : screen_effects_8bit_comp_module, 0, NULL, "screen_effects");
+		&vulkan_globals.screen_effects_pipeline, ten_bit ? screen_effects_10bit_comp_module : screen_effects_8bit_comp_module, 0, &specialization_info,
+		"screen_effects");
 	R_CreateComputePipeline (
-		&vulkan_globals.screen_effects_scale_pipeline, ten_bit ? screen_effects_10bit_scale_comp_module : screen_effects_8bit_scale_comp_module, 0, NULL,
+		&vulkan_globals.screen_effects_scale_pipeline, ten_bit ? screen_effects_10bit_scale_comp_module : screen_effects_8bit_scale_comp_module, 0,
+		&specialization_info,
 		"screen_effects_scale");
 	if (vulkan_globals.screen_effects_sops)
 		R_CreateComputePipeline (
 			&vulkan_globals.screen_effects_scale_sops_pipeline,
 			ten_bit ? screen_effects_10bit_scale_sops_comp_module : screen_effects_8bit_scale_sops_comp_module,
-			VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT | VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT, NULL,
+			VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT | VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT,
+			&specialization_info,
 			"screen_effects_scale_sops");
 }
 
@@ -4059,14 +4075,17 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (screen_effects_10bit_comp);
 	CREATE_SHADER_MODULE (screen_effects_10bit_scale_comp);
 	CREATE_SHADER_MODULE_COND (screen_effects_10bit_scale_sops_comp, vulkan_globals.screen_effects_sops);
-	CREATE_SHADER_MODULE (gtao_comp);
-	CREATE_SHADER_MODULE (gtao_msaa_comp);
-	CREATE_SHADER_MODULE (gtao_depth_comp);
-	CREATE_SHADER_MODULE (gtao_depth_msaa_comp);
-	CREATE_SHADER_MODULE (gtao_depth_r8_comp);
-	CREATE_SHADER_MODULE (gtao_depth_msaa_r8_comp);
-	CREATE_SHADER_MODULE (gtao_depth_downsample_comp);
-	CREATE_SHADER_MODULE (gtao_denoise_comp);
+	if (R_GTAOEnabled ())
+	{
+		CREATE_SHADER_MODULE (gtao_comp);
+		CREATE_SHADER_MODULE (gtao_msaa_comp);
+		CREATE_SHADER_MODULE (gtao_depth_comp);
+		CREATE_SHADER_MODULE (gtao_depth_msaa_comp);
+		CREATE_SHADER_MODULE (gtao_depth_r8_comp);
+		CREATE_SHADER_MODULE (gtao_depth_msaa_r8_comp);
+		CREATE_SHADER_MODULE (gtao_depth_downsample_comp);
+		CREATE_SHADER_MODULE (gtao_denoise_comp);
+	}
 	CREATE_SHADER_MODULE (cs_tex_warp_comp);
 	CREATE_SHADER_MODULE (indirect_comp);
 	CREATE_SHADER_MODULE (indirect_clear_comp);
@@ -4183,7 +4202,8 @@ void R_CreatePipelines ()
 	R_CreateMD5Pipelines ();
 	R_CreatePostprocessPipelines ();
 	R_CreateScreenEffectsPipelines ();
-	R_CreateGTAOPipelines ();
+	if (R_GTAOEnabled ())
+		R_CreateGTAOPipelines ();
 	R_CreateUpdateLightmapPipelines ();
 	R_CreateIndirectComputePipelines ();
 	R_CreateRayDebugPipelines ();

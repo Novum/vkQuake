@@ -110,7 +110,7 @@ static void GL_DrawAliasFrame (
 	if (oit_pass && (showtris != 0 || !has_alpha))
 		return;
 	const main_render_pass_variant_t main_variant = R_MainPassPipelineVariant (cbx->render_pass_index);
-	const qboolean viewmodel = e == &cl.viewent && showtris == 0 && !oit_pass;
+	const qboolean viewmodel = R_GTAOEnabled () && e == &cl.viewent && showtris == 0 && !oit_pass;
 
 	if (paliashdr->poseverttype == PV_MD5)
 		pipeline = R_PipelineForRenderPass (

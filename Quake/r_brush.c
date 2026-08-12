@@ -976,16 +976,17 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 		{
 			const qboolean alpha_test = texture->type == TEXTYPE_CUTOUT;
 			const qboolean alpha_blend = alpha < 1.0f;
+			const qboolean gtao_liquid = draw_water && R_GTAOEnabled ();
 			int			   pipeline_index =
 				(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-			if (draw_water)
+			if (gtao_liquid)
 				pipeline_index |= WORLD_PIPELINE_LIQUID_BIT;
 			vulkan_pipeline_t pipeline = R_PipelineForRenderPass (
 				cbx->render_pass_index, vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
 				vulkan_globals.world_wboit_pipelines[pipeline_index], vulkan_globals.world_mboit_moment_pipelines[pipeline_index],
 				vulkan_globals.world_mboit_composite_pipelines[pipeline_index]);
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-			if (draw_water)
+			if (gtao_liquid)
 			{
 				const uint32_t stencil_reference = texture->type == TEXTYPE_WATER	? STENCIL_MASK_WATER
 												   : texture->type == TEXTYPE_SLIME ? STENCIL_MASK_SLIME

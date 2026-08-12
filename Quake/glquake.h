@@ -280,6 +280,7 @@ typedef enum
 } oit_mode_t;
 
 extern oit_mode_t frame_oit_mode;
+extern qboolean   frame_gtao_enabled;
 
 static inline qboolean R_UseOIT (void)
 {
@@ -294,6 +295,11 @@ static inline qboolean R_UseWBOIT (void)
 static inline qboolean R_UseMBOIT (void)
 {
 	return frame_oit_mode == OIT_MODE_MBOIT;
+}
+
+static inline qboolean R_GTAOEnabled (void)
+{
+	return frame_gtao_enabled;
 }
 
 static inline main_render_pass_variant_t R_MainPassPipelineVariant (int render_pass_index)

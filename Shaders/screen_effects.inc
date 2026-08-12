@@ -198,6 +198,8 @@ vec3 gtao_multibounce_visibility (float visibility, vec3 albedo)
 #define SCREEN_EFFECT_FLAG_MENU		  0x10
 #define SCREEN_EFFECT_FLAG_GTAO		  0x20
 
+layout (constant_id = 0) const bool GTAO_ENABLED = true;
+
 #if defined(SCALING)
 // Vulkan guarantees 16384 bytes of shared memory, so host doesn't need to check
 shared uint group_red[16];
@@ -282,7 +284,7 @@ void main ()
 	else
 		color = texelFetch (input_tex, ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y)), 0);
 
-	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_GTAO) != 0)
+	[[branch]] if (GTAO_ENABLED && (push_constants.flags & SCREEN_EFFECT_FLAG_GTAO) != 0)
 	{
 		const ivec2 ao_pixel = ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y));
 		const bool gtao_warped = (push_constants.flags & SCREEN_EFFECT_FLAG_WATER_WARP) != 0;
