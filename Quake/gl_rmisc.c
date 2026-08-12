@@ -3926,25 +3926,23 @@ R_CreateScreenEffectsPipelines
 */
 static void R_CreateScreenEffectsPipelines ()
 {
-	const qboolean ten_bit = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-	const VkBool32 gtao_enabled = R_GTAOEnabled () ? VK_TRUE : VK_FALSE;
+	const qboolean				   ten_bit = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+	const VkBool32				   gtao_enabled = R_GTAOEnabled () ? VK_TRUE : VK_FALSE;
 	const VkSpecializationMapEntry specialization_entry = {0, 0, sizeof (gtao_enabled)};
-	const VkSpecializationInfo specialization_info = {1, &specialization_entry, sizeof (gtao_enabled), &gtao_enabled};
+	const VkSpecializationInfo	   specialization_info = {1, &specialization_entry, sizeof (gtao_enabled), &gtao_enabled};
 
 	R_CreateComputePipeline (
 		&vulkan_globals.screen_effects_pipeline, ten_bit ? screen_effects_10bit_comp_module : screen_effects_8bit_comp_module, 0, &specialization_info,
 		"screen_effects");
 	R_CreateComputePipeline (
 		&vulkan_globals.screen_effects_scale_pipeline, ten_bit ? screen_effects_10bit_scale_comp_module : screen_effects_8bit_scale_comp_module, 0,
-		&specialization_info,
-		"screen_effects_scale");
+		&specialization_info, "screen_effects_scale");
 	if (vulkan_globals.screen_effects_sops)
 		R_CreateComputePipeline (
 			&vulkan_globals.screen_effects_scale_sops_pipeline,
 			ten_bit ? screen_effects_10bit_scale_sops_comp_module : screen_effects_8bit_scale_sops_comp_module,
 			VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT | VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT,
-			&specialization_info,
-			"screen_effects_scale_sops");
+			&specialization_info, "screen_effects_scale_sops");
 }
 
 /*

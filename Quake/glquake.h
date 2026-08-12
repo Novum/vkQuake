@@ -188,15 +188,15 @@ typedef struct vulkan_memory_s
 	vulkan_memory_type_t type;
 } vulkan_memory_t;
 
-#define WORLD_PIPELINE_LIQUID_BIT	   16
+#define WORLD_PIPELINE_LIQUID_BIT		   16
 #define WORLD_PIPELINE_COUNT			   32
 #define STENCIL_MASK_SKY				   0x01u
-#define STENCIL_MASK_VIEWMODEL		   0x02u
-#define STENCIL_MASK_WATER			   0x04u
-#define STENCIL_MASK_SLIME			   0x08u
-#define STENCIL_MASK_LAVA			   0x10u
-#define STENCIL_MASK_TELE			   0x20u
-#define STENCIL_MASK_LIQUID			   (STENCIL_MASK_WATER | STENCIL_MASK_SLIME | STENCIL_MASK_LAVA | STENCIL_MASK_TELE)
+#define STENCIL_MASK_VIEWMODEL			   0x02u
+#define STENCIL_MASK_WATER				   0x04u
+#define STENCIL_MASK_SLIME				   0x08u
+#define STENCIL_MASK_LAVA				   0x10u
+#define STENCIL_MASK_TELE				   0x20u
+#define STENCIL_MASK_LIQUID				   (STENCIL_MASK_WATER | STENCIL_MASK_SLIME | STENCIL_MASK_LAVA | STENCIL_MASK_TELE)
 // slot layout of the alias/md5 pipeline arrays: 0..3 encode alpha test/blend, 4..5 are the r_showtris variants
 #define MODEL_PIPELINE_ALPHA_TEST_BIT	   1
 #define MODEL_PIPELINE_ALPHA_BLEND_BIT	   2
@@ -280,7 +280,7 @@ typedef enum
 } oit_mode_t;
 
 extern oit_mode_t frame_oit_mode;
-extern qboolean   frame_gtao_enabled;
+extern qboolean	  frame_gtao_enabled;
 
 static inline qboolean R_UseOIT (void)
 {
@@ -522,14 +522,14 @@ typedef struct
 	VkSampler linear_aniso_sampler_lod_bias;
 
 	// Matrices
-	float projection_matrix[16];
-	float view_matrix[16];
-	float view_projection_matrix[16];
-	int32_t gtao_viewport_x;
-	int32_t gtao_viewport_y;
+	float	 projection_matrix[16];
+	float	 view_matrix[16];
+	float	 view_projection_matrix[16];
+	int32_t	 gtao_viewport_x;
+	int32_t	 gtao_viewport_y;
 	uint32_t gtao_viewport_width;
 	uint32_t gtao_viewport_height;
-	float gtao_projection[4];
+	float	 gtao_projection[4];
 
 	// Dispatch table
 	PFN_vkCmdBindPipeline			vk_cmd_bind_pipeline;

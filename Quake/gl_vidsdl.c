@@ -1458,10 +1458,10 @@ static void GL_InitDevice (void)
 
 	vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, vulkan_globals.depth_format, &format_properties);
 	const VkFormatFeatureFlags depth_sampling_features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
-	qboolean depth_sampling_support = (format_properties.optimalTilingFeatures & depth_sampling_features) == depth_sampling_features;
+	qboolean				   depth_sampling_support = (format_properties.optimalTilingFeatures & depth_sampling_features) == depth_sampling_features;
 	vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_R8G8B8A8_UNORM, &format_properties);
 	const VkFormatFeatureFlags gtao_image_features = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
-	qboolean gtao_image_support = (format_properties.optimalTilingFeatures & gtao_image_features) == gtao_image_features;
+	qboolean				   gtao_image_support = (format_properties.optimalTilingFeatures & gtao_image_features) == gtao_image_features;
 	vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_R32_SFLOAT, &format_properties);
 	qboolean gtao_depth_pyramid_support = (format_properties.optimalTilingFeatures & gtao_image_features) == gtao_image_features;
 	vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_R8_UNORM, &format_properties);
@@ -2126,7 +2126,7 @@ static void GL_CreateGTAOBuffer (void)
 	if (gtao_buffer != VK_NULL_HANDLE)
 		return;
 
-	VkResult err;
+	VkResult	   err;
 	const uint32_t gtao_width = r_gtao_halfres.value > 0.0f ? (vid.width + 1) / 2 : vid.width;
 	const uint32_t gtao_height = r_gtao_halfres.value > 0.0f ? (vid.height + 1) / 2 : vid.height;
 
@@ -3769,7 +3769,7 @@ void GL_BeginRenderingTask (void *unused)
 			if (scbx_index <= SCBX_OIT_RESOLVE)
 			{
 				const qboolean gtao_enabled = R_GTAOEnabled ();
-				const int main_render_pass_stencil = (Sky_NeedStencil () || gtao_enabled) ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL;
+				const int	   main_render_pass_stencil = (Sky_NeedStencil () || gtao_enabled) ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL;
 				cbx->render_pass = vulkan_globals.main_render_pass
 									   [R_UseMBOIT ()	? MAIN_RENDER_PASS_MBOIT
 										: R_UseWBOIT () ? MAIN_RENDER_PASS_OIT
@@ -3909,10 +3909,10 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 	const int		 requested_oit_value = (int)r_oit.value;
 	const oit_mode_t requested_oit_mode = GL_FrameOITModeForCvarValue (requested_oit_value);
 	const qboolean	 oit_mode_changed = (requested_oit_mode != frame_oit_mode);
-	const qboolean requested_gtao_enabled = gtao_supported && r_gtao.value > 0.0f;
-	const qboolean gtao_mode_changed = requested_gtao_enabled != frame_gtao_enabled;
-	const qboolean requested_gtao_halfres = requested_gtao_enabled && r_gtao_halfres.value > 0.0f;
-	const qboolean gtao_size_changed = requested_gtao_halfres != frame_gtao_halfres;
+	const qboolean	 requested_gtao_enabled = gtao_supported && r_gtao.value > 0.0f;
+	const qboolean	 gtao_mode_changed = requested_gtao_enabled != frame_gtao_enabled;
+	const qboolean	 requested_gtao_halfres = requested_gtao_enabled && r_gtao_halfres.value > 0.0f;
+	const qboolean	 gtao_size_changed = requested_gtao_halfres != frame_gtao_halfres;
 
 	if (vid.restart_next_frame || (render_resources_created && (oit_mode_changed || gtao_mode_changed || gtao_size_changed)))
 	{
@@ -4128,8 +4128,7 @@ static void GL_GTAODepthPyramid (cb_context_t *cbx, end_rendering_parms_t *parms
 	liquid_mask_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	liquid_mask_barrier.subresourceRange.levelCount = 1;
 	liquid_mask_barrier.subresourceRange.layerCount = 1;
-	vkCmdPipelineBarrier (
-		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &liquid_mask_barrier);
+	vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &liquid_mask_barrier);
 
 	uint32_t width = parms->vid_width;
 	uint32_t height = parms->vid_height;
@@ -4164,7 +4163,10 @@ static void GL_GTAODepthPyramid (cb_context_t *cbx, end_rendering_parms_t *parms
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
 		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.gtao_depth_desc_sets[mip], 0, NULL);
 		const gtao_depth_constants_t constants = {
-			width, height, vulkan_globals.gtao_projection[2], vulkan_globals.gtao_projection[3],
+			width,
+			height,
+			vulkan_globals.gtao_projection[2],
+			vulkan_globals.gtao_projection[3],
 			q_max (1.0f, r_gtao_radius.value),
 			CLAMP (0.01f, r_gtao_falloff.value, 1.0f)};
 		R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
@@ -4183,8 +4185,7 @@ static void GL_GTAODepthPyramid (cb_context_t *cbx, end_rendering_parms_t *parms
 	liquid_mask_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	liquid_mask_barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 	liquid_mask_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	vkCmdPipelineBarrier (
-		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &liquid_mask_barrier);
+	vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &liquid_mask_barrier);
 	gtao_liquid_mask_buffer_initialized = true;
 	R_EndDebugUtilsLabel (cbx);
 }
@@ -4221,17 +4222,13 @@ static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 	vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.gtao_denoise_pipeline);
-	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.gtao_denoise_pipeline.layout.handle, 0, 1,
-		&vulkan_globals.gtao_denoise_desc_sets[0], 0, NULL);
-	const uint32_t working_stride = r_gtao_halfres.value > 0.0f ? 2u : 1u;
-	const uint32_t working_width = (parms->vid_width + working_stride - 1) / working_stride;
-	const uint32_t working_height = (parms->vid_height + working_stride - 1) / working_stride;
+	vkCmdBindDescriptorSets (
+		cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.gtao_denoise_pipeline.layout.handle, 0, 1, &vulkan_globals.gtao_denoise_desc_sets[0], 0, NULL);
+	const uint32_t			 working_stride = r_gtao_halfres.value > 0.0f ? 2u : 1u;
+	const uint32_t			 working_width = (parms->vid_width + working_stride - 1) / working_stride;
+	const uint32_t			 working_height = (parms->vid_height + working_stride - 1) / working_stride;
 	gtao_denoise_constants_t constants = {
-		working_width - 1,
-		working_height - 1,
-		1u,
-		pass_count == 1 ? 1.2f : 0.24f,
-		r_gtao_halfres.value > 0.0f ? 1u : 0u,
+		working_width - 1, working_height - 1, 1u, pass_count == 1 ? 1.2f : 0.24f, r_gtao_halfres.value > 0.0f ? 1u : 0u,
 	};
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
 	vkCmdDispatch (cbx->cb, (working_width + 15) / 16, (working_height + 7) / 8, 1);
@@ -4251,8 +4248,9 @@ static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 		barriers[1].newLayout = VK_IMAGE_LAYOUT_GENERAL;
 		barriers[1].image = gtao_buffer;
 		vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 2, barriers);
-		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.gtao_denoise_pipeline.layout.handle, 0, 1,
-			&vulkan_globals.gtao_denoise_desc_sets[1], 0, NULL);
+		vkCmdBindDescriptorSets (
+			cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.gtao_denoise_pipeline.layout.handle, 0, 1, &vulkan_globals.gtao_denoise_desc_sets[1], 0,
+			NULL);
 		constants.center_weight = pass_count == 2 ? 1.2f : 0.24f;
 		R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
 		vkCmdDispatch (cbx->cb, (working_width + 15) / 16, (working_height + 7) / 8, 1);
@@ -4268,10 +4266,10 @@ static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 			barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 			barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-			vkCmdPipelineBarrier (
-				cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
-			vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.gtao_denoise_pipeline.layout.handle, 0, 1,
-				&vulkan_globals.gtao_denoise_desc_sets[0], 0, NULL);
+			vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+			vkCmdBindDescriptorSets (
+				cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.gtao_denoise_pipeline.layout.handle, 0, 1, &vulkan_globals.gtao_denoise_desc_sets[0], 0,
+				NULL);
 			constants.center_weight = 1.2f;
 			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
 			vkCmdDispatch (cbx->cb, (working_width + 15) / 16, (working_height + 7) / 8, 1);
@@ -4279,8 +4277,7 @@ static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 			barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 			barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			vkCmdPipelineBarrier (
-				cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+			vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
 		}
 	}
 	else
@@ -4373,8 +4370,7 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 	ao_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	ao_barrier.subresourceRange.levelCount = 1;
 	ao_barrier.subresourceRange.layerCount = 1;
-	vkCmdPipelineBarrier (
-		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &ao_barrier);
+	vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &ao_barrier);
 	GL_GTAODenoise (cbx, parms);
 
 	gtao_buffer_initialized = true;
@@ -4496,10 +4492,8 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 					CLAMP (0.0f, r_gtao_liquid_water.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_WATER), 1.0f);
 				push_constants.gtao_liquid_slime =
 					CLAMP (0.0f, r_gtao_liquid_slime.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_SLIME), 1.0f);
-				push_constants.gtao_liquid_lava =
-					CLAMP (0.0f, r_gtao_liquid_lava.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_LAVA), 1.0f);
-				push_constants.gtao_liquid_tele =
-					CLAMP (0.0f, r_gtao_liquid_tele.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_TELE), 1.0f);
+				push_constants.gtao_liquid_lava = CLAMP (0.0f, r_gtao_liquid_lava.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_LAVA), 1.0f);
+				push_constants.gtao_liquid_tele = CLAMP (0.0f, r_gtao_liquid_tele.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_TELE), 1.0f);
 				push_constant_size = sizeof (push_constants);
 			}
 			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size, &push_constants);
@@ -4806,8 +4800,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	depth_clear_value.depthStencil.depth = 0.0f;
 	depth_clear_value.depthStencil.stencil = 0;
 
-	const qboolean screen_effects =
-		parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (parms->polyblend && parms->v_blend[3]) || parms->menu || parms->ray_debug || R_GTAOEnabled ();
+	const qboolean screen_effects = parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (parms->polyblend && parms->v_blend[3]) ||
+									parms->menu || parms->ray_debug || R_GTAOEnabled ();
 	{
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		const qboolean use_mboit = parms->use_mboit;

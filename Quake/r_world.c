@@ -1159,7 +1159,7 @@ static void R_FlushBatch (
 	if (cbx->num_vbo_indices > 0)
 	{
 		const qboolean gtao_liquid = TEXTYPE_ISLIQUID (liquid_type) && R_GTAOEnabled ();
-		int pipeline_index =
+		int			   pipeline_index =
 			(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
 		if (gtao_liquid)
 			pipeline_index |= WORLD_PIPELINE_LIQUID_BIT;
