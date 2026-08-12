@@ -1,3 +1,13 @@
+/*
+ * Derived from Intel's XeGTAO:
+ * https://github.com/GameTechDev/XeGTAO
+ *
+ * Copyright (C) 2016-2021, Intel Corporation
+ * Licensed under the MIT License; see XeGTAO-LICENSE.txt.
+ *
+ * This is a modified GLSL/Vulkan adaptation for vkQuake.
+ */
+
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
