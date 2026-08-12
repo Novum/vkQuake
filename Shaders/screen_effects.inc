@@ -36,6 +36,7 @@ layout (push_constant) uniform PushConsts
 	uint  gtao_denoise;
 	float gtao_multibounce;
 	uint  gtao_halfres;
+	uint  gtao_halfres_depth_aware;
 	float gtao_liquid_water;
 	float gtao_liquid_slime;
 	float gtao_liquid_lava;
@@ -112,6 +113,14 @@ vec4 gtao_fetch (ivec2 pixel)
 	return (push_constants.gtao_denoise & 1u) != 0u ? texelFetch (gtao_denoise_tex, pixel, 0) : texelFetch (gtao_tex, pixel, 0);
 }
 
+ivec2 gtao_representative_offset (vec4 ao_sample)
+{
+	if (push_constants.gtao_halfres_depth_aware == 0u)
+		return ivec2 (0);
+	uint index = uint (round (clamp (ao_sample.a, 0.0f, 1.0f) * 3.0f));
+	return ivec2 (int (index & 1u), int (index >> 1u));
+}
+
 float gtao_depth_similarity (float center_depth, float sample_depth)
 {
 	if (center_depth <= 0.0f || sample_depth <= 0.0f)
@@ -126,12 +135,55 @@ float gtao_relative_depth_difference (float center_depth, float sample_depth)
 	return abs (sample_depth - center_depth) / max (center_depth, 0.00001f);
 }
 
+vec4 gtao_resolve_depth_aware (ivec2 target_pixel)
+{
+	ivec2 source_max = ivec2 (push_constants.clamp_size);
+	ivec2 working_max = source_max / 2;
+	ivec2 base = clamp (target_pixel / 2, ivec2 (0), working_max);
+	float target_depth = texelFetch (gtao_view_depth_tex, target_pixel, 0).r;
+	vec4 best_result = vec4 (1.0f);
+	float best_weight = 0.0f;
+	float visibility_sum = 0.0f;
+	float weight_sum = 0.0f;
+	for (int y = -1; y <= 1; ++y)
+	{
+		for (int x = -1; x <= 1; ++x)
+		{
+			ivec2 candidate_pixel = base + ivec2 (x, y);
+			if (any (lessThan (candidate_pixel, ivec2 (0))) || any (greaterThan (candidate_pixel, working_max)))
+				continue;
+			vec4 candidate = gtao_fetch (candidate_pixel);
+			ivec2 representative_pixel = min (candidate_pixel * 2 + gtao_representative_offset (candidate), source_max);
+			float sample_depth = texelFetch (gtao_view_depth_tex, representative_pixel, 0).r;
+			float depth_weight = gtao_depth_similarity (target_depth, sample_depth);
+			if (depth_weight <= 0.0f)
+				continue;
+			vec2 spatial_delta = vec2 (representative_pixel - target_pixel);
+			float spatial_weight = exp2 (-0.5f * dot (spatial_delta, spatial_delta));
+			float weight = spatial_weight * depth_weight;
+			visibility_sum += candidate.r * weight;
+			weight_sum += weight;
+			if (weight > best_weight)
+			{
+				best_weight = weight;
+				best_result = candidate;
+			}
+		}
+	}
+	if (weight_sum <= 0.0001f)
+		return vec4 (1.0f);
+	best_result.r = visibility_sum / weight_sum;
+	return best_result;
+}
+
 vec4 gtao_resolve (ivec2 target_pixel, vec2 target_uv, bool warped)
 {
 	if (warped)
 		target_pixel = clamp (ivec2 (target_uv / push_constants.screen_size_rcp), ivec2 (0), ivec2 (push_constants.clamp_size));
 	if (push_constants.gtao_halfres == 0u)
 		return gtao_fetch (target_pixel);
+	if (push_constants.gtao_halfres_depth_aware != 0u)
+		return gtao_resolve_depth_aware (target_pixel);
 
 	// Half-resolution AO is stored contiguously in the upper-left working
 	// region. AO texel q represents source pixel 2*q.
@@ -157,10 +209,10 @@ vec4 gtao_resolve (ivec2 target_pixel, vec2 target_uv, bool warped)
 	{
 		if (spatial_weights[i] <= 0.0f)
 			continue;
+		vec4 candidate = i == 0 ? closest_result : gtao_fetch (candidates[i]);
 		ivec2 source_pixel = min (candidates[i] * 2, source_max);
 		float sample_depth = texelFetch (gtao_view_depth_tex, source_pixel, 0).r;
 		float depth_difference = gtao_relative_depth_difference (target_depth, sample_depth);
-		vec4 candidate = i == 0 ? closest_result : gtao_fetch (candidates[i]);
 		if (depth_difference < closest_depth_difference)
 		{
 			closest_depth_difference = depth_difference;

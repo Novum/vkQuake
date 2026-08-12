@@ -71,6 +71,7 @@ extern cvar_t r_gtao_denoise;
 extern cvar_t r_gtao_bias;
 extern cvar_t r_gtao_multibounce;
 extern cvar_t r_gtao_halfres;
+extern cvar_t r_gtao_halfres_depth_aware;
 extern cvar_t r_gtao_liquid_water;
 extern cvar_t r_gtao_liquid_slime;
 extern cvar_t r_gtao_liquid_lava;
@@ -1564,7 +1565,7 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, bindings, 2);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, bindings, 3);
 		bindings[0].binding = 0;
 		bindings[0].descriptorCount = 1;
 		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1573,10 +1574,14 @@ void R_CreateDescriptorSetLayouts ()
 		bindings[1].descriptorCount = 1;
 		bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		bindings[2].binding = 2;
+		bindings[2].descriptorCount = 1;
+		bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		descriptor_set_layout_create_info.bindingCount = countof (bindings);
 		descriptor_set_layout_create_info.pBindings = bindings;
 		memset (&vulkan_globals.gtao_denoise_set_layout, 0, sizeof (vulkan_globals.gtao_denoise_set_layout));
-		vulkan_globals.gtao_denoise_set_layout.num_combined_image_samplers = 1;
+		vulkan_globals.gtao_denoise_set_layout.num_combined_image_samplers = 2;
 		vulkan_globals.gtao_denoise_set_layout.num_storage_images = 1;
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.gtao_denoise_set_layout.handle);
 		if (err != VK_SUCCESS)
@@ -2034,7 +2039,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 6 * sizeof (uint32_t) + 14 * sizeof (float);
+		push_constant_range.size = 7 * sizeof (uint32_t) + 14 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -2107,7 +2112,7 @@ void R_CreatePipelineLayouts ()
 		VkDescriptorSetLayout set_layouts[1] = {vulkan_globals.gtao_denoise_set_layout.handle};
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 4 * sizeof (uint32_t);
+		push_constant_range.size = 5 * sizeof (uint32_t);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
 		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -4434,6 +4439,7 @@ void R_RestoreGTAODefaults (void)
 		&r_gtao_bias,
 		&r_gtao_multibounce,
 		&r_gtao_halfres,
+		&r_gtao_halfres_depth_aware,
 		&r_gtao_liquid_water,
 		&r_gtao_liquid_slime,
 		&r_gtao_liquid_lava,
@@ -4533,6 +4539,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_gtao_bias);
 	Cvar_RegisterVariable (&r_gtao_multibounce);
 	Cvar_RegisterVariable (&r_gtao_halfres);
+	Cvar_RegisterVariable (&r_gtao_halfres_depth_aware);
 	Cvar_RegisterVariable (&r_gtao_liquid_water);
 	Cvar_RegisterVariable (&r_gtao_liquid_slime);
 	Cvar_RegisterVariable (&r_gtao_liquid_lava);

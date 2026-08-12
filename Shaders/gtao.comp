@@ -29,6 +29,7 @@ const float HALF_PI = 1.57079632679489661923f;
 const uint STENCIL_MASK_SKY = 0x1u;
 const uint STENCIL_MASK_VIEWMODEL = 0x2u;
 const uint GTAO_FLAG_HALFRES = 0x1u;
+const uint GTAO_FLAG_HALFRES_DEPTH_AWARE = 0x2u;
 const float DEPTH_MIP_OFFSET = 3.30f;
 
 float sample_depth (ivec2 pixel)
@@ -143,6 +144,25 @@ void main ()
 	if (any (greaterThanEqual (ao_pixel, working_size)) || any (greaterThanEqual (ao_pixel, imageSize (ao_image))))
 		return;
 	ivec2 pixel = ao_pixel * working_stride;
+	uint representative_index = 0u;
+	if (half_res && (push_constants.flags & GTAO_FLAG_HALFRES_DEPTH_AWARE) != 0u)
+	{
+		float closest_depth = 3.402823466e+38f;
+		for (uint index = 0u; index < 4u; ++index)
+		{
+			ivec2 candidate = pixel + ivec2 (int (index & 1u), int (index >> 1u));
+			if (!inside_viewport (candidate))
+				continue;
+			float candidate_depth = sample_depth (candidate);
+			if (valid_surface_sample (candidate, candidate_depth) && candidate_depth < closest_depth)
+			{
+				closest_depth = candidate_depth;
+				representative_index = index;
+			}
+		}
+		pixel += ivec2 (int (representative_index & 1u), int (representative_index >> 1u));
+	}
+	float representative_value = float (representative_index) / 3.0f;
 
 	bool in_viewport = inside_viewport (pixel);
 	float center_depth = in_viewport ? sample_depth (pixel) : 0.0f;
@@ -150,9 +170,10 @@ void main ()
 	bool has_depth = center_depth > 0.00001f;
 	if (!in_viewport || !has_depth || (center_stencil & (STENCIL_MASK_SKY | STENCIL_MASK_VIEWMODEL)) != 0u)
 	{
-		imageStore (
-			ao_image, ao_pixel,
-			push_constants.debug_mode == 3u ? classification_color (center_stencil, has_depth, in_viewport) : vec4 (1.0f));
+		vec4 invalid_value = push_constants.debug_mode == 3u
+			? classification_color (center_stencil, has_depth, in_viewport) : vec4 (1.0f);
+		invalid_value.a = representative_value;
+		imageStore (ao_image, ao_pixel, invalid_value);
 		return;
 	}
 
@@ -231,12 +252,14 @@ void main ()
 
 	if (push_constants.debug_mode == 2u)
 	{
-		imageStore (ao_image, ao_pixel, vec4 (normal * 0.5f + 0.5f, 1.0f));
+		imageStore (ao_image, ao_pixel, vec4 (normal * 0.5f + 0.5f, representative_value));
 		return;
 	}
 	if (push_constants.debug_mode == 3u)
 	{
-		imageStore (ao_image, ao_pixel, classification_color (center_stencil, true, true));
+		vec4 color = classification_color (center_stencil, true, true);
+		color.a = representative_value;
+		imageStore (ao_image, ao_pixel, color);
 		return;
 	}
 
@@ -258,7 +281,7 @@ void main ()
 		float footprint = effect_radius / min (pixel_size_x, pixel_size_y);
 		float mip = float (clamp (int (floor (log2 (max (footprint, 1.0f)))) - 1, 0, textureQueryLevels (view_depth_pyramid_tex) - 1));
 		vec3 mip_color = vec3 (mip / float (textureQueryLevels (view_depth_pyramid_tex) - 1), 1.0f - mip / float (textureQueryLevels (view_depth_pyramid_tex) - 1), 0.2f);
-		imageStore (ao_image, ao_pixel, vec4 (mip_color, 1.0f));
+		imageStore (ao_image, ao_pixel, vec4 (mip_color, representative_value));
 		return;
 	}
 	float screen_space_radius = effect_radius / pixel_size_x;
@@ -351,5 +374,5 @@ void main ()
 
 	visibility = pow (max (visibility / float (slice_count), 0.0f), 2.2f);
 	visibility = max (visibility, 0.03f);
-	imageStore (ao_image, ao_pixel, vec4 (visibility, packed_edges, 0.0f, 0.0f));
+	imageStore (ao_image, ao_pixel, vec4 (visibility, packed_edges, 0.0f, representative_value));
 }

@@ -2954,14 +2954,17 @@ void GL_UpdateDescriptorSets (void)
 		for (uint32_t pass = 0; pass < 2; ++pass)
 		{
 			vulkan_globals.gtao_denoise_desc_sets[pass] = R_AllocateDescriptorSet (&vulkan_globals.gtao_denoise_set_layout);
-			ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, image_infos, 2);
+			ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, image_infos, 3);
 			image_infos[0].imageView = pass == 0 ? gtao_buffer_view : gtao_denoise_buffer_view;
 			image_infos[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			image_infos[0].sampler = vulkan_globals.point_sampler;
 			image_infos[1].imageView = pass == 0 ? gtao_denoise_buffer_view : gtao_buffer_view;
 			image_infos[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-			ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 2);
-			for (uint32_t binding = 0; binding < 2; ++binding)
+			image_infos[2].imageView = gtao_depth_pyramid_view;
+			image_infos[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			image_infos[2].sampler = vulkan_globals.point_sampler;
+			ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 3);
+			for (uint32_t binding = 0; binding < 3; ++binding)
 			{
 				writes[binding].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				writes[binding].dstSet = vulkan_globals.gtao_denoise_desc_sets[pass];
@@ -4025,6 +4028,7 @@ typedef struct screen_effect_constants_s
 	uint32_t gtao_denoise;
 	float	 gtao_multibounce;
 	uint32_t gtao_halfres;
+	uint32_t gtao_halfres_depth_aware;
 	float	 gtao_liquid_water;
 	float	 gtao_liquid_slime;
 	float	 gtao_liquid_lava;
@@ -4192,6 +4196,7 @@ typedef struct gtao_denoise_constants_s
 	uint32_t clamp_height;
 	uint32_t sample_stride;
 	float	 center_weight;
+	uint32_t depth_aware;
 } gtao_denoise_constants_t;
 
 static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
@@ -4222,7 +4227,13 @@ static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 	const uint32_t working_stride = r_gtao_halfres.value > 0.0f ? 2u : 1u;
 	const uint32_t working_width = (parms->vid_width + working_stride - 1) / working_stride;
 	const uint32_t working_height = (parms->vid_height + working_stride - 1) / working_stride;
-	gtao_denoise_constants_t constants = {working_width - 1, working_height - 1, 1u, pass_count == 1 ? 1.2f : 0.24f};
+	gtao_denoise_constants_t constants = {
+		working_width - 1,
+		working_height - 1,
+		1u,
+		pass_count == 1 ? 1.2f : 0.24f,
+		r_gtao_halfres.value > 0.0f && r_gtao_halfres_depth_aware.value > 0.0f ? 1u : 0u,
+	};
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
 	vkCmdDispatch (cbx->cb, (working_width + 15) / 16, (working_height + 7) / 8, 1);
 
@@ -4292,6 +4303,7 @@ GL_GTAO
 */
 static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 {
+	const int gtao_debug = CLAMP (0, (int)r_gtao_debug.value, 6);
 	R_BeginDebugUtilsLabel (cbx, "GTAO");
 	ZEROED_STRUCT_ARRAY (VkImageMemoryBarrier, image_barriers, 2);
 
@@ -4340,10 +4352,11 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 		.projection_w = vulkan_globals.gtao_projection[3],
 		.radius = q_max (1.0f, r_gtao_radius.value),
 		.thin_occluder_compensation = q_max (0.0f, r_gtao_thin_occluder_compensation.value),
-		.debug_mode = (uint32_t)CLAMP (0, (int)r_gtao_debug.value, 4),
+		.debug_mode = gtao_debug >= 1 && gtao_debug <= 4 ? (uint32_t)gtao_debug : 0u,
 		.quality = (uint32_t)CLAMP (0, (int)r_gtao_quality.value, 3),
 		.bias = CLAMP (0.0f, r_gtao_bias.value, 0.5f),
-		.flags = r_gtao_halfres.value > 0.0f ? 1u : 0u,
+		.flags = (r_gtao_halfres.value > 0.0f ? 1u : 0u) |
+			(r_gtao_halfres.value > 0.0f && r_gtao_halfres_depth_aware.value > 0.0f ? 2u : 0u),
 		.falloff_range = CLAMP (0.01f, r_gtao_falloff.value, 1.0f),
 	};
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
@@ -4481,6 +4494,8 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 					(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 5) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u;
 				push_constants.gtao_multibounce = CLAMP (0.0f, r_gtao_multibounce.value, 1.0f);
 				push_constants.gtao_halfres = r_gtao_halfres.value > 0.0f ? 1u : 0u;
+				push_constants.gtao_halfres_depth_aware =
+					r_gtao_halfres.value > 0.0f && r_gtao_halfres_depth_aware.value > 0.0f ? 1u : 0u;
 				push_constants.gtao_liquid_water =
 					CLAMP (0.0f, r_gtao_liquid_water.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_WATER), 1.0f);
 				push_constants.gtao_liquid_slime =
