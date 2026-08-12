@@ -4353,7 +4353,7 @@ static void GL_GTAO (cb_context_t *cbx, end_rendering_parms_t *parms)
 		.radius = q_max (1.0f, r_gtao_radius.value),
 		.thin_occluder_compensation = q_max (0.0f, r_gtao_thin_occluder_compensation.value),
 		.debug_mode = gtao_debug >= 1 && gtao_debug <= 4 ? (uint32_t)gtao_debug : 0u,
-		.quality = (uint32_t)CLAMP (0, (int)r_gtao_quality.value, 3),
+		.quality = (uint32_t)CLAMP (0, (int)r_gtao_quality.value, 4),
 		.bias = CLAMP (0.0f, r_gtao_bias.value, 0.5f),
 		.flags = (r_gtao_halfres.value > 0.0f ? 1u : 0u) |
 			(r_gtao_halfres.value > 0.0f && r_gtao_halfres_depth_aware.value > 0.0f ? 2u : 0u),
