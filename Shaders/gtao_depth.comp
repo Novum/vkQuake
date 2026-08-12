@@ -71,13 +71,25 @@ void main ()
 	float device_depth = 0.0f;
 	uint stencil = 0u;
 #ifdef GTAO_DEPTH_MSAA
+	float closest_sample_depth = -1.0f;
+	uint closest_sample_stencil = 0u;
+	uint selected_stencil = 0u;
 	for (int sample_index = 0; sample_index < textureSamples (input_depth_tex); ++sample_index)
 	{
 		uint sample_stencil = texelFetch (input_stencil_tex, pixel, sample_index).r;
-		stencil |= sample_stencil;
-		if ((sample_stencil & STENCIL_EXCLUDED) == 0u)
-			device_depth = max (device_depth, texelFetch (input_depth_tex, pixel, sample_index).r);
+		float sample_depth = texelFetch (input_depth_tex, pixel, sample_index).r;
+		if (sample_depth > closest_sample_depth)
+		{
+			closest_sample_depth = sample_depth;
+			closest_sample_stencil = sample_stencil;
+		}
+		if ((sample_stencil & STENCIL_EXCLUDED) == 0u && sample_depth > device_depth)
+		{
+			device_depth = sample_depth;
+			selected_stencil = sample_stencil;
+		}
 	}
+	stencil = device_depth > 0.0f ? selected_stencil : closest_sample_stencil;
 #else
 	stencil = texelFetch (input_stencil_tex, pixel, 0).r;
 	if ((stencil & STENCIL_EXCLUDED) == 0u)
