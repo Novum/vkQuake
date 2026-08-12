@@ -2127,13 +2127,15 @@ static void GL_CreateGTAOBuffer (void)
 		return;
 
 	VkResult err;
+	const uint32_t gtao_width = r_gtao_halfres.value > 0.0f ? (vid.width + 1) / 2 : vid.width;
+	const uint32_t gtao_height = r_gtao_halfres.value > 0.0f ? (vid.height + 1) / 2 : vid.height;
 
 	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
 	image_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
-	image_create_info.extent.width = vid.width;
-	image_create_info.extent.height = vid.height;
+	image_create_info.extent.width = gtao_width;
+	image_create_info.extent.height = gtao_height;
 	image_create_info.extent.depth = 1;
 	image_create_info.mipLevels = 1;
 	image_create_info.arrayLayers = 1;
@@ -2186,6 +2188,8 @@ static void GL_CreateGTAOBuffer (void)
 	GL_SetObjectName ((uint64_t)gtao_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "GTAO Buffer View");
 	gtao_buffer_initialized = false;
 
+	image_create_info.extent.width = vid.width;
+	image_create_info.extent.height = vid.height;
 	image_create_info.format = gtao_liquid_mask_format;
 	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &gtao_liquid_mask_buffer);
@@ -2210,6 +2214,8 @@ static void GL_CreateGTAOBuffer (void)
 	GL_SetObjectName ((uint64_t)gtao_liquid_mask_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "GTAO Liquid Mask Buffer View");
 	gtao_liquid_mask_buffer_initialized = false;
 
+	image_create_info.extent.width = gtao_width;
+	image_create_info.extent.height = gtao_height;
 	image_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
 	image_view_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
 	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -2234,6 +2240,8 @@ static void GL_CreateGTAOBuffer (void)
 	GL_SetObjectName ((uint64_t)gtao_denoise_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "GTAO Denoise Buffer View");
 	gtao_denoise_buffer_initialized = false;
 
+	image_create_info.extent.width = vid.width;
+	image_create_info.extent.height = vid.height;
 	image_create_info.format = VK_FORMAT_R32_SFLOAT;
 	image_create_info.mipLevels = GTAO_DEPTH_MIP_LEVELS;
 	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -3891,6 +3899,7 @@ static oit_mode_t GL_FrameOITModeForCvarValue (int r_oit_value)
 
 qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *width, int *height)
 {
+	static qboolean frame_gtao_halfres;
 	if (!use_tasks)
 		GL_SynchronizeEndRenderingTask ();
 
@@ -3899,8 +3908,10 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 	const qboolean	 oit_mode_changed = (requested_oit_mode != frame_oit_mode);
 	const qboolean requested_gtao_enabled = gtao_supported && r_gtao.value > 0.0f;
 	const qboolean gtao_mode_changed = requested_gtao_enabled != frame_gtao_enabled;
+	const qboolean requested_gtao_halfres = requested_gtao_enabled && r_gtao_halfres.value > 0.0f;
+	const qboolean gtao_size_changed = requested_gtao_halfres != frame_gtao_halfres;
 
-	if (vid.restart_next_frame || (render_resources_created && (oit_mode_changed || gtao_mode_changed)))
+	if (vid.restart_next_frame || (render_resources_created && (oit_mode_changed || gtao_mode_changed || gtao_size_changed)))
 	{
 		// Finish the previous frame before changing the configuration it observes.
 		// VID_Restart synchronizes too, but the frame flags must remain unchanged
@@ -3908,6 +3919,7 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 		GL_SynchronizeEndRenderingTask ();
 		frame_oit_mode = requested_oit_mode;
 		frame_gtao_enabled = requested_gtao_enabled;
+		frame_gtao_halfres = requested_gtao_halfres;
 		VID_Restart (false);
 		vid.restart_next_frame = false;
 	}
@@ -3915,6 +3927,7 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 	{
 		frame_oit_mode = requested_oit_mode;
 		frame_gtao_enabled = requested_gtao_enabled;
+		frame_gtao_halfres = requested_gtao_halfres;
 	}
 
 	if (!render_resources_created)
