@@ -1864,6 +1864,7 @@ static void M_GraphicsOptions_ChooseNextGTAOPreset (int dir)
 	}
 
 	R_RestoreGTAODefaults ();
+	Cvar_SetValueQuick (&r_gtao, 1.0f);
 	Cvar_SetValueQuick (&r_gtao_halfres, 1.0f);
 	Cvar_SetValueQuick (&r_gtao_quality, (float)(preset + 1));
 }
