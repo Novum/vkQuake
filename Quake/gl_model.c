@@ -29,9 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static void		 Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
 static void		 Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffer);
 static void		 Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
-static void		 Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer);
+static qboolean	 Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer);
 static void		 Mod_LoadMD3Model (qmodel_t *mod, const void *buffer);
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
+static void		 Mod_FreeModelMemory (qmodel_t *mod);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
@@ -111,6 +112,37 @@ void Mod_RefreshSkins_f (cvar_t *var)
 
 /*
 ===============
+Mod_EnhancedModels_f
+===============
+*/
+static void Mod_EnhancedModels_f (cvar_t *var)
+{
+	int		  i;
+	qmodel_t *mod;
+
+	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+	{
+		if (mod->type != mod_alias)
+			continue;
+
+		for (int j = 0; j < PV_SIZE; ++j)
+			GLMesh_DeleteMeshBuffers ((aliashdr_t *)mod->extradata[j]);
+		Mod_FreeModelMemory (mod);
+		mod->needload = true;
+	}
+
+	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+	{
+		if (mod->type == mod_alias)
+			Mod_LoadModel (mod, false);
+	}
+
+	Mod_RefreshSkins_f (var);
+	InvalidateTraceLineCache ();
+}
+
+/*
+===============
 Mod_Init
 ===============
 */
@@ -123,7 +155,7 @@ void Mod_Init (void)
 	Cvar_RegisterVariable (&r_allow_replacement_md5models);
 	Cvar_RegisterVariable (&r_allow_replacement_md3models);
 	Cvar_RegisterVariable (&r_enhancedmodels);
-	Cvar_SetCallback (&r_enhancedmodels, Mod_RefreshSkins_f);
+	Cvar_SetCallback (&r_enhancedmodels, Mod_EnhancedModels_f);
 
 	// johnfitz -- create notexture miptex
 	r_notexture_mip = (texture_t *)Mem_Alloc (sizeof (texture_t));
@@ -578,9 +610,10 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	}
 
 	const bool mod_is_mdl = (strcmp (COM_FileGetExtension (mod->name), "mdl") == 0);
+	const bool load_enhanced_model = mod_is_mdl && r_enhancedmodels.value;
 
 	// 2. Find MDL "enhanced" complementary models, if any:
-	if (mod_is_mdl && r_allow_replacement_md3models.value)
+	if (load_enhanced_model && r_allow_replacement_md3models.value)
 	{
 		// newname is the .mdl model with extension changed to .md3:
 		COM_StripExtension (mod->name, md3_name, sizeof (md3_name));
@@ -598,7 +631,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		}
 	}
 
-	if (mod_is_mdl && r_allow_replacement_md5models.value)
+	if (load_enhanced_model && r_allow_replacement_md5models.value)
 	{
 		// newname is the .mdl model with extension changed to .md5mesh:
 		COM_StripExtension (mod->name, md5_name, sizeof (md5_name));
@@ -669,7 +702,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	{
 		// by construction this is a "native" MD5 model, NOT a .mdl replacement so md5_enhanced_path_id = 0 here
 		assert (md5_enhanced_path_id == 0);
-		Mod_LoadMD5MeshModel (mod, (const void *)buf);
+		if (!Mod_LoadMD5MeshModel (mod, (const void *)buf))
+			Sys_Error ("Mod_LoadModel: failed to load %s", mod->name);
 	}
 	break;
 
@@ -4406,12 +4440,19 @@ static double MD5_ParseFloat (const void **buffer)
 	return i;
 }
 
-#define MD5EXPECT(s)                                                           \
-	do                                                                         \
-	{                                                                          \
-		if (strcmp (com_token, s))                                             \
-			Sys_Error ("Mod_LoadMD5MeshModel(%s): Expected \"%s\"", fname, s); \
-		buffer = COM_Parse (buffer);                                           \
+#define MD5ERROR(...)              \
+	do                             \
+	{                              \
+		Con_Warning (__VA_ARGS__); \
+		goto error;                \
+	} while (0)
+
+#define MD5EXPECT(s)                                                                                     \
+	do                                                                                                   \
+	{                                                                                                    \
+		if (strcmp (com_token, s))                                                                       \
+			MD5ERROR ("Mod_LoadMD5MeshModel(%s): expected \"%s\", found \"%s\"\n", fname, s, com_token); \
+		buffer = COM_Parse (buffer);                                                                     \
 	} while (0)
 #define MD5UINT()	MD5_ParseUInt (&buffer)
 #define MD5SINT()	MD5_ParseSInt (&buffer)
@@ -4543,7 +4584,7 @@ static void Matrix3x4_Invert_Simple (const float *in1, float *out)
 MD5_BakeInfluences
 ================
 */
-static void MD5_BakeInfluences (
+static qboolean MD5_BakeInfluences (
 	const char *fname, jointpose_t *outposes, md5vert_t *vert, struct md5vertinfo_s *vinfo, struct md5weightinfo_s *weight, size_t numverts, size_t numweights)
 {
 	struct md5weightinfo_s *w;
@@ -4567,7 +4608,10 @@ static void MD5_BakeInfluences (
 		}
 
 		if (vinfo->firstweight + vinfo->count > numweights)
-			Sys_Error ("%s: weight index out of bounds", fname);
+		{
+			Con_Warning ("%s: weight index out of bounds\n", fname);
+			return false;
+		}
 		if (maxinfluences < vinfo->count)
 			maxinfluences = vinfo->count;
 		w = weight + vinfo->firstweight;
@@ -4623,6 +4667,7 @@ static void MD5_BakeInfluences (
 	}
 	if (maxinfluences > NUM_JOINT_INFLUENCES)
 		Con_DWarning ("%s uses up to %u influences per vertex (weakest: %g)\n", fname, maxinfluences, scaleimprecision);
+	return true;
 }
 
 /*
@@ -4725,7 +4770,7 @@ MD5Anim_Begin
 This is split into two because aliashdr_t has silly trailing framegroup info.
 ================
 */
-static void MD5Anim_Begin (md5animctx_t *ctx, const char *fname)
+static qboolean MD5Anim_Begin (md5animctx_t *ctx, const char *fname)
 {
 	// Load an md5anim into it, if we can.
 	COM_StripExtension (fname, ctx->fname, sizeof (ctx->fname));
@@ -4748,10 +4793,18 @@ static void MD5Anim_Begin (md5animctx_t *ctx, const char *fname)
 		MD5EXPECT ("frameRate"); // irrelevant here
 
 		if (ctx->numposes <= 0)
-			Sys_Error ("%s has no poses", fname);
+			MD5ERROR ("%s has no poses\n", fname);
 
 		ctx->buffer = buffer;
 	}
+	return true;
+
+error:
+	SAFE_FREE (ctx->animfile);
+	ctx->buffer = NULL;
+	ctx->numposes = 0;
+	ctx->numjoints = 0;
+	return false;
 }
 
 /*
@@ -4759,30 +4812,30 @@ static void MD5Anim_Begin (md5animctx_t *ctx, const char *fname)
 MD5Anim_Load
 ================
 */
-static void MD5Anim_Load (md5animctx_t *ctx, jointinfo_t *joints, size_t numjoints)
+static qboolean MD5Anim_Load (md5animctx_t *ctx, jointinfo_t *joints, size_t numjoints)
 {
 	const char *fname = ctx->fname;
 	struct
 	{
 		unsigned int flags, offset;
-	}			*ab;
+	}			*ab = NULL;
 	size_t		 rawcount;
-	float		*raw, *r;
-	jointpose_t *outposes;
+	float		*raw = NULL, *r;
+	jointpose_t *outposes = NULL;
 	const void	*buffer = COM_Parse (ctx->buffer);
 	size_t		 j;
 
 	if (!buffer)
 	{
-		Mem_Free (ctx->animfile);
-		return;
+		SAFE_FREE (ctx->animfile);
+		return true;
 	}
 
 	MD5EXPECT ("numAnimatedComponents");
 	rawcount = MD5UINT ();
 
 	if (ctx->numjoints != numjoints)
-		Sys_Error ("%s has incorrect joint count", fname);
+		MD5ERROR ("%s has incorrect joint count (expected %d, found %d)\n", fname, (int)numjoints, (int)ctx->numjoints);
 
 	raw = Mem_Alloc (sizeof (*raw) * (rawcount + 6));
 	ab = Mem_Alloc (sizeof (*ab) * ctx->numjoints);
@@ -4795,17 +4848,17 @@ static void MD5Anim_Load (md5animctx_t *ctx, jointinfo_t *joints, size_t numjoin
 	{
 		// validate stuff
 		if (strcmp (joints[j].name, com_token))
-			Sys_Error ("%s: joint was renamed", fname);
+			MD5ERROR ("%s: joint was renamed\n", fname);
 		buffer = COM_Parse (buffer);
 		if (joints[j].parent != MD5SINT ())
-			Sys_Error ("%s: joint has wrong parent", fname);
+			MD5ERROR ("%s: joint has wrong parent\n", fname);
 		// new info
 		ab[j].flags = MD5UINT ();
 		if (ab[j].flags & ~63)
-			Sys_Error ("%s: joint has unsupported flags", fname);
+			MD5ERROR ("%s: joint has unsupported flags\n", fname);
 		ab[j].offset = MD5UINT ();
 		if (ab[j].offset > rawcount + 6)
-			Sys_Error ("%s: joint has bad offset", fname);
+			MD5ERROR ("%s: joint has bad offset\n", fname);
 	}
 	MD5EXPECT ("}");
 	MD5EXPECT ("bounds");
@@ -4846,7 +4899,7 @@ static void MD5Anim_Load (md5animctx_t *ctx, jointinfo_t *joints, size_t numjoin
 	{
 		size_t idx = MD5UINT ();
 		if (idx >= ctx->numposes)
-			Sys_Error ("%s: invalid pose index", fname);
+			MD5ERROR ("%s: invalid pose index\n", fname);
 		MD5EXPECT ("{");
 		for (j = 0; j < rawcount; j++)
 			raw[j] = MD5FLOAT ();
@@ -4883,7 +4936,15 @@ static void MD5Anim_Load (md5animctx_t *ctx, jointinfo_t *joints, size_t numjoin
 	}
 	Mem_Free (raw);
 	Mem_Free (ab);
-	Mem_Free (ctx->animfile);
+	SAFE_FREE (ctx->animfile);
+	return true;
+
+error:
+	Mem_Free (raw);
+	Mem_Free (ab);
+	SAFE_FREE (ctx->posedata);
+	SAFE_FREE (ctx->animfile);
+	return false;
 }
 
 /*
@@ -5120,36 +5181,23 @@ SKIN_PATTERN_FUNC_DEF (MD5_Skin_Name)
 	q_snprintf (output_name, MAX_QPATH, "%s_%02u_%02u", basename, skin_index, framegroup_index);
 }
 
-static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
+static qboolean Mod_LoadMD5MeshModelData (qmodel_t *mod, const void *buffer, size_t numjoints, size_t nummeshes)
 {
 	const char *fname = mod->name;
 
-	aliashdr_t *outhdr, *surf;
-	size_t		hdrsize;
-	size_t		numjoints;
-	size_t		nummeshes;
+	aliashdr_t *outhdr = NULL, *surf;
+	size_t		hdrsize = 0;
 
-	md5animctx_t anim = {NULL};
+	md5animctx_t	 anim = {NULL};
+	md5vert_t		*total_vertexes = NULL;
+	md5vertinfo_t	*vinfo = NULL;
+	md5vert_t		*poutvertexes = NULL;
+	unsigned short	*poutindexes = NULL;
+	md5weightinfo_t *weight = NULL;
+	size_t			 total_numverts = 0;
 
-	buffer = COM_Parse (buffer);
-
-	MD5EXPECT ("MD5Version");
-	MD5EXPECT (MD5_VERSION);
-	if (MD5CHECK ("commandline"))
-		buffer = COM_Parse (buffer);
-	MD5EXPECT ("numJoints");
-	numjoints = MD5UINT ();
-	MD5EXPECT ("numMeshes");
-	nummeshes = MD5UINT ();
-
-	if (numjoints <= 0)
-		Sys_Error ("%s has no joints", mod->name);
-	if (nummeshes <= 0)
-		Sys_Error ("%s has no meshes", mod->name);
-
-	if (strcmp (com_token, "joints"))
-		Sys_Error ("Mod_LoadMD5MeshModel(%s): Expected \"%s\"", fname, "joints");
-	MD5Anim_Begin (&anim, fname);
+	if (!MD5Anim_Begin (&anim, fname))
+		return false;
 	buffer = COM_Parse (buffer);
 
 	hdrsize = sizeof (*outhdr) - sizeof (outhdr->frames);
@@ -5161,6 +5209,8 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	TEMP_ALLOC_ZEROED (jointinfo_t, joint_infos, numjoints);
 	TEMP_ALLOC_ZEROED (jointpose_t, joint_poses, numjoints);
+	TEMP_ALLOC_ZEROED (jointpose_t, inverted_joints, numjoints * anim.numposes);
+	TEMP_ALLOC_ZEROED (jointpose_t, concat_joints, numjoints);
 
 	// 1. Load joints
 	MD5EXPECT ("{");
@@ -5172,8 +5222,8 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		q_strlcpy (joint_infos[j].name, com_token, sizeof (joint_infos[j].name));
 		buffer = COM_Parse (buffer);
 		joint_infos[j].parent = MD5SINT ();
-		if (joint_infos[j].parent < -1 && joint_infos[j].parent >= (ssize_t)numjoints)
-			Sys_Error ("joint index out of bounds");
+		if (joint_infos[j].parent < -1 || joint_infos[j].parent >= (ssize_t)numjoints)
+			MD5ERROR ("%s: joint index out of bounds\n", fname);
 		MD5EXPECT ("(");
 		pos[0] = MD5FLOAT ();
 		pos[1] = MD5FLOAT ();
@@ -5194,13 +5244,12 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	}
 
 	if (strcmp (com_token, "}"))
-		Sys_Error ("Mod_LoadMD5MeshModel(%s): Expected \"%s\"", fname, "}");
-	MD5Anim_Load (&anim, joint_infos, numjoints);
+		MD5ERROR ("Mod_LoadMD5MeshModel(%s): expected \"%s\", found \"%s\"\n", fname, "}", com_token);
+	if (!MD5Anim_Load (&anim, joint_infos, numjoints))
+		goto error;
 	buffer = COM_Parse (buffer);
 
 	// 2. Compute inverted joints:
-	TEMP_ALLOC_ZEROED (jointpose_t, inverted_joints, anim.numjoints * anim.numposes);
-	TEMP_ALLOC_ZEROED (jointpose_t, concat_joints, anim.numjoints);
 	for (size_t pose_index = 0; pose_index < anim.numposes; ++pose_index)
 	{
 		const jointpose_t *in_pose = anim.posedata + (pose_index * anim.numjoints);
@@ -5217,14 +5266,9 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 			R_ConcatTransforms ((void *)concat_joints[joint_index].mat, (void *)joint_infos[joint_index].inverse.mat, (void *)out_pose[joint_index].mat);
 		}
 	}
-	Mem_Free (anim.posedata);
+	SAFE_FREE (anim.posedata);
 
 	// 3. each mesh has its own aliashdr_t : load vertices, triangles, textures...etc. and upload to GPU each surface:
-
-	// total_numverts and total_vertexes accumulate all vertices of the ssurface,
-	// just to be able to Mod_CalcAliasBounds at the end.
-	size_t	   total_numverts = 0;
-	md5vert_t *total_vertexes = NULL;
 
 	for (int m = 0; m < nummeshes; m++)
 	{
@@ -5275,14 +5319,14 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		MD5EXPECT ("numverts");
 		surf->numverts_vbo = surf->numverts = MD5UINT ();
 
-		md5vertinfo_t *vinfo = (md5vertinfo_t *)Mem_Alloc (sizeof (*vinfo) * surf->numverts);
-		md5vert_t	  *poutvertexes = (md5vert_t *)Mem_Alloc (sizeof (*poutvertexes) * surf->numverts);
+		vinfo = (md5vertinfo_t *)Mem_Alloc (sizeof (*vinfo) * surf->numverts);
+		poutvertexes = (md5vert_t *)Mem_Alloc (sizeof (*poutvertexes) * surf->numverts);
 
 		while (MD5CHECK ("vert"))
 		{
 			size_t idx = MD5UINT ();
 			if (idx >= (size_t)surf->numverts)
-				Sys_Error ("vertex index out of bounds");
+				MD5ERROR ("%s: vertex index out of bounds\n", fname);
 			MD5EXPECT ("(");
 			poutvertexes[idx].st[0] = MD5FLOAT ();
 			poutvertexes[idx].st[1] = MD5FLOAT ();
@@ -5294,37 +5338,37 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		MD5EXPECT ("numtris");
 		surf->numtris = MD5UINT ();
 		surf->numindexes = surf->numtris * 3;
-		unsigned short *poutindexes = (unsigned short *)Mem_Alloc (sizeof (unsigned short) * (surf->numindexes));
+		poutindexes = (unsigned short *)Mem_Alloc (sizeof (unsigned short) * (surf->numindexes));
 
 		while (MD5CHECK ("tri"))
 		{
 			size_t idx = MD5UINT ();
 			if (idx >= (size_t)surf->numtris)
-				Sys_Error ("triangle index out of bounds");
+				MD5ERROR ("%s: triangle index out of bounds\n", fname);
 			idx *= 3;
 			for (size_t j = 0; j < 3; j++)
 			{
 				size_t t = MD5UINT ();
-				if (t > (size_t)surf->numverts)
-					Sys_Error ("vertex index out of bounds");
+				if (t >= (size_t)surf->numverts)
+					MD5ERROR ("%s: vertex index out of bounds\n", fname);
 				poutindexes[idx + j] = t;
 			}
 		}
 
 		// md5 is a gpu-unfriendly interchange format. :(
 		MD5EXPECT ("numweights");
-		size_t			 numweights = MD5UINT ();
-		md5weightinfo_t *weight = (md5weightinfo_t *)Mem_Alloc (sizeof (*weight) * numweights);
+		size_t numweights = MD5UINT ();
+		weight = (md5weightinfo_t *)Mem_Alloc (sizeof (*weight) * numweights);
 
 		while (MD5CHECK ("weight"))
 		{
 			size_t idx = MD5UINT ();
 			if (idx >= numweights)
-				Sys_Error ("weight index out of bounds");
+				MD5ERROR ("%s: weight index out of bounds\n", fname);
 
 			weight[idx].joint_index = MD5UINT ();
 			if (weight[idx].joint_index >= numjoints)
-				Sys_Error ("joint index out of bounds");
+				MD5ERROR ("%s: joint index out of bounds\n", fname);
 			weight[idx].pos[3] = MD5FLOAT ();
 			MD5EXPECT ("(");
 			weight[idx].pos[0] = MD5FLOAT () * weight[idx].pos[3];
@@ -5336,13 +5380,14 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		MD5EXPECT ("}");
 
 		// so make it gpu-friendly.
-		MD5_BakeInfluences (fname, joint_poses, poutvertexes, vinfo, weight, surf->numverts, numweights);
+		if (!MD5_BakeInfluences (fname, joint_poses, poutvertexes, vinfo, weight, surf->numverts, numweights))
+			goto error;
 		// and now make up the normals that the format lacks. we'll still probably have issues from seams, but then so did qme, so at least its faithful...
 		// :P
 		MD5_ComputeNormals (poutvertexes, surf->numverts, poutindexes, surf->numindexes);
 
-		Mem_Free (weight);
-		Mem_Free (vinfo);
+		SAFE_FREE (weight);
+		SAFE_FREE (vinfo);
 
 		// Upload to GPU that surface/mesh m:
 		GLMesh_UploadBuffers (mod, surf, poutindexes, (byte *)poutvertexes, NULL, inverted_joints);
@@ -5352,8 +5397,8 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		memcpy ((void *)(total_vertexes + total_numverts), (const void *)poutvertexes, sizeof (*poutvertexes) * surf->numverts);
 		total_numverts += surf->numverts;
 
-		Mem_Free (poutvertexes);
-		Mem_Free (poutindexes);
+		SAFE_FREE (poutvertexes);
+		SAFE_FREE (poutindexes);
 
 	} // end foreach mesh
 
@@ -5366,13 +5411,72 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	Mod_CalcAliasBounds (mod, outhdr, total_numverts, (byte *)total_vertexes); // johnfitz
 
-	Mem_Free (total_vertexes);
+	SAFE_FREE (total_vertexes);
 
 	TEMP_FREE (concat_joints);
 	TEMP_FREE (inverted_joints);
 
 	TEMP_FREE (joint_poses);
-	TEMP_FREE (joint_infos)
+	TEMP_FREE (joint_infos);
+
+	return true;
+
+error:
+	// Recoverable replacement-model failures fall back to the MDL, so release
+	// any partial MD5 state that Sys_Error used to abandon by terminating.
+	SAFE_FREE (weight);
+	SAFE_FREE (vinfo);
+	SAFE_FREE (poutvertexes);
+	SAFE_FREE (poutindexes);
+	SAFE_FREE (total_vertexes);
+	SAFE_FREE (anim.posedata);
+	if (outhdr)
+	{
+		for (size_t surface_index = 0; surface_index < nummeshes; surface_index++)
+		{
+			aliashdr_t *hdr = (aliashdr_t *)((byte *)outhdr + surface_index * hdrsize);
+			for (int skin_index = 0; skin_index < MAX_SKINS; skin_index++)
+				SAFE_FREE (hdr->texels[skin_index]);
+		}
+		GLMesh_DeleteMeshBuffers (outhdr);
+		Mem_Free (outhdr);
+	}
+	TEMP_FREE (concat_joints);
+	TEMP_FREE (inverted_joints);
+	TEMP_FREE (joint_poses);
+	TEMP_FREE (joint_infos);
+	return false;
+}
+
+static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
+{
+	const char *fname = mod->name;
+	size_t		numjoints;
+	size_t		nummeshes;
+
+	buffer = COM_Parse (buffer);
+
+	MD5EXPECT ("MD5Version");
+	MD5EXPECT (MD5_VERSION);
+	if (MD5CHECK ("commandline"))
+		buffer = COM_Parse (buffer);
+	MD5EXPECT ("numJoints");
+	numjoints = MD5UINT ();
+	MD5EXPECT ("numMeshes");
+	nummeshes = MD5UINT ();
+
+	if (numjoints <= 0)
+		MD5ERROR ("%s has no joints\n", mod->name);
+	if (nummeshes <= 0)
+		MD5ERROR ("%s has no meshes\n", mod->name);
+
+	if (strcmp (com_token, "joints"))
+		MD5ERROR ("Mod_LoadMD5MeshModel(%s): expected \"%s\", found \"%s\"\n", fname, "joints", com_token);
+
+	return Mod_LoadMD5MeshModelData (mod, buffer, numjoints, nummeshes);
+
+error:
+	return false;
 }
 
 /*
