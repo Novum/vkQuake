@@ -1,0 +1,388 @@
+/*
+ * Derived from Intel's XeGTAO:
+ * https://github.com/GameTechDev/XeGTAO
+ *
+ * Copyright (C) 2016-2021, Intel Corporation
+ * Licensed under the MIT License; see XeGTAO-LICENSE.txt.
+ *
+ * This is a modified GLSL/Vulkan adaptation for vkQuake.
+ */
+
+#version 460
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (set = 0, binding = 0) uniform sampler2D view_depth_pyramid_tex;
+layout (set = 0, binding = 1) uniform sampler2D blue_noise_tex;
+layout (set = 0, binding = 2, rgba8) uniform writeonly image2D ao_image;
+layout (set = 0, binding = 3) uniform sampler2D classification_mask_tex;
+
+layout (push_constant) uniform GTAOConsts
+{
+	ivec2 viewport_origin;
+	uvec2 viewport_size;
+	vec4  projection;
+	float radius;
+	float thin_occluder_compensation;
+	uint  debug_mode;
+	uint  quality;
+	float bias;
+	uint  flags;
+	float falloff_range;
+}
+push_constants;
+
+layout (local_size_x = 8, local_size_y = 8) in;
+
+const float PI = 3.14159265358979323846f;
+const float HALF_PI = 1.57079632679489661923f;
+const uint STENCIL_MASK_SKY = 0x1u;
+const uint STENCIL_MASK_VIEWMODEL = 0x2u;
+const uint GTAO_FLAG_HALFRES = 0x1u;
+const float DEPTH_MIP_OFFSET = 3.30f;
+
+float sample_depth (ivec2 pixel)
+{
+	return texelFetch (view_depth_pyramid_tex, pixel, 0).r;
+}
+
+ivec2 depth_texture_size ()
+{
+	return textureSize (view_depth_pyramid_tex, 0);
+}
+
+uint sample_stencil (ivec2 pixel)
+{
+	return uint (round (texelFetch (classification_mask_tex, pixel, 0).r * 255.0f));
+}
+
+bool inside_viewport (ivec2 pixel)
+{
+	ivec2 viewport_max = push_constants.viewport_origin + ivec2 (push_constants.viewport_size);
+	return all (greaterThanEqual (pixel, push_constants.viewport_origin)) && all (lessThan (pixel, viewport_max));
+}
+
+vec3 reconstruct_position (ivec2 pixel, float depth)
+{
+	vec2 viewport_pixel = vec2 (pixel - push_constants.viewport_origin) + 0.5f;
+	vec2 ndc = viewport_pixel / vec2 (push_constants.viewport_size) * 2.0f - 1.0f;
+	float view_z = -depth;
+
+	return vec3 (
+		ndc.x * (-view_z) * push_constants.projection.x,
+		ndc.y * view_z * push_constants.projection.y,
+		view_z);
+}
+
+bool valid_surface_sample (ivec2 pixel, float depth)
+{
+	return inside_viewport (pixel) && depth > 0.00001f && (sample_stencil (pixel) & (STENCIL_MASK_SKY | STENCIL_MASK_VIEWMODEL)) == 0u;
+}
+
+float sample_horizon_depth (ivec2 pixel, float offset_length, out bool valid)
+{
+	float depth = sample_depth (pixel);
+	valid = inside_viewport (pixel) && depth > 0.00001f;
+	if (valid)
+		valid = (sample_stencil (pixel) & (STENCIL_MASK_SKY | STENCIL_MASK_VIEWMODEL)) == 0u;
+	if (!valid)
+		return depth;
+
+	float mip_level = clamp (log2 (max (offset_length, 1.0f)) - DEPTH_MIP_OFFSET, 0.0f, float (textureQueryLevels (view_depth_pyramid_tex) - 1));
+	if (mip_level <= 0.0f)
+		return depth;
+	int mip_0 = int (floor (mip_level));
+	int mip_1 = min (mip_0 + 1, textureQueryLevels (view_depth_pyramid_tex) - 1);
+	vec2 uv = (vec2 (pixel) + 0.5f) / vec2 (textureSize (view_depth_pyramid_tex, 0));
+	ivec2 size_0 = textureSize (view_depth_pyramid_tex, mip_0);
+	ivec2 size_1 = textureSize (view_depth_pyramid_tex, mip_1);
+	ivec2 coord_0 = clamp (ivec2 (uv * vec2 (size_0)), ivec2 (0), size_0 - 1);
+	ivec2 coord_1 = clamp (ivec2 (uv * vec2 (size_1)), ivec2 (0), size_1 - 1);
+	float depth_0 = mip_0 == 0 ? depth : texelFetch (view_depth_pyramid_tex, coord_0, mip_0).r;
+	if (mip_0 == mip_1)
+	{
+		valid = depth_0 > 0.00001f;
+		return valid ? depth_0 : depth;
+	}
+	float depth_1 = texelFetch (view_depth_pyramid_tex, coord_1, mip_1).r;
+	float view_depth = mix (depth_0, depth_1, fract (mip_level));
+	valid = view_depth > 0.00001f;
+	return valid ? view_depth : depth;
+}
+
+vec4 calculate_edges (float center_z, float left_z, float right_z, float top_z, float bottom_z)
+{
+	vec4 edges = vec4 (left_z, right_z, top_z, bottom_z) - center_z;
+	float slope_lr = (edges.y - edges.x) * 0.5f;
+	float slope_tb = (edges.w - edges.z) * 0.5f;
+	vec4 slope_adjusted = edges + vec4 (slope_lr, -slope_lr, slope_tb, -slope_tb);
+	edges = min (abs (edges), abs (slope_adjusted));
+	return clamp (1.25f - edges / max (center_z * 0.011f, 0.00001f), 0.0f, 1.0f);
+}
+
+float pack_edges (vec4 edges)
+{
+	vec4 quantized = round (clamp (edges, 0.0f, 1.0f) * 2.9f);
+	return dot (quantized, vec4 (64.0f, 16.0f, 4.0f, 1.0f)) / 255.0f;
+}
+
+vec3 safe_normalize (vec3 value)
+{
+	return value * inversesqrt (max (dot (value, value), 0.00000001f));
+}
+
+vec4 classification_color (uint stencil, bool has_depth, bool in_viewport)
+{
+	if (!in_viewport)
+		return vec4 (1.0f);
+	if ((stencil & STENCIL_MASK_SKY) != 0u)
+		return vec4 (1.0f, 0.0f, 0.0f, 1.0f);
+	if ((stencil & STENCIL_MASK_VIEWMODEL) != 0u)
+		return vec4 (0.0f, 0.25f, 1.0f, 1.0f);
+	if (!has_depth)
+		return vec4 (0.0f, 0.0f, 0.0f, 1.0f);
+	return vec4 (0.0f, 1.0f, 0.0f, 1.0f);
+}
+
+void main ()
+{
+	bool half_res = (push_constants.flags & GTAO_FLAG_HALFRES) != 0u;
+	int working_stride = half_res ? 2 : 1;
+	ivec2 ao_pixel = ivec2 (gl_GlobalInvocationID.xy);
+	ivec2 working_size = (depth_texture_size () + working_stride - 1) / working_stride;
+	if (any (greaterThanEqual (ao_pixel, working_size)) || any (greaterThanEqual (ao_pixel, imageSize (ao_image))))
+		return;
+	ivec2 pixel = ao_pixel * working_stride;
+	uint representative_index = 0u;
+	if (half_res)
+	{
+		float closest_depth = 3.402823466e+38f;
+		for (uint index = 0u; index < 4u; ++index)
+		{
+			ivec2 candidate = pixel + ivec2 (int (index & 1u), int (index >> 1u));
+			if (!inside_viewport (candidate))
+				continue;
+			float candidate_depth = sample_depth (candidate);
+			if (valid_surface_sample (candidate, candidate_depth) && candidate_depth < closest_depth)
+			{
+				closest_depth = candidate_depth;
+				representative_index = index;
+			}
+		}
+		pixel += ivec2 (int (representative_index & 1u), int (representative_index >> 1u));
+	}
+	float representative_value = float (representative_index) / 3.0f;
+
+	bool in_viewport = inside_viewport (pixel);
+	float center_depth = in_viewport ? sample_depth (pixel) : 0.0f;
+	uint center_stencil = in_viewport ? sample_stencil (pixel) : 0u;
+	bool has_depth = center_depth > 0.00001f;
+	if (!in_viewport || !has_depth || (center_stencil & (STENCIL_MASK_SKY | STENCIL_MASK_VIEWMODEL)) != 0u)
+	{
+		vec4 invalid_value = push_constants.debug_mode == 3u
+			? classification_color (center_stencil, has_depth, in_viewport) : vec4 (1.0f);
+		invalid_value.a = representative_value;
+		imageStore (ao_image, ao_pixel, invalid_value);
+		return;
+	}
+
+	ivec2 viewport_min = push_constants.viewport_origin;
+	ivec2 viewport_max = push_constants.viewport_origin + ivec2 (push_constants.viewport_size) - ivec2 (1);
+	vec3 center = reconstruct_position (pixel, center_depth);
+
+	// XeGTAO reconstructs normals from immediate full-resolution depth
+	// neighbours. Keep that footprint independent of the AO working grid.
+	ivec2 normal_pixel_left = max (pixel - ivec2 (1, 0), viewport_min);
+	ivec2 normal_pixel_right = min (pixel + ivec2 (1, 0), viewport_max);
+	ivec2 normal_pixel_top = max (pixel - ivec2 (0, 1), viewport_min);
+	ivec2 normal_pixel_bottom = min (pixel + ivec2 (0, 1), viewport_max);
+	float normal_depth_left = sample_depth (normal_pixel_left);
+	float normal_depth_right = sample_depth (normal_pixel_right);
+	float normal_depth_top = sample_depth (normal_pixel_top);
+	float normal_depth_bottom = sample_depth (normal_pixel_bottom);
+	bool normal_left_valid = any (notEqual (normal_pixel_left, pixel)) && valid_surface_sample (normal_pixel_left, normal_depth_left);
+	bool normal_right_valid = any (notEqual (normal_pixel_right, pixel)) && valid_surface_sample (normal_pixel_right, normal_depth_right);
+	bool normal_top_valid = any (notEqual (normal_pixel_top, pixel)) && valid_surface_sample (normal_pixel_top, normal_depth_top);
+	bool normal_bottom_valid = any (notEqual (normal_pixel_bottom, pixel)) && valid_surface_sample (normal_pixel_bottom, normal_depth_bottom);
+	vec3 normal_left = normal_left_valid ? reconstruct_position (normal_pixel_left, normal_depth_left) : center;
+	vec3 normal_right = normal_right_valid ? reconstruct_position (normal_pixel_right, normal_depth_right) : center;
+	vec3 normal_top = normal_top_valid ? reconstruct_position (normal_pixel_top, normal_depth_top) : center;
+	vec3 normal_bottom = normal_bottom_valid ? reconstruct_position (normal_pixel_bottom, normal_depth_bottom) : center;
+	vec4 normal_edges_lrtb = calculate_edges (-center.z, -normal_left.z, -normal_right.z, -normal_top.z, -normal_bottom.z);
+	normal_edges_lrtb *= vec4 (normal_left_valid, normal_right_valid, normal_top_valid, normal_bottom_valid);
+
+	// Edge metadata belongs to the AO grid because the denoiser consumes
+	// adjacent AO texels. At half resolution those are two source pixels apart.
+	vec3 edge_left = normal_left;
+	vec3 edge_right = normal_right;
+	vec3 edge_top = normal_top;
+	vec3 edge_bottom = normal_bottom;
+	bool edge_left_valid = normal_left_valid;
+	bool edge_right_valid = normal_right_valid;
+	bool edge_top_valid = normal_top_valid;
+	bool edge_bottom_valid = normal_bottom_valid;
+	if (half_res)
+	{
+		ivec2 edge_pixel_left = max (pixel - ivec2 (2, 0), viewport_min);
+		ivec2 edge_pixel_right = min (pixel + ivec2 (2, 0), viewport_max);
+		ivec2 edge_pixel_top = max (pixel - ivec2 (0, 2), viewport_min);
+		ivec2 edge_pixel_bottom = min (pixel + ivec2 (0, 2), viewport_max);
+		float edge_depth_left = sample_depth (edge_pixel_left);
+		float edge_depth_right = sample_depth (edge_pixel_right);
+		float edge_depth_top = sample_depth (edge_pixel_top);
+		float edge_depth_bottom = sample_depth (edge_pixel_bottom);
+		edge_left_valid = any (notEqual (edge_pixel_left, pixel)) && valid_surface_sample (edge_pixel_left, edge_depth_left);
+		edge_right_valid = any (notEqual (edge_pixel_right, pixel)) && valid_surface_sample (edge_pixel_right, edge_depth_right);
+		edge_top_valid = any (notEqual (edge_pixel_top, pixel)) && valid_surface_sample (edge_pixel_top, edge_depth_top);
+		edge_bottom_valid = any (notEqual (edge_pixel_bottom, pixel)) && valid_surface_sample (edge_pixel_bottom, edge_depth_bottom);
+		edge_left = edge_left_valid ? reconstruct_position (edge_pixel_left, edge_depth_left) : center;
+		edge_right = edge_right_valid ? reconstruct_position (edge_pixel_right, edge_depth_right) : center;
+		edge_top = edge_top_valid ? reconstruct_position (edge_pixel_top, edge_depth_top) : center;
+		edge_bottom = edge_bottom_valid ? reconstruct_position (edge_pixel_bottom, edge_depth_bottom) : center;
+	}
+	vec4 edges_lrtb = calculate_edges (-center.z, -edge_left.z, -edge_right.z, -edge_top.z, -edge_bottom.z);
+	edges_lrtb *= vec4 (edge_left_valid, edge_right_valid, edge_top_valid, edge_bottom_valid);
+	float packed_edges = pack_edges (edges_lrtb);
+
+	vec4 accepted = clamp (vec4 (
+		normal_edges_lrtb.x * normal_edges_lrtb.z, normal_edges_lrtb.z * normal_edges_lrtb.y,
+		normal_edges_lrtb.y * normal_edges_lrtb.w, normal_edges_lrtb.w * normal_edges_lrtb.x) + 0.01f, 0.0f, 1.0f);
+	vec3 dir_left = safe_normalize (normal_left - center);
+	vec3 dir_right = safe_normalize (normal_right - center);
+	vec3 dir_top = safe_normalize (normal_top - center);
+	vec3 dir_bottom = safe_normalize (normal_bottom - center);
+	vec3 normal_cross = accepted.x * cross (dir_left, dir_top) + accepted.y * cross (dir_top, dir_right) +
+		accepted.z * cross (dir_right, dir_bottom) + accepted.w * cross (dir_bottom, dir_left);
+	vec3 view_vector = normalize (-center);
+	vec3 normal = dot (normal_cross, normal_cross) > 0.00000001f ? normalize (normal_cross) : view_vector;
+	if (dot (normal, view_vector) < 0.0f)
+		normal = -normal;
+	center *= 0.99999f;
+
+	if (push_constants.debug_mode == 2u)
+	{
+		imageStore (ao_image, ao_pixel, vec4 (normal * 0.5f + 0.5f, representative_value));
+		return;
+	}
+	if (push_constants.debug_mode == 3u)
+	{
+		vec4 color = classification_color (center_stencil, true, true);
+		color.a = representative_value;
+		imageStore (ao_image, ao_pixel, color);
+		return;
+	}
+
+	// Noise belongs to the compact AO working grid.
+	ivec2 noise_pixel = ao_pixel;
+	noise_pixel &= ivec2 (63);
+	vec2 noise = texelFetch (blue_noise_tex, noise_pixel, 0).rg;
+	float noise_slice = noise.x;
+	float noise_sample = noise.y;
+	float effect_radius = max (push_constants.radius, 1.0f);
+	float falloff_range = effect_radius * push_constants.falloff_range;
+	float falloff_from = effect_radius - falloff_range;
+	float falloff_mul = -1.0f / falloff_range;
+	float falloff_add = falloff_from / falloff_range + 1.0f;
+	float pixel_size_x = max ((-center.z) * push_constants.projection.x * 2.0f / float (push_constants.viewport_size.x), 0.00001f);
+	float pixel_size_y = max ((-center.z) * push_constants.projection.y * 2.0f / float (push_constants.viewport_size.y), 0.00001f);
+	if (push_constants.debug_mode == 4u)
+	{
+		float footprint = effect_radius / min (pixel_size_x, pixel_size_y);
+		float mip = float (clamp (int (floor (log2 (max (footprint, 1.0f)))) - 1, 0, textureQueryLevels (view_depth_pyramid_tex) - 1));
+		vec3 mip_color = vec3 (mip / float (textureQueryLevels (view_depth_pyramid_tex) - 1), 1.0f - mip / float (textureQueryLevels (view_depth_pyramid_tex) - 1), 0.2f);
+		imageStore (ao_image, ao_pixel, vec4 (mip_color, representative_value));
+		return;
+	}
+	float screen_space_radius = effect_radius / pixel_size_x;
+	float visibility = clamp ((10.0f - screen_space_radius) / 100.0f, 0.0f, 1.0f) * 0.5f;
+	// Use denser spatial tiers for vkQuake's non-TAA renderer. Quality 4 is the
+	// high menu tier, with 12 slices and 4 steps.
+	int slice_count = push_constants.quality == 0u ? 1 :
+		(push_constants.quality == 1u ? 2 : (push_constants.quality == 2u ? 4 : (push_constants.quality == 3u ? 9 : 12)));
+	int steps_per_slice = push_constants.quality < 2u ? 2 : (push_constants.quality == 2u ? 4 : (push_constants.quality == 3u ? 3 : 4));
+	for (int slice = 0; slice < slice_count; ++slice)
+	{
+		float phi = (float (slice) + noise_slice) * (PI / float (slice_count));
+		float cos_phi = cos (phi);
+		float sin_phi = sin (phi);
+		vec3 direction_vector = vec3 (cos_phi, sin_phi, 0.0f);
+		vec3 ortho_direction = direction_vector - dot (direction_vector, view_vector) * view_vector;
+		vec3 axis_vector = normalize (cross (ortho_direction, view_vector));
+		vec3 projected_normal = normal - axis_vector * dot (normal, axis_vector);
+		float projected_normal_length = max (length (projected_normal), 0.00001f);
+		float sign_normal = dot (ortho_direction, projected_normal) >= 0.0f ? 1.0f : -1.0f;
+		float cos_normal = clamp (dot (projected_normal, view_vector) / projected_normal_length, 0.0f, 1.0f);
+		float n = sign_normal * acos (cos_normal);
+		float low_horizon_cos_0 = cos (n + HALF_PI);
+		float low_horizon_cos_1 = cos (n - HALF_PI);
+		float horizon_cos_0 = low_horizon_cos_0;
+		float horizon_cos_1 = low_horizon_cos_1;
+
+		vec2 radius_pixels = vec2 (cos_phi * effect_radius / pixel_size_x, -sin_phi * effect_radius / pixel_size_y);
+		float screen_radius = max (length (radius_pixels), 0.00001f);
+		float minimum_s = 1.3f / screen_radius;
+
+		for (int step = 0; step < steps_per_slice; ++step)
+		{
+			float step_noise = fract (noise_sample + float (slice + step * steps_per_slice) * 0.618033989f);
+			float s = (float (step) + step_noise) / float (steps_per_slice);
+			s = s * s + minimum_s;
+			vec2 sample_offset_float = s * radius_pixels;
+			float sample_offset_length = length (sample_offset_float);
+			ivec2 sample_offset = ivec2 (round (sample_offset_float));
+			if (all (equal (sample_offset, ivec2 (0))))
+				continue;
+
+			ivec2 sample_pixel_0 = pixel + sample_offset;
+			if (inside_viewport (sample_pixel_0))
+			{
+				bool sample_valid_0;
+				float sample_depth_0 = sample_horizon_depth (sample_pixel_0, sample_offset_length, sample_valid_0);
+				if (sample_valid_0)
+				{
+					vec3 sample_delta_0 = reconstruct_position (sample_pixel_0, sample_depth_0) - center;
+					float sample_distance_0 = length (sample_delta_0);
+					if (sample_distance_0 > 0.00001f)
+					{
+						float falloff_base_0 = length (vec3 (sample_delta_0.xy, sample_delta_0.z * (1.0f + max (push_constants.thin_occluder_compensation, 0.0f))));
+						float weight_0 = clamp (falloff_base_0 * falloff_mul + falloff_add, 0.0f, 1.0f);
+						float sample_horizon_cos_0 = dot (sample_delta_0 / sample_distance_0, view_vector) - clamp (push_constants.bias, 0.0f, 0.5f);
+						sample_horizon_cos_0 = mix (low_horizon_cos_0, sample_horizon_cos_0, weight_0);
+						horizon_cos_0 = max (horizon_cos_0, sample_horizon_cos_0);
+					}
+				}
+			}
+
+			ivec2 sample_pixel_1 = pixel - sample_offset;
+			if (inside_viewport (sample_pixel_1))
+			{
+				bool sample_valid_1;
+				float sample_depth_1 = sample_horizon_depth (sample_pixel_1, sample_offset_length, sample_valid_1);
+				if (sample_valid_1)
+				{
+					vec3 sample_delta_1 = reconstruct_position (sample_pixel_1, sample_depth_1) - center;
+					float sample_distance_1 = length (sample_delta_1);
+					if (sample_distance_1 > 0.00001f)
+					{
+						float falloff_base_1 = length (vec3 (sample_delta_1.xy, sample_delta_1.z * (1.0f + max (push_constants.thin_occluder_compensation, 0.0f))));
+						float weight_1 = clamp (falloff_base_1 * falloff_mul + falloff_add, 0.0f, 1.0f);
+						float sample_horizon_cos_1 = dot (sample_delta_1 / sample_distance_1, view_vector) - clamp (push_constants.bias, 0.0f, 0.5f);
+						sample_horizon_cos_1 = mix (low_horizon_cos_1, sample_horizon_cos_1, weight_1);
+						horizon_cos_1 = max (horizon_cos_1, sample_horizon_cos_1);
+					}
+				}
+			}
+		}
+
+		projected_normal_length = mix (projected_normal_length, 1.0f, 0.05f);
+		float h0 = -acos (clamp (horizon_cos_1, -1.0f, 1.0f));
+		float h1 = acos (clamp (horizon_cos_0, -1.0f, 1.0f));
+		float integrated_arc_0 = (cos_normal + 2.0f * h0 * sin (n) - cos (2.0f * h0 - n)) * 0.25f;
+		float integrated_arc_1 = (cos_normal + 2.0f * h1 * sin (n) - cos (2.0f * h1 - n)) * 0.25f;
+		visibility += projected_normal_length * (integrated_arc_0 + integrated_arc_1);
+	}
+
+	visibility = pow (max (visibility / float (slice_count), 0.0f), 2.2f);
+	visibility = max (visibility, 0.03f);
+	imageStore (ao_image, ao_pixel, vec4 (visibility, packed_edges, 0.0f, representative_value));
+}

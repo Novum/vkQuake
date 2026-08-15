@@ -58,6 +58,7 @@ extern int glwidth, glheight;
 #define MIN_NB_DESCRIPTORS_PER_TYPE 32
 
 #define NUM_COLOR_BUFFERS			   2
+#define GTAO_DEPTH_MIP_LEVELS		   5
 #define INITIAL_STAGING_BUFFER_SIZE_KB 16384
 
 #define FAN_INDEX_BUFFER_SIZE 126
@@ -187,7 +188,15 @@ typedef struct vulkan_memory_s
 	vulkan_memory_type_t type;
 } vulkan_memory_t;
 
-#define WORLD_PIPELINE_COUNT			   16
+#define WORLD_PIPELINE_LIQUID_BIT		   16
+#define WORLD_PIPELINE_COUNT			   32
+#define STENCIL_MASK_SKY				   0x01u
+#define STENCIL_MASK_VIEWMODEL			   0x02u
+#define STENCIL_MASK_WATER				   0x04u
+#define STENCIL_MASK_SLIME				   0x08u
+#define STENCIL_MASK_LAVA				   0x10u
+#define STENCIL_MASK_TELE				   0x20u
+#define STENCIL_MASK_LIQUID				   (STENCIL_MASK_WATER | STENCIL_MASK_SLIME | STENCIL_MASK_LAVA | STENCIL_MASK_TELE)
 // slot layout of the alias/md5 pipeline arrays: 0..3 encode alpha test/blend, 4..5 are the r_showtris variants
 #define MODEL_PIPELINE_ALPHA_TEST_BIT	   1
 #define MODEL_PIPELINE_ALPHA_BLEND_BIT	   2
@@ -271,6 +280,7 @@ typedef enum
 } oit_mode_t;
 
 extern oit_mode_t frame_oit_mode;
+extern qboolean	  frame_gtao_enabled;
 
 static inline qboolean R_UseOIT (void)
 {
@@ -285,6 +295,11 @@ static inline qboolean R_UseWBOIT (void)
 static inline qboolean R_UseMBOIT (void)
 {
 	return frame_oit_mode == OIT_MODE_MBOIT;
+}
+
+static inline qboolean R_GTAOEnabled (void)
+{
+	return frame_gtao_enabled;
 }
 
 static inline main_render_pass_variant_t R_MainPassPipelineVariant (int render_pass_index)
@@ -428,10 +443,12 @@ typedef struct
 	vulkan_pipeline_t		 sky_cube_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
 	vulkan_pipeline_t		 sky_layer_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
 	vulkan_pipeline_t		 alias_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 alias_viewmodel_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_wboit_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_mboit_moment_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_mboit_composite_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 md5_viewmodel_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_wboit_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_mboit_moment_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_mboit_composite_pipelines[MODEL_PIPELINE_COUNT];
@@ -441,6 +458,13 @@ typedef struct
 	vulkan_pipeline_t		 screen_effects_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;
+	vulkan_pipeline_t		 gtao_pipeline;
+	vulkan_pipeline_t		 gtao_depth_pipeline;
+	vulkan_pipeline_t		 gtao_depth_msaa_pipeline;
+	vulkan_pipeline_t		 gtao_depth_r8_pipeline;
+	vulkan_pipeline_t		 gtao_depth_msaa_r8_pipeline;
+	vulkan_pipeline_t		 gtao_depth_downsample_pipeline;
+	vulkan_pipeline_t		 gtao_denoise_pipeline;
 	vulkan_pipeline_t		 cs_tex_warp_pipeline;
 	vulkan_pipeline_t		 showtris_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 showtris_indirect_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
@@ -470,6 +494,12 @@ typedef struct
 	VkDescriptorSet			 mboit_input_attachment_descriptor_set;
 	VkDescriptorSet			 screen_effects_desc_set;
 	vulkan_desc_set_layout_t screen_effects_set_layout;
+	VkDescriptorSet			 gtao_desc_set;
+	vulkan_desc_set_layout_t gtao_set_layout;
+	VkDescriptorSet			 gtao_depth_desc_sets[GTAO_DEPTH_MIP_LEVELS];
+	vulkan_desc_set_layout_t gtao_depth_set_layout;
+	VkDescriptorSet			 gtao_denoise_desc_sets[2];
+	vulkan_desc_set_layout_t gtao_denoise_set_layout;
 	vulkan_desc_set_layout_t single_texture_cs_write_set_layout;
 	vulkan_desc_set_layout_t lightmap_compute_set_layout;
 	VkDescriptorSet			 indirect_compute_desc_set;
@@ -492,9 +522,14 @@ typedef struct
 	VkSampler linear_aniso_sampler_lod_bias;
 
 	// Matrices
-	float projection_matrix[16];
-	float view_matrix[16];
-	float view_projection_matrix[16];
+	float	 projection_matrix[16];
+	float	 view_matrix[16];
+	float	 view_projection_matrix[16];
+	int32_t	 gtao_viewport_x;
+	int32_t	 gtao_viewport_y;
+	uint32_t gtao_viewport_width;
+	uint32_t gtao_viewport_height;
+	float	 gtao_projection[4];
 
 	// Dispatch table
 	PFN_vkCmdBindPipeline			vk_cmd_bind_pipeline;
@@ -568,6 +603,21 @@ extern cvar_t r_slimealpha;
 extern cvar_t r_dynamic;
 extern cvar_t r_novis;
 extern cvar_t r_scale;
+extern cvar_t r_gtao;
+extern cvar_t r_gtao_radius;
+extern cvar_t r_gtao_falloff;
+extern cvar_t r_gtao_thin_occluder_compensation;
+extern cvar_t r_gtao_strength;
+extern cvar_t r_gtao_debug;
+extern cvar_t r_gtao_quality;
+extern cvar_t r_gtao_denoise;
+extern cvar_t r_gtao_bias;
+extern cvar_t r_gtao_multibounce;
+extern cvar_t r_gtao_halfres;
+extern cvar_t r_gtao_liquid_water;
+extern cvar_t r_gtao_liquid_slime;
+extern cvar_t r_gtao_liquid_lava;
+extern cvar_t r_gtao_liquid_tele;
 
 extern cvar_t gl_polyblend;
 extern cvar_t gl_nocolors;

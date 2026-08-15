@@ -243,6 +243,56 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale_sops.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale_sops.comp.c</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.c</Outputs>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\gtao.comp">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao.comp.spv" gtao.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao.comp.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao.comp.spv" gtao.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao.comp.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao.comp.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\gtao.comp.c</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\gtao_depth.comp">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth.comp.spv" gtao_depth.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DGTAO_DEPTH_MSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_msaa.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_msaa.comp.spv" gtao_depth_msaa.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_msaa.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DGTAO_LIQUID_MASK_R8=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_r8.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_r8.comp.spv" gtao_depth_r8.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_r8.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DGTAO_DEPTH_MSAA=1 -DGTAO_LIQUID_MASK_R8=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_msaa_r8.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_msaa_r8.comp.spv" gtao_depth_msaa_r8.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_msaa_r8.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DGTAO_DEPTH_DOWNSAMPLE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_downsample.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_downsample.comp.spv" gtao_depth_downsample.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_downsample.comp.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth.comp.spv" gtao_depth.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DGTAO_DEPTH_MSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa.comp.spv" gtao_depth_msaa.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DGTAO_LIQUID_MASK_R8=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_r8.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_r8.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_r8.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_r8.comp.spv" gtao_depth_r8.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_r8.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DGTAO_DEPTH_MSAA=1 -DGTAO_LIQUID_MASK_R8=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa_r8.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa_r8.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa_r8.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa_r8.comp.spv" gtao_depth_msaa_r8.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa_r8.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DGTAO_DEPTH_DOWNSAMPLE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_downsample.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_downsample.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_downsample.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_downsample.comp.spv" gtao_depth_downsample.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_downsample.comp.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_msaa.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_r8.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_msaa_r8.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_depth_downsample.comp.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_r8.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_msaa_r8.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_depth_downsample.comp.c</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\gtao_denoise.comp">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_denoise.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_denoise.comp.spv" gtao_denoise.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_denoise.comp.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_denoise.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_denoise.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_denoise.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_denoise.comp.spv" gtao_denoise.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_denoise.comp.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\gtao_denoise.comp.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\gtao_denoise.comp.c</Outputs>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
       <FileType>Document</FileType>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>

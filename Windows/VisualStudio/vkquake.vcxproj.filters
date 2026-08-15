@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Resource Files">
@@ -397,6 +397,27 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale_sops.comp.c">
       <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth_msaa.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth_r8.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth_msaa_r8.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_depth_downsample.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\gtao_denoise.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\showtris.frag.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
@@ -495,6 +516,27 @@
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.c">
       <Filter>Shaders\Release\Screen Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth_msaa.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth_r8.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth_msaa_r8.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_depth_downsample.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\gtao_denoise.comp.c">
+      <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\showtris.frag.c">
       <Filter>Shaders\Release</Filter>

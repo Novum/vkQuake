@@ -1731,6 +1731,7 @@ enum
 	GRAPHICS_OPT_MODELS,
 	GRAPHICS_OPT_MODEL_INTERPOLATION,
 	GRAPHICS_OPT_PARTICLES,
+	GRAPHICS_OPT_GTAO,
 	GRAPHICS_OPT_SHADOWS,
 	GRAPHICS_OPTIONS_ITEMS,
 };
@@ -1844,6 +1845,30 @@ static void M_GraphicsOptions_ChooseNextParticles (int dir)
 	Cvar_SetValueQuick (&r_particles, (float)value);
 }
 
+static int M_GraphicsOptions_GTAOPreset (void)
+{
+	if (r_gtao.value <= 0.0f)
+		return 0;
+	if (r_gtao_quality.value >= 4.0f)
+		return 3;
+	return r_gtao_quality.value >= 3.0f ? 2 : 1;
+}
+
+static void M_GraphicsOptions_ChooseNextGTAOPreset (int dir)
+{
+	const int preset = (M_GraphicsOptions_GTAOPreset () + 4 + dir) % 4;
+	if (preset == 0)
+	{
+		Cvar_SetValueQuick (&r_gtao, 0.0f);
+		return;
+	}
+
+	R_RestoreGTAODefaults ();
+	Cvar_SetValueQuick (&r_gtao, 1.0f);
+	Cvar_SetValueQuick (&r_gtao_halfres, 1.0f);
+	Cvar_SetValueQuick (&r_gtao_quality, (float)(preset + 1));
+}
+
 static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 {
 	float f, clamped_mouse = CLAMP (SLIDER_START, (float)m_mouse_x, SLIDER_END);
@@ -1922,6 +1947,9 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GRAPHICS_OPT_PARTICLES:
 		M_GraphicsOptions_ChooseNextParticles (dir);
+		break;
+	case GRAPHICS_OPT_GTAO:
+		M_GraphicsOptions_ChooseNextGTAOPreset (dir);
 		break;
 	case GRAPHICS_OPT_SHADOWS:
 		if (vulkan_globals.ray_query)
@@ -2060,6 +2088,12 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PARTICLES,
 		((int)r_particles.value == 0) ? "off" : (((int)r_particles.value == 2) ? "Classic" : "glQuake"));
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GTAO, "Ambient Occl.");
+	{
+		const char *gtao_presets[] = {"off", "low", "medium", "high"};
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GTAO, gtao_presets[M_GraphicsOptions_GTAOPreset ()]);
+	}
 
 	if (vulkan_globals.ray_query)
 	{

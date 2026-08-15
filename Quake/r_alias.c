@@ -109,15 +109,19 @@ static void GL_DrawAliasFrame (
 							  cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE;
 	if (oit_pass && (showtris != 0 || !has_alpha))
 		return;
+	const main_render_pass_variant_t main_variant = R_MainPassPipelineVariant (cbx->render_pass_index);
+	const qboolean					 viewmodel = R_GTAOEnabled () && e == &cl.viewent && showtris == 0 && !oit_pass;
 
 	if (paliashdr->poseverttype == PV_MD5)
 		pipeline = R_PipelineForRenderPass (
-			cbx->render_pass_index, vulkan_globals.md5_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
+			cbx->render_pass_index,
+			viewmodel ? vulkan_globals.md5_viewmodel_pipelines[main_variant][pipeline_index] : vulkan_globals.md5_pipelines[main_variant][pipeline_index],
 			vulkan_globals.md5_wboit_pipelines[pipeline_index], vulkan_globals.md5_mboit_moment_pipelines[pipeline_index],
 			vulkan_globals.md5_mboit_composite_pipelines[pipeline_index]);
 	else
 		pipeline = R_PipelineForRenderPass (
-			cbx->render_pass_index, vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
+			cbx->render_pass_index,
+			viewmodel ? vulkan_globals.alias_viewmodel_pipelines[main_variant][pipeline_index] : vulkan_globals.alias_pipelines[main_variant][pipeline_index],
 			vulkan_globals.alias_wboit_pipelines[pipeline_index], vulkan_globals.alias_mboit_moment_pipelines[pipeline_index],
 			vulkan_globals.alias_mboit_composite_pipelines[pipeline_index]);
 
