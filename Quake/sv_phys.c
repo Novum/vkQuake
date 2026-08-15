@@ -59,8 +59,12 @@ qboolean sv_analyticphysics_frame = true; // sv_analyticphysics latched per SV_P
 
 // max depth float rounding can embed an entity into the surface it rests on, anything deeper is a real overlap
 #define PUSH_CONTACT_EPSILON (2 * DIST_EPSILON)
+#define MIN_WALK_NORMAL		 0.7f
+#define STEPSIZE			 18
 
-static void SV_Physics_Toss (edict_t *ent);
+static void		SV_Physics_Toss (edict_t *ent);
+static edict_t *sv_walk_support_pusher;
+static vec3_t	sv_walk_support_normal;
 
 // For usage by SV_PushMove, allocate at max possible size,
 // fine to be static because all SV_phys is only called from the main thread.
@@ -471,6 +475,38 @@ static int ClipVelocity (vec3_t in, vec3_t normal, vec3_t out, float overbounce)
 	return blocked;
 }
 
+typedef enum
+{
+	SV_PUSHER_CONTACT_NONE,
+	SV_PUSHER_CONTACT_SUPPORT_FLOOR,
+	SV_PUSHER_CONTACT_SUPPORT_SIDE
+} sv_pusher_contact_t;
+
+static sv_pusher_contact_t SV_ClassifyWalkSupportContact (trace_t *trace)
+{
+	float  support_dot;
+	vec3_t tangent_normal;
+
+	if (!sv_walk_support_pusher || trace->ent != sv_walk_support_pusher)
+		return SV_PUSHER_CONTACT_NONE;
+
+	support_dot = DotProduct (trace->plane.normal, sv_walk_support_normal);
+	if (support_dot > MIN_WALK_NORMAL)
+		return SV_PUSHER_CONTACT_SUPPORT_FLOOR;
+	if (support_dot <= 0)
+		return SV_PUSHER_CONTACT_NONE;
+
+	// While walking on a pusher, a non-floor contact with that same pusher is
+	// lateral support geometry.  Clip against its tangent component so it can't
+	// inject velocity away from the support plane the client is standing on.
+	VectorMA (trace->plane.normal, -support_dot, sv_walk_support_normal, tangent_normal);
+	if (VectorNormalize (tangent_normal) <= DIST_EPSILON)
+		return SV_PUSHER_CONTACT_NONE;
+
+	VectorCopy (tangent_normal, trace->plane.normal);
+	return SV_PUSHER_CONTACT_SUPPORT_SIDE;
+}
+
 /*
 ============
 SV_FlyMove
@@ -486,17 +522,18 @@ If steptrace is not NULL, the trace of any vertical wall hit will be stored
 #define MAX_CLIP_PLANES 5
 static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 {
-	int		bumpcount, numbumps;
-	vec3_t	dir;
-	float	d;
-	int		numplanes;
-	vec3_t	planes[MAX_CLIP_PLANES];
-	vec3_t	primal_velocity, original_velocity, new_velocity;
-	int		i, j;
-	trace_t trace;
-	vec3_t	end;
-	float	time_left;
-	int		blocked;
+	int					bumpcount, numbumps;
+	vec3_t				dir;
+	float				d;
+	int					numplanes;
+	vec3_t				planes[MAX_CLIP_PLANES];
+	vec3_t				primal_velocity, original_velocity, new_velocity;
+	int					i, j;
+	trace_t				trace;
+	vec3_t				end;
+	float				time_left;
+	int					blocked;
+	sv_pusher_contact_t pusher_contact;
 
 	numbumps = 4;
 
@@ -537,7 +574,9 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		if (!trace.ent)
 			Sys_Error ("SV_FlyMove: !trace.ent");
 
-		if (trace.plane.normal[2] > 0.7)
+		pusher_contact = SV_ClassifyWalkSupportContact (&trace);
+
+		if (pusher_contact != SV_PUSHER_CONTACT_SUPPORT_SIDE && trace.plane.normal[2] > MIN_WALK_NORMAL)
 		{
 			blocked |= 1; // floor
 			if (trace.ent->v.solid == SOLID_BSP)
@@ -546,7 +585,7 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 				ent->v.groundentity = EDICT_TO_PROG (trace.ent);
 			}
 		}
-		if (!trace.plane.normal[2])
+		if (pusher_contact == SV_PUSHER_CONTACT_SUPPORT_SIDE || !trace.plane.normal[2])
 		{
 			blocked |= 2; // step
 			if (steptrace)
@@ -665,6 +704,364 @@ PUSHMOVE
 // 0=off; 1=legacy DIST_EPSILON nudge, clients only; 2=legacy nudge, all entities; 3=robust pusher contact (default)
 cvar_t sv_gameplayfix_elevators = {"sv_gameplayfix_elevators", "3", CVAR_NONE};
 
+typedef struct
+{
+	edict_t *pusher;
+	qboolean qc_kept_ground;
+	vec3_t	 pusher_velocity;
+	vec3_t	 support_normal;
+} sv_client_support_t;
+
+typedef struct
+{
+	unsigned frame;
+	int		 pusher_entnum;
+	vec3_t	 pusher_velocity;
+	vec3_t	 pusher_move;
+} sv_pusher_support_record_t;
+
+static sv_pusher_support_record_t sv_pusher_support[MAX_EDICTS];
+static unsigned					  sv_pusher_support_frame;
+static edict_t					 *sv_pusher_support_edicts;
+
+static void SV_BeginPusherSupportFrame (void)
+{
+	if (qcvm != &sv.qcvm)
+		return;
+
+	if (sv_pusher_support_edicts != qcvm->edicts)
+	{
+		memset (sv_pusher_support, 0, sizeof (sv_pusher_support));
+		sv_pusher_support_edicts = qcvm->edicts;
+		sv_pusher_support_frame = 1;
+		return;
+	}
+
+	sv_pusher_support_frame++;
+	if (!sv_pusher_support_frame)
+	{
+		memset (sv_pusher_support, 0, sizeof (sv_pusher_support));
+		sv_pusher_support_frame = 1;
+	}
+}
+
+static qboolean SV_TracePusherFloorAtOrigin (edict_t *ent, edict_t *pusher, const vec3_t pusher_origin, float probe_distance, trace_t *trace)
+{
+	int	   i;
+	vec3_t old_absmin, old_absmax;
+	vec3_t old_origin, start, end;
+
+	for (i = 0; i < 3; i++)
+	{
+		const float delta = pusher_origin[i] - pusher->v.origin[i];
+		old_absmin[i] = pusher->v.absmin[i] + delta;
+		old_absmax[i] = pusher->v.absmax[i] + delta;
+	}
+
+	if (ent->v.absmin[0] >= old_absmax[0] || ent->v.absmin[1] >= old_absmax[1] || ent->v.absmax[0] <= old_absmin[0] || ent->v.absmax[1] <= old_absmin[1])
+		return false;
+	if (ent->v.absmin[2] > old_absmax[2] + probe_distance || ent->v.absmax[2] < old_absmin[2] - PUSH_CONTACT_EPSILON)
+		return false;
+
+	VectorCopy (pusher->v.origin, old_origin);
+	VectorCopy (pusher_origin, pusher->v.origin);
+
+	VectorCopy (ent->v.origin, start);
+	start[2] += PUSH_CONTACT_EPSILON;
+	VectorCopy (ent->v.origin, end);
+	end[2] -= probe_distance;
+	*trace = SV_ClipMoveToEntity (pusher, start, ent->v.mins, ent->v.maxs, end, CONTENTMASK_ANYSOLID);
+
+	VectorCopy (old_origin, pusher->v.origin);
+
+	return !trace->startsolid && trace->fraction < 1 && trace->plane.normal[2] > MIN_WALK_NORMAL;
+}
+
+static qboolean SV_TouchingPusherAtOrigin (edict_t *ent, edict_t *pusher, const vec3_t pusher_origin)
+{
+	trace_t trace;
+
+	return SV_TracePusherFloorAtOrigin (ent, pusher, pusher_origin, PUSH_CONTACT_EPSILON, &trace);
+}
+
+static edict_t *SV_GetGroundPusher (edict_t *ent)
+{
+	edict_t *ground;
+
+	if (sv_gameplayfix_elevators.value < 3.f || !((int)ent->v.flags & FL_ONGROUND))
+		return NULL;
+	if (ent->v.groundentity <= 0 || ent->v.groundentity > (qcvm->num_edicts - 1) * qcvm->edict_size)
+		return NULL;
+
+	ground = PROG_TO_EDICT (ent->v.groundentity);
+	if (ground->free || ground->v.movetype != MOVETYPE_PUSH || ground->v.solid != SOLID_BSP)
+		return NULL;
+
+	return ground;
+}
+
+static qboolean SV_GetPusherSupportRecord (edict_t *ent, sv_pusher_support_record_t **record)
+{
+	int entnum;
+
+	if (qcvm != &sv.qcvm)
+		return false;
+
+	entnum = NUM_FOR_EDICT (ent);
+	if (entnum <= 0 || entnum >= MAX_EDICTS)
+		return false;
+
+	*record = &sv_pusher_support[entnum];
+	return true;
+}
+
+static void SV_GetAppliedPusherSupportMove (edict_t *ent, vec3_t move)
+{
+	sv_pusher_support_record_t *support;
+
+	VectorCopy (vec3_origin, move);
+	if (!SV_GetPusherSupportRecord (ent, &support))
+		return;
+	if (support->frame == sv_pusher_support_frame)
+		VectorCopy (support->pusher_move, move);
+}
+
+static void SV_BackupPusherSupport (edict_t *ent, sv_pusher_support_record_t *backup)
+{
+	sv_pusher_support_record_t *support;
+
+	memset (backup, 0, sizeof (*backup));
+	if (SV_GetPusherSupportRecord (ent, &support))
+		*backup = *support;
+}
+
+static void SV_RestorePusherSupport (edict_t *ent, const sv_pusher_support_record_t *backup)
+{
+	sv_pusher_support_record_t *support;
+
+	if (SV_GetPusherSupportRecord (ent, &support))
+		*support = *backup;
+}
+
+static void SV_RecordPusherSupport (edict_t *ent, edict_t *pusher, const vec3_t pusher_move)
+{
+	int							pushernum;
+	sv_pusher_support_record_t *support;
+	trace_t						trace;
+
+	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
+		return;
+	if (!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
+		return;
+
+	pushernum = NUM_FOR_EDICT (pusher);
+	if (pushernum <= 0 || pushernum >= MAX_EDICTS)
+		return;
+	if (!SV_GetPusherSupportRecord (ent, &support))
+		return;
+
+	support->frame = sv_pusher_support_frame;
+	support->pusher_entnum = pushernum;
+	VectorCopy (pusher->v.velocity, support->pusher_velocity);
+	VectorCopy (pusher_move, support->pusher_move);
+
+	if (ent->v.movetype == MOVETYPE_WALK)
+	{
+		ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+		ent->v.groundentity = EDICT_TO_PROG (pusher);
+	}
+}
+
+static void SV_CaptureClientSupport (edict_t *ent, sv_client_support_t *support)
+{
+	int							entnum;
+	sv_pusher_support_record_t *record;
+	edict_t					   *pusher = NULL;
+	trace_t						trace;
+
+	support->pusher = NULL;
+	support->qc_kept_ground = false;
+	VectorCopy (vec3_origin, support->pusher_velocity);
+	VectorCopy (vec3_origin, support->support_normal);
+
+	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
+		return;
+
+	entnum = NUM_FOR_EDICT (ent);
+	if (entnum <= 0 || entnum >= MAX_EDICTS)
+		return;
+
+	record = &sv_pusher_support[entnum];
+	if (record->frame && record->frame + 1 == sv_pusher_support_frame && record->pusher_entnum > 0 && record->pusher_entnum < qcvm->num_edicts)
+	{
+		pusher = EDICT_NUM (record->pusher_entnum);
+		if (pusher->free || pusher->v.movetype != MOVETYPE_PUSH || pusher->v.solid != SOLID_BSP || ent->v.groundentity != EDICT_TO_PROG (pusher) ||
+			!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
+			pusher = NULL;
+		else
+		{
+			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+			support->pusher = pusher;
+			VectorCopy (record->pusher_velocity, support->pusher_velocity);
+			VectorCopy (trace.plane.normal, support->support_normal);
+			return;
+		}
+	}
+
+	pusher = SV_GetGroundPusher (ent);
+	if (pusher && SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
+	{
+		support->pusher = pusher;
+		VectorCopy (pusher->v.velocity, support->pusher_velocity);
+		VectorCopy (trace.plane.normal, support->support_normal);
+	}
+}
+
+static qboolean SV_ClientHasPusherContact (const sv_client_support_t *support)
+{
+	if (!support->pusher)
+		return false;
+	if (support->pusher->free || support->pusher->v.movetype != MOVETYPE_PUSH || support->pusher->v.solid != SOLID_BSP)
+		return false;
+	if (DotProduct (support->support_normal, support->support_normal) <= DIST_EPSILON * DIST_EPSILON)
+		return false;
+	return true;
+}
+
+static qboolean SV_ClientSupportedByPusher (const sv_client_support_t *support)
+{
+	if (!support->qc_kept_ground)
+		return false;
+	if (!SV_ClientHasPusherContact (support))
+		return false;
+	return true;
+}
+
+static void SV_SetWalkSupportClipContext (const sv_client_support_t *support)
+{
+	if (!SV_ClientHasPusherContact (support))
+	{
+		sv_walk_support_pusher = NULL;
+		VectorCopy (vec3_origin, sv_walk_support_normal);
+		return;
+	}
+
+	sv_walk_support_pusher = support->pusher;
+	VectorCopy (support->support_normal, sv_walk_support_normal);
+}
+
+static void SV_ClearWalkSupportClipContext (void)
+{
+	sv_walk_support_pusher = NULL;
+	VectorCopy (vec3_origin, sv_walk_support_normal);
+}
+
+static void SV_ResolveClientSupportAfterQC (edict_t *ent, sv_client_support_t *support)
+{
+	if (!support->pusher)
+		return;
+
+	support->qc_kept_ground = (int)ent->v.flags & FL_ONGROUND;
+
+	if (!support->qc_kept_ground && ent->v.movetype == MOVETYPE_WALK)
+	{
+		ent->v.velocity[2] += support->pusher_velocity[2];
+		if (ent->v.groundentity == EDICT_TO_PROG (support->pusher))
+			ent->v.groundentity = 0;
+	}
+}
+
+static qboolean SV_GroundClientOnPusherSupport (edict_t *ent, const sv_client_support_t *support)
+{
+	trace_t trace;
+
+	if (!SV_ClientSupportedByPusher (support))
+		return false;
+	if (!SV_TracePusherFloorAtOrigin (ent, support->pusher, support->pusher->v.origin, STEPSIZE, &trace))
+		return false;
+
+	VectorCopy (trace.endpos, ent->v.origin);
+	SV_LinkEdict (ent, false);
+	ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+	ent->v.groundentity = EDICT_TO_PROG (support->pusher);
+	ent->v.velocity[2] = 0;
+	return true;
+}
+
+static qboolean SV_TestEntityPositionOnPusher (edict_t *ent, edict_t *pusher, const vec3_t pusher_origin, const vec3_t ent_origin)
+{
+	vec3_t	old_origin;
+	vec3_t	trace_origin;
+	trace_t trace;
+
+	VectorCopy (pusher->v.origin, old_origin);
+	VectorCopy (pusher_origin, pusher->v.origin);
+	VectorCopy (ent_origin, trace_origin);
+	trace = SV_ClipMoveToEntity (pusher, trace_origin, ent->v.mins, ent->v.maxs, trace_origin, CONTENTMASK_ANYSOLID);
+	VectorCopy (old_origin, pusher->v.origin);
+	return trace.startsolid;
+}
+
+static qboolean SV_EntityRidingPusher (edict_t *ent, edict_t *pusher)
+{
+	return ((int)ent->v.flags & FL_ONGROUND) && PROG_TO_EDICT (ent->v.groundentity) == pusher;
+}
+
+static qboolean SV_PusherBoundsOverlapEntity (edict_t *ent, const vec3_t mins, const vec3_t maxs)
+{
+	return !(
+		ent->v.absmin[0] >= maxs[0] || ent->v.absmin[1] >= maxs[1] || ent->v.absmin[2] >= maxs[2] || ent->v.absmax[0] <= mins[0] ||
+		ent->v.absmax[1] <= mins[1] || ent->v.absmax[2] <= mins[2]);
+}
+
+static qboolean
+SV_PusherAffectsEntity (edict_t *ent, edict_t *pusher, const vec3_t pushorig, const vec3_t mins, const vec3_t maxs, qboolean robust_push, qboolean *riding)
+{
+	*riding = false;
+
+	if (SV_EntityRidingPusher (ent, pusher))
+	{
+		if (!robust_push || SV_TouchingPusherAtOrigin (ent, pusher, pushorig))
+		{
+			*riding = true;
+			return true;
+		}
+	}
+
+	if (robust_push && SV_TouchingPusherAtOrigin (ent, pusher, pushorig))
+	{
+		if (ent->v.movetype != MOVETYPE_WALK || ((int)ent->v.flags & FL_ONGROUND))
+		{
+			*riding = true;
+			return true;
+		}
+	}
+
+	if (!SV_PusherBoundsOverlapEntity (ent, mins, maxs))
+		return false;
+
+	if (!robust_push)
+	{
+		if (pusher->v.skin < 0)
+			return SV_ClipMoveToEntity (pusher, ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, CONTENTMASK_ANYSOLID).startsolid;
+		return SV_TestEntityPosition (ent) != NULL;
+	}
+
+	// Test the active pusher only; SV_TestEntityPosition can report an
+	// unrelated platform the entity is already standing on.
+	return SV_TestEntityPositionOnPusher (ent, pusher, pusher->v.origin, ent->v.origin);
+}
+
+static qboolean SV_PusherBlockIsPersistentRiderContact (
+	edict_t *ent, edict_t *pusher, edict_t *block, const vec3_t pushorig, const vec3_t entorig, qboolean robust_push, qboolean riding)
+{
+	if (!robust_push || !riding || block != pusher)
+		return false;
+
+	// Existing rider contact with this pusher is not a new crush.
+	return SV_TestEntityPositionOnPusher (ent, pusher, pushorig, entorig);
+}
+
 static trace_t SV_PushEntityMove (edict_t *ent, vec3_t start, vec3_t end)
 {
 	if (ent->v.movetype == MOVETYPE_FLYMISSILE)
@@ -746,8 +1143,9 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 	// fine to be a static temporary because SV_PushMove is only called from the main thread,
 	// without consuming stack space.
-	static edict_t *moved_edict[MAX_EDICTS];
-	static vec3_t	moved_from[MAX_EDICTS];
+	static edict_t					 *moved_edict[MAX_EDICTS];
+	static vec3_t					  moved_from[MAX_EDICTS];
+	static sv_pusher_support_record_t moved_support[MAX_EDICTS];
 
 	if (!pusher->v.velocity[0] && !pusher->v.velocity[1] && !pusher->v.velocity[2])
 	{
@@ -845,29 +1243,8 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 		qboolean riding = false;
 
-		// if the entity is standing on the pusher, it will definately be moved
-		if (!(((int)check->v.flags & FL_ONGROUND) && PROG_TO_EDICT (check->v.groundentity) == pusher))
-		{
-			if (check->v.absmin[0] >= maxs[0] || check->v.absmin[1] >= maxs[1] || check->v.absmin[2] >= maxs[2] || check->v.absmax[0] <= mins[0] ||
-				check->v.absmax[1] <= mins[1] || check->v.absmax[2] <= mins[2])
-				continue;
-
-			// see if the ent's bbox is inside the pusher's final position
-			if (pusher->v.skin < 0)
-			{ // a more precise check...
-				if (!SV_ClipMoveToEntity (pusher, check->v.origin, check->v.mins, check->v.maxs, check->v.origin, CONTENTMASK_ANYSOLID).startsolid)
-					continue;
-			}
-			else
-			{
-				if (!SV_TestEntityPosition (check))
-					continue;
-
-				riding = false;
-			}
-		}
-		else
-			riding = true;
+		if (!SV_PusherAffectsEntity (check, pusher, pushorig, mins, maxs, robust_push, &riding))
+			continue;
 
 		// remove the onground flag for non-players
 		if (check->v.movetype != MOVETYPE_WALK)
@@ -875,6 +1252,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 		VectorCopy (check->v.origin, entorig);
 		VectorCopy (check->v.origin, moved_from[num_moved]);
+		SV_BackupPusherSupport (check, &moved_support[num_moved]);
 		moved_edict[num_moved] = check;
 		num_moved++;
 
@@ -887,10 +1265,18 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			vec3_t dest;
 			if (robust_push)
 			{
-				// carry to a target derived from the pusher's new origin so the
-				// relative offset can't drift from parallel float integration
+				vec3_t applied_move;
+
+				if (riding)
+					SV_GetAppliedPusherSupportMove (check, applied_move);
+				else
+					VectorCopy (vec3_origin, applied_move);
+
+				// Supported entities are carried by the pusher frame once per
+				// physics frame. Composite movers therefore apply only the
+				// difference from the support motion already applied.
 				for (i = 0; i < 3; i++)
-					dest[i] = pusher->v.origin[i] + (entorig[i] - pushorig[i]);
+					dest[i] = entorig[i] + move[i] - applied_move[i];
 			}
 			else
 				VectorAdd (entorig, move, dest);
@@ -918,6 +1304,13 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			if (check->v.mins[0] == check->v.maxs[0])
 				continue;
 
+			if (SV_PusherBlockIsPersistentRiderContact (check, pusher, block, pushorig, entorig, robust_push, riding))
+			{
+				if (riding)
+					SV_RecordPusherSupport (check, pusher, move);
+				continue;
+			}
+
 			// riders only embed through their ground contact and never deeper than
 			// PUSH_CONTACT_EPSILON, so a single sweep from above recovers the exact
 			// contact position. must run before the corpse path so items don't get
@@ -937,6 +1330,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 					if (!SV_TestEntityPosition (check))
 					{
 						SV_LinkEdict (check, false);
+						SV_RecordPusherSupport (check, pusher, move);
 						continue;
 					}
 					VectorCopy (pushedorg, check->v.origin);
@@ -978,11 +1372,15 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			// move back any entities we already moved
 			for (i = 0; i < num_moved; i++)
 			{
+				SV_RestorePusherSupport (moved_edict[i], &moved_support[i]);
 				VectorCopy (moved_from[i], moved_edict[i]->v.origin);
 				SV_LinkEdict (moved_edict[i], false);
 			}
 			break;
 		}
+
+		if (riding)
+			SV_RecordPusherSupport (check, pusher, move);
 	}
 }
 
@@ -1091,6 +1489,35 @@ static void SV_CheckStuck (edict_t *ent)
 
 	VectorCopy (org, ent->v.origin);
 	Con_DPrintf ("player is stuck.\n");
+}
+
+static void SV_CheckStuckWithSupport (edict_t *ent, const sv_client_support_t *support)
+{
+	float solid_backup;
+
+	if (!SV_ClientSupportedByPusher (support))
+	{
+		SV_CheckStuck (ent);
+		return;
+	}
+
+	if (!SV_TestEntityPosition (ent))
+	{
+		VectorCopy (ent->v.origin, ent->v.oldorigin);
+		return;
+	}
+
+	solid_backup = support->pusher->v.solid;
+	support->pusher->v.solid = SOLID_NOT;
+	if (!SV_TestEntityPosition (ent))
+	{
+		support->pusher->v.solid = solid_backup;
+		VectorCopy (ent->v.origin, ent->v.oldorigin);
+		return;
+	}
+	support->pusher->v.solid = solid_backup;
+
+	SV_CheckStuck (ent);
 }
 
 /*
@@ -1249,8 +1676,7 @@ SV_WalkMove
 Only used by players
 ======================
 */
-#define STEPSIZE 18
-static void SV_WalkMove (edict_t *ent)
+static void SV_WalkMove (edict_t *ent, const sv_client_support_t *support)
 {
 	vec3_t	upmove, downmove;
 	vec3_t	oldorg, oldvel;
@@ -1268,10 +1694,15 @@ static void SV_WalkMove (edict_t *ent)
 	VectorCopy (ent->v.origin, oldorg);
 	VectorCopy (ent->v.velocity, oldvel);
 
+	SV_SetWalkSupportClipContext (support);
 	clip = SV_FlyMove (ent, host_frametime, &steptrace);
+	SV_ClearWalkSupportClipContext ();
 
 	if (!(clip & 2))
+	{
+		SV_GroundClientOnPusherSupport (ent, support);
 		return; // move didn't block on a step
+	}
 
 	if (!oldonground && ent->v.waterlevel == 0)
 		return; // don't stair up while jumping
@@ -1303,7 +1734,9 @@ static void SV_WalkMove (edict_t *ent)
 	ent->v.velocity[0] = oldvel[0];
 	ent->v.velocity[1] = oldvel[1];
 	ent->v.velocity[2] = 0;
+	SV_SetWalkSupportClipContext (support);
 	clip = SV_FlyMove (ent, host_frametime, &steptrace);
+	SV_ClearWalkSupportClipContext ();
 
 	// check for stuckness, possibly due to the limited precision of floats
 	// in the clipping hulls. Disable when using pr_checkextension to avoid
@@ -1325,9 +1758,9 @@ static void SV_WalkMove (edict_t *ent)
 	downmove[2] += -STEPSIZE + oldvel[2] * host_frametime;
 	downtrace = SV_PushEntityTo (ent, downmove); // FIXME: don't link?
 
-	if (downtrace.plane.normal[2] > 0.7)
+	if (downtrace.plane.normal[2] > MIN_WALK_NORMAL)
 	{
-		if (ent->v.solid == SOLID_BSP)
+		if (ent->v.solid == SOLID_BSP || (SV_ClientSupportedByPusher (support) && downtrace.ent == support->pusher))
 		{
 			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
 
@@ -1343,6 +1776,7 @@ static void SV_WalkMove (edict_t *ent)
 		// cause the player to hop up higher on a slope too steep to climb
 		VectorCopy (nosteporg, ent->v.origin);
 		VectorCopy (nostepvel, ent->v.velocity);
+		SV_GroundClientOnPusherSupport (ent, support);
 	}
 }
 
@@ -1353,13 +1787,36 @@ SV_Physics_Client
 Player character actions
 ================
 */
+static void SV_Physics_ClientWalk (edict_t *ent, const sv_client_support_t *support)
+{
+	const qboolean supported_by_pusher = SV_ClientSupportedByPusher (support);
+	const qboolean in_water = SV_CheckWater (ent);
+	const qboolean apply_gravity = !supported_by_pusher && !in_water && !((int)ent->v.flags & FL_WATERJUMP);
+
+	if (apply_gravity)
+		SV_AddGravity (ent);
+	else if (supported_by_pusher)
+		ent->v.velocity[2] = 0;
+
+	SV_CheckStuckWithSupport (ent, support);
+	assert_always (!ent->free);
+	SV_WalkMove (ent, support);
+
+	if (!ent->free && apply_gravity)
+		SV_FinishGravity (ent);
+}
+
 static void SV_Physics_Client (edict_t *ent, int num)
 {
+	sv_client_support_t support;
+
 	if (!svs.clients[num - 1].active)
 		return; // unconnected slot
 
 	if (!svs.clients[num - 1].knowntoqc && sv_gameplayfix_spawnbeforethinks.value)
 		return; // don't spam prethinks before we called putclientinserver.
+
+	SV_CaptureClientSupport (ent, &support);
 
 	//
 	// call standard client pre-think
@@ -1369,6 +1826,9 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	PR_ExecuteProgram (pr_global_struct->PlayerPreThink);
 
 	assert_always (!ent->free);
+
+	SV_ResolveClientSupportAfterQC (ent, &support);
+
 	//
 	// do a move
 	//
@@ -1387,21 +1847,7 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	case MOVETYPE_WALK:
 		if (!SV_RunThink (ent))
 			return;
-		if (!SV_CheckWater (ent) && !((int)ent->v.flags & FL_WATERJUMP))
-		{
-			SV_AddGravity (ent);
-			SV_CheckStuck (ent);
-			assert_always (!ent->free);
-			SV_WalkMove (ent);
-			if (!ent->free)
-				SV_FinishGravity (ent);
-		}
-		else
-		{
-			SV_CheckStuck (ent);
-			assert_always (!ent->free);
-			SV_WalkMove (ent);
-		}
+		SV_Physics_ClientWalk (ent, &support);
 		break;
 
 	case MOVETYPE_TOSS:
@@ -1574,7 +2020,7 @@ static void SV_Physics_Toss (edict_t *ent)
 	ClipVelocity (ent->v.velocity, trace.plane.normal, ent->v.velocity, backoff);
 
 	// stop if on ground
-	if (trace.plane.normal[2] > 0.7)
+	if (trace.plane.normal[2] > MIN_WALK_NORMAL)
 	{
 		if (ent->v.movetype != MOVETYPE_BOUNCE ||
 			(sv_gameplayfix_bouncedownslopes.value ? DotProduct (trace.plane.normal, ent->v.velocity) : ent->v.velocity[2]) < 60)
@@ -1680,6 +2126,9 @@ void SV_Physics (void)
 	else
 		physics_mode = (qcvm == &cl.qcvm) ? 0 : 2; // csqc doesn't run thinks by default. it was meant to simplify implementations, but we just force fields to
 												   // match ssqc so its not that large a burden.
+
+	if (qcvm == &sv.qcvm && physics_mode)
+		SV_BeginPusherSupportFrame ();
 
 	if (!physics_mode)
 	{
