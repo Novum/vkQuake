@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------------
-Copyright (c) 2019-2024, Microsoft Research, Daan Leijen
+Copyright (c) 2019-2026, Microsoft Research, Daan Leijen
 This is free software; you can redistribute it and/or modify it under the
 terms of the MIT license. A copy of the license can be found in the file
 "LICENSE" at the root of this distribution.
@@ -7,7 +7,7 @@ terms of the MIT license. A copy of the license can be found in the file
 
 /* ----------------------------------------------------------------------------
 "Arenas" are fixed area's of OS memory from which we can allocate
-large blocks (>= MI_ARENA_MIN_BLOCK_SIZE, 4MiB).
+large blocks (>= MI_ARENA_MIN_BLOCK_SIZE, 64KiB).
 In contrast to the rest of mimalloc, the arenas are shared between
 threads and need to be accessed using atomic operations.
 
@@ -21,8 +21,12 @@ The arena allocation needs to be thread safe and we use an atomic bitmap to allo
 
 #include "mimalloc.h"
 #include "mimalloc/internal.h"
+#include "mimalloc/prim-tls.h"
 #include "bitmap.h"
 
+#if (MI_ARENA_MAX_SIZE > MI_MAX_ALIGN_SIZE*UINT32_MAX)
+#error "The page_t.page_ma_offset field is not large enough to cover a full arena"
+#endif
 
 /* -----------------------------------------------------------
   Arena id's
@@ -33,21 +37,31 @@ mi_arena_id_t _mi_arena_id_none(void) {
 }
 
 mi_arena_t* _mi_arena_from_id(mi_arena_id_t id) {
-  return (mi_arena_t*)id;
+  mi_arena_t* const arena = (mi_arena_t*)id;
+  mi_assert_internal(arena==NULL || arena->parent==NULL); // id's should never point to sub-arena's
+  return arena;
+}
+
+mi_arena_id_t mi_arena_id_from_arena(mi_arena_t* arena) {
+  mi_assert_internal(arena==NULL || arena->parent==NULL);
+  return (arena==NULL ? _mi_arena_id_none() : (mi_arena_id_t)arena);
 }
 
 
-static bool mi_arena_id_is_suitable(mi_arena_t* arena, mi_arena_t* req_arena) {
-  return ((arena == req_arena) ||                        // they match,
-          (req_arena == NULL && !arena->is_exclusive));  // or the arena is not exclusive, and we didn't request a specific one
+static bool mi_arena_is_suitable(mi_arena_t* arena, mi_arena_t* req_arena) {
+  if (arena == req_arena) return true;                         // they match
+  if (arena == NULL) return false;
+  if (req_arena == NULL && !arena->is_exclusive) return true;  // or the arena is not exclusive, and we didn't request a specific one
+  if (arena->parent != NULL && arena->parent == req_arena) return true;  // sub-arena? (note that req_arena is never a sub arena)
+  return false;
 }
 
 bool _mi_arena_memid_is_suitable(mi_memid_t memid, mi_arena_t* request_arena) {
   if (memid.memkind == MI_MEM_ARENA) {
-    return mi_arena_id_is_suitable(memid.mem.arena.arena, request_arena);
+    return mi_arena_is_suitable(memid.mem.arena.arena, request_arena);
   }
   else {
-    return mi_arena_id_is_suitable(NULL, request_arena);
+    return mi_arena_is_suitable(NULL, request_arena);
   }
 }
 
@@ -57,7 +71,7 @@ size_t mi_arenas_get_count(mi_subproc_t* subproc) {
 
 mi_arena_t* mi_arena_from_index(mi_subproc_t* subproc, size_t idx) {
   mi_assert_internal(idx < mi_arenas_get_count(subproc));
-  return mi_atomic_load_ptr_relaxed(mi_arena_t, &subproc->arenas[idx]);
+  return mi_atomic_load_ptr_acquire(mi_arena_t, &subproc->arenas[idx]);
 }
 
 static size_t mi_arena_info_slices(mi_arena_t* arena) {
@@ -65,10 +79,13 @@ static size_t mi_arena_info_slices(mi_arena_t* arena) {
 }
 
 #if MI_DEBUG > 1
-static bool mi_arena_has_page(mi_arena_t* arena, mi_page_t* page) {
+static bool mi_heap_has_page(mi_heap_t* heap, mi_arena_t* arena, mi_page_t* page) {
+  mi_assert(arena->arena_idx < MI_MAX_ARENAS);
+  mi_arena_pages_t* arena_pages = heap->arena_pages[arena->arena_idx];
   return (page->memid.memkind == MI_MEM_ARENA &&
           page->memid.mem.arena.arena == arena &&
-          mi_bitmap_is_setN(arena->pages, page->memid.mem.arena.slice_index, 1));
+          arena_pages != NULL &&
+          mi_bitmap_is_setN(arena_pages->pages, page->memid.mem.arena.slice_index, 1));
 }
 #endif
 
@@ -76,15 +93,34 @@ size_t mi_arena_min_alignment(void) {
   return MI_ARENA_SLICE_ALIGN;
 }
 
-mi_decl_nodiscard static bool mi_arena_commit(mi_arena_t* arena, void* start, size_t size, bool* is_zero, size_t already_committed) {
+size_t mi_arena_min_size(void) {
+  return MI_ARENA_MIN_SIZE;
+}
+
+static size_t mi_arena_max_object_size(void) {
+  size_t max_size = mi_option_get_size(mi_option_arena_max_object_size);
+  max_size = _mi_align_up(max_size, MI_ARENA_SLICE_SIZE);
+  if (max_size <= MI_ARENA_MIN_OBJ_SIZE) {
+    return MI_ARENA_MIN_OBJ_SIZE;
+  }
+  else if (max_size >= MI_ARENA_MAX_SIZE - (MI_BCHUNK_BITS*MI_ARENA_SLICE_SIZE)) {  // minus an initial chunk to accommodate meta info
+    return (MI_ARENA_MAX_SIZE - (MI_BCHUNK_BITS*MI_ARENA_SLICE_SIZE));
+  }
+  else {
+    return max_size;
+  }
+}
+
+mi_decl_nodiscard static bool mi_arena_commit(mi_subproc_t* subproc, mi_arena_t* arena, void* start, size_t size, bool* is_zero, size_t already_committed) {
+  mi_assert_internal(subproc!=NULL);
   if (arena != NULL && arena->commit_fun != NULL) {
     return (*arena->commit_fun)(true, start, size, is_zero, arena->commit_fun_arg);
   }
   else if (already_committed > 0) {
-    return _mi_os_commit_ex(start, size, is_zero, already_committed);
+    return _mi_os_commit_ex(subproc, start, size, is_zero, already_committed);
   }
   else {
-    return _mi_os_commit(start, size, is_zero);
+    return _mi_os_commit(subproc, start, size, is_zero);
   }
 }
 
@@ -107,7 +143,23 @@ static uint8_t* mi_arena_start(mi_arena_t* arena) {
 
 // Start of a slice
 uint8_t* mi_arena_slice_start(mi_arena_t* arena, size_t slice_index) {
+  mi_assert_internal(slice_index < arena->slice_count);
   return (mi_arena_start(arena) + mi_size_of_slices(slice_index));
+}
+
+mi_page_t* mi_arena_page_at_slice(mi_arena_t* arena, size_t slice_index) {
+  mi_assert_internal(slice_index < arena->slice_count);
+  if (arena->pages_meta != NULL) {
+    mi_page_t* const page = &arena->pages_meta[slice_index];
+    #if MI_PAGE_META_ALIGNED_FREE_SMALL
+    // pages with small blocks still have the page at the start of the slice (and set the `block_size` in pages_meta to 0)
+    if (page->block_size>0) return page;
+    #else
+    return page;
+    #endif
+  }
+  // fall through (for MI_PAGE_META_ALIGNED_FREE_SMALL)
+  return (mi_page_t*)mi_arena_slice_start(arena,slice_index);
 }
 
 // Arena area
@@ -115,7 +167,10 @@ void* mi_arena_area(mi_arena_id_t arena_id, size_t* size) {
   if (size != NULL) *size = 0;
   mi_arena_t* arena = _mi_arena_from_id(arena_id);
   if (arena == NULL) return NULL;
-  if (size != NULL) { *size = mi_size_of_slices(arena->slice_count); }
+  if (size != NULL) {
+    mi_assert_internal(mi_size_of_slices(arena->slice_count) <= arena->total_size);
+    *size = arena->total_size;
+  }
   return mi_arena_start(arena);
 }
 
@@ -137,14 +192,9 @@ static mi_memid_t mi_memid_create_arena(mi_arena_t* arena, size_t slice_index, s
 static mi_arena_t* mi_arena_from_memid(mi_memid_t memid, size_t* slice_index, size_t* slice_count) {
   mi_assert_internal(memid.memkind == MI_MEM_ARENA);
   mi_arena_t* arena = memid.mem.arena.arena;
-  if (slice_index) *slice_index = memid.mem.arena.slice_index;
-  if (slice_count) *slice_count = memid.mem.arena.slice_count;
+  if (slice_index!=NULL) { *slice_index = memid.mem.arena.slice_index; }
+  if (slice_count!=NULL) { *slice_count = memid.mem.arena.slice_count; }
   return arena;
-}
-
-static mi_arena_t* mi_page_arena(mi_page_t* page, size_t* slice_index, size_t* slice_count) {
-  // todo: maybe store the arena* directly in the page?
-  return mi_arena_from_memid(page->memid, slice_index, slice_count);
 }
 
 static size_t mi_page_full_size(mi_page_t* page) {
@@ -170,8 +220,10 @@ static size_t mi_page_full_size(mi_page_t* page) {
 static mi_decl_noinline void* mi_arena_try_alloc_at(
   mi_arena_t* arena, size_t slice_count, bool commit, size_t tseq, mi_memid_t* memid)
 {
+  mi_assert_internal(arena!=NULL);
+  mi_assert_internal(slice_count>0);
   size_t slice_index;
-  if (!mi_bbitmap_try_find_and_clearN(arena->slices_free, slice_count, tseq, &slice_index)) return NULL;
+  if (!mi_bbitmap_try_find_and_clearN(arena->slices_free, tseq, slice_count, &slice_index)) return NULL;
 
   // claimed it!
   void* p = mi_arena_slice_start(arena, slice_index);
@@ -186,27 +238,31 @@ static mi_decl_noinline void* mi_arena_try_alloc_at(
     mi_assert_internal(already_dirty <= touched_slices);
     touched_slices -= already_dirty;
   }
+  else {
+    // todo: properly count touched pages with a separate bitmap?
+    touched_slices = 0;
+  }
 
   // set commit state
-  if (commit) {        
+  if (commit) {
     // commit requested, but the range may not be committed as a whole: ensure it is committed now
     const size_t already_committed = mi_bitmap_popcountN(arena->slices_committed, slice_index, slice_count);
-    if (already_committed < slice_count) {  
+    if (already_committed < slice_count) {
       // not all committed, try to commit now
       bool commit_zero = false;
-      if (!_mi_os_commit_ex(p, mi_size_of_slices(slice_count), &commit_zero, mi_size_of_slices(slice_count - already_committed))) {
+      if (!mi_arena_commit(arena->subproc, arena, p, mi_size_of_slices(slice_count), &commit_zero, mi_size_of_slices(slice_count - already_committed))) {
         // if the commit fails, release ownership, and return NULL;
         // note: this does not roll back dirty bits but that is ok.
         mi_bbitmap_setN(arena->slices_free, slice_index, slice_count);
         return NULL;
       }
-      if (commit_zero) { 
-        memid->initially_zero = true; 
+      if (commit_zero) {
+        memid->initially_zero = true;
       }
-            
-      // set the commit bits 
-      mi_bitmap_setN(arena->slices_committed, slice_index, slice_count, NULL);      
-      
+
+      // set the commit bits
+      mi_bitmap_setN(arena->slices_committed, slice_index, slice_count, NULL);
+
       // committed
       #if MI_DEBUG > 1
       if (memid->initially_zero) {
@@ -219,17 +275,17 @@ static mi_decl_noinline void* mi_arena_try_alloc_at(
     }
     else {
       // already fully committed.
-      _mi_os_reuse(p, mi_size_of_slices(slice_count));
+      _mi_os_reuse(arena->subproc, p, mi_size_of_slices(slice_count));
       // if the OS has overcommit, and this is the first time we access these pages, then
       // count the commit now (as at arena reserve we didn't count those commits as these are on-demand)
-      if (_mi_os_has_overcommit() && touched_slices > 0) {
+      if (_mi_os_has_overcommit() && touched_slices > 0 && !arena->memid.is_pinned /* huge pages, issue #1236 */) {
         mi_subproc_stat_increase( arena->subproc, committed, mi_size_of_slices(touched_slices));
-      }      
+      }
     }
-    
+
     mi_assert_internal(mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
     memid->initially_committed = true;
-    
+
     // tool support
     if (memid->initially_zero) {
       mi_track_mem_defined(p, slice_count * MI_ARENA_SLICE_SIZE);
@@ -246,7 +302,7 @@ static mi_decl_noinline void* mi_arena_try_alloc_at(
       size_t already_committed_count = 0;
       mi_bitmap_setN(arena->slices_committed, slice_index, slice_count, &already_committed_count);
       mi_bitmap_clearN(arena->slices_committed, slice_index, slice_count);
-      mi_os_stat_decrease(committed, mi_size_of_slices(already_committed_count));
+      mi_subproc_stat_decrease(arena->subproc, committed, mi_size_of_slices(already_committed_count));
     }
   }
 
@@ -286,8 +342,9 @@ static bool mi_arena_reserve(mi_subproc_t* subproc, size_t req_size, bool allow_
   }
 
   // try to accommodate the requested size for huge allocations
+  req_size = _mi_align_up(req_size + MI_ARENA_MAX_CHUNK_OBJ_SIZE, MI_ARENA_MAX_CHUNK_OBJ_SIZE); // over-reserve for meta-info
   if (arena_reserve < req_size) {
-    arena_reserve = _mi_align_up(req_size + MI_ARENA_MAX_CHUNK_OBJ_SIZE, MI_ARENA_MAX_CHUNK_OBJ_SIZE); // over-reserve for meta-info
+    arena_reserve = req_size;
   }
 
   // check arena bounds
@@ -301,12 +358,12 @@ static bool mi_arena_reserve(mi_subproc_t* subproc, size_t req_size, bool allow_
   }
 
   // should be able to at least handle the current allocation size
-  if (arena_reserve < req_size) return false;  
+  if (arena_reserve < req_size) return false;
 
   // commit eagerly?
   bool arena_commit = false;
   const bool overcommit = _mi_os_has_overcommit();
-  if (mi_option_get(mi_option_arena_eager_commit) == 2) { arena_commit = overcommit; }
+  if (mi_option_get(mi_option_arena_eager_commit) == 2) { arena_commit = overcommit || mi_option_is_enabled(mi_option_allow_large_os_pages); }
   else if (mi_option_get(mi_option_arena_eager_commit) == 1) { arena_commit = true; }
 
   // on an OS with overcommit (Linux) we don't count the commit yet as it is on-demand. Once a slice
@@ -336,9 +393,9 @@ static bool mi_arena_reserve(mi_subproc_t* subproc, size_t req_size, bool allow_
   Arena iteration
 ----------------------------------------------------------- */
 
-static inline bool mi_arena_is_suitable(mi_arena_t* arena, mi_arena_t* req_arena, bool match_numa, int numa_node, bool allow_pinned) {
+static inline bool mi_arena_is_suitable_ex(mi_arena_t* arena, mi_arena_t* req_arena, bool match_numa, int numa_node, bool allow_pinned) {
   if (!allow_pinned && arena->memid.is_pinned) return false;
-  if (!mi_arena_id_is_suitable(arena, req_arena)) return false;
+  if (!mi_arena_is_suitable(arena, req_arena)) return false;
   if (req_arena == NULL) { // if not specific, check numa affinity
     const bool numa_suitable = (numa_node < 0 || arena->numa_node < 0 || arena->numa_node == numa_node);
     if (match_numa) { if (!numa_suitable) return false; }
@@ -347,16 +404,43 @@ static inline bool mi_arena_is_suitable(mi_arena_t* arena, mi_arena_t* req_arena
   return true;
 }
 
-#define mi_forall_arenas(subproc, req_arena, tseq, name_arena) { \
-  const size_t _arena_count = mi_arenas_get_count(subproc); \
+// determine the start of search; important to keep heaps and threads
+// into their own memory regions to reduce contention.
+static size_t mi_arena_start_idx(mi_heap_t* heap, size_t tseq, size_t arena_cycle) {
+  const size_t hseq   = heap->heap_seq;
+  const size_t hcount = mi_atomic_load_relaxed(&heap->subproc->heap_count);
+  if (arena_cycle <= 1)     return 0;
+  if (hseq==0 || hcount<=1 || arena_cycle > 0x8FF) return (tseq % arena_cycle); // common for single heap programs
+
+  // spread heaps evenly among arena's, and then evenly for threads in their fraction
+  size_t start;
+  mi_assert_internal(arena_cycle <= 0x8FF);             // prevent overflow on 32-bit
+  const size_t frac = (arena_cycle * 256) / hcount;     // fraction in the arena_cycle; at most: arena_cycle * 0x100
+  if (frac==0) {
+    // many heaps (> 256 per arena)
+    start = (hseq % arena_cycle);
+  }
+  else {
+    const size_t hspot = (hseq % hcount);
+    start = (frac * hspot) / 256;           // (arena_cycle * (hseq % hcount)) / hcount
+    if (frac >= 512) {  // at least 2 arena's per heap?
+      start = start + (tseq % (frac/256));
+    }
+  }
+  mi_assert_internal(start < arena_cycle);
+  return start;
+}
+
+#define mi_forall_arenas(heap, req_arena, tseq, name_arena) { \
+  const size_t _arena_count = mi_arenas_get_count(heap->subproc); \
   const size_t _arena_cycle = (_arena_count == 0 ? 0 : _arena_count - 1); /* first search the arenas below the last one */ \
   /* always start searching in the arena's below the max */ \
-  size_t _start = (_arena_cycle <= 1 ? 0 : (tseq % _arena_cycle)); \
+  const size_t _start = mi_arena_start_idx(heap,tseq,_arena_cycle); \
   for (size_t _i = 0; _i < _arena_count; _i++) { \
     mi_arena_t* name_arena; \
     if (req_arena != NULL) { \
       name_arena = req_arena; /* if there is a specific req_arena, only search that one */\
-      if (_i > 0) break;       /* only once */ \
+      if (_i > 0) break;      /* only once */ \
     } \
     else { \
       size_t _idx; \
@@ -365,9 +449,9 @@ static inline bool mi_arena_is_suitable(mi_arena_t* arena, mi_arena_t* req_arena
         if (_idx >= _arena_cycle) { _idx -= _arena_cycle; } /* adjust so we rotate through the cycle */ \
       } \
       else { \
-        _idx = _i; /* remaining arena's */ \
+        _idx = _i; /* remaining arena's after the cycle */ \
       } \
-      name_arena = mi_arena_from_index(subproc,_idx); \
+      name_arena = mi_arena_from_index(heap->subproc,_idx); \
     } \
     if (name_arena != NULL) \
     {
@@ -377,9 +461,9 @@ static inline bool mi_arena_is_suitable(mi_arena_t* arena, mi_arena_t* req_arena
   } \
   }
 
-#define mi_forall_suitable_arenas(subproc, req_arena, tseq, match_numa, numa_node, allow_large, name_arena) \
-  mi_forall_arenas(subproc, req_arena,tseq,name_arena) { \
-    if (mi_arena_is_suitable(name_arena, req_arena, match_numa, numa_node, allow_large)) { \
+#define mi_forall_suitable_arenas(heap, req_arena, tseq, match_numa, numa_node, allow_large, name_arena) \
+  mi_forall_arenas(heap, req_arena,tseq,name_arena) { \
+    if (mi_arena_is_suitable_ex(name_arena, req_arena, match_numa, numa_node, allow_large)) { \
 
 #define mi_forall_suitable_arenas_end() \
   }} \
@@ -391,7 +475,7 @@ static inline bool mi_arena_is_suitable(mi_arena_t* arena, mi_arena_t* req_arena
 
 // allocate slices from the arenas
 static mi_decl_noinline void* mi_arenas_try_find_free(
-  mi_subproc_t* subproc, size_t slice_count, size_t alignment,
+  mi_heap_t* heap, size_t slice_count, size_t alignment,
   bool commit, bool allow_large, mi_arena_t* req_arena, size_t tseq, int numa_node, mi_memid_t* memid)
 {
   // mi_assert_internal(slice_count <= mi_slice_count_of_size(MI_ARENA_MAX_CHUNK_OBJ_SIZE));
@@ -399,7 +483,7 @@ static mi_decl_noinline void* mi_arenas_try_find_free(
   if (alignment > MI_ARENA_SLICE_ALIGN) return NULL;
 
   // search arena's
-  mi_forall_suitable_arenas(subproc, req_arena, tseq, true /* only numa matching */, numa_node, allow_large, arena)
+  mi_forall_suitable_arenas(heap, req_arena, tseq, true /* only numa matching */, numa_node, allow_large, arena)
   {
     void* p = mi_arena_try_alloc_at(arena, slice_count, commit, tseq, memid);
     if (p != NULL) return p;
@@ -408,7 +492,7 @@ static mi_decl_noinline void* mi_arenas_try_find_free(
   if (numa_node < 0) return NULL;
 
   // search again but now regardless of preferred numa affinity
-  mi_forall_suitable_arenas(subproc, req_arena, tseq, false /* numa non-matching now */, numa_node, allow_large, arena)
+  mi_forall_suitable_arenas(heap, req_arena, tseq, false /* numa non-matching now */, numa_node, allow_large, arena)
   {
     void* p = mi_arena_try_alloc_at(arena, slice_count, commit, tseq, memid);
     if (p != NULL) return p;
@@ -419,7 +503,7 @@ static mi_decl_noinline void* mi_arenas_try_find_free(
 
 // Allocate slices from the arena's -- potentially allocating a fresh arena
 static mi_decl_noinline void* mi_arenas_try_alloc(
-  mi_subproc_t* subproc,
+  mi_heap_t* heap,
   size_t slice_count, size_t alignment,
   bool commit, bool allow_large,
   mi_arena_t* req_arena, size_t tseq, int numa_node, mi_memid_t* memid)
@@ -432,7 +516,7 @@ static mi_decl_noinline void* mi_arenas_try_alloc(
   if (slice_count * MI_ARENA_SLICE_SIZE > MI_ARENA_MAX_SIZE) return NULL;
 
   // try to find free slices in the arena's
-  p = mi_arenas_try_find_free(subproc, slice_count, alignment, commit, allow_large, req_arena, tseq, numa_node, memid);
+  p = mi_arenas_try_find_free(heap, slice_count, alignment, commit, allow_large, req_arena, tseq, numa_node, memid);
   if (p != NULL) return p;
 
   // did we need a specific arena?
@@ -441,12 +525,16 @@ static mi_decl_noinline void* mi_arenas_try_alloc(
   // don't create arena's while preloading (todo: or should we?)
   if (_mi_preloading()) return NULL;
 
+  // don't create arena's if OS allocation is disallowed
+  if (mi_option_is_enabled(mi_option_disallow_os_alloc)) return NULL;
+
   // otherwise, try to reserve a new arena -- but one thread at a time.. (todo: allow 2 or 4 to reduce contention?)
+  mi_subproc_t* const subproc = heap->subproc;
   const size_t arena_count = mi_arenas_get_count(subproc);
   mi_lock(&subproc->arena_reserve_lock) {
     if (arena_count == mi_arenas_get_count(subproc)) {
       // we are the first to enter the lock, reserve a fresh arena
-      mi_arena_id_t arena_id = 0;
+      mi_arena_id_t arena_id = _mi_arena_id_none();
       mi_arena_reserve(subproc, mi_size_of_slices(slice_count), allow_large, &arena_id);
     }
     else {
@@ -455,7 +543,7 @@ static mi_decl_noinline void* mi_arenas_try_alloc(
   }
   // try once more to allocate in the new arena
   mi_assert_internal(req_arena == NULL);
-  p = mi_arenas_try_find_free(subproc, slice_count, alignment, commit, allow_large, req_arena, tseq, numa_node, memid);
+  p = mi_arenas_try_find_free(heap, slice_count, alignment, commit, allow_large, req_arena, tseq, numa_node, memid);
   if (p != NULL) return p;
 
   return NULL;
@@ -463,6 +551,7 @@ static mi_decl_noinline void* mi_arenas_try_alloc(
 
 // Allocate from the OS (if allowed)
 static void* mi_arena_os_alloc_aligned(
+  mi_subproc_t* subproc,
   size_t size, size_t alignment, size_t align_offset,
   bool commit, bool allow_large,
   mi_arena_id_t req_arena_id, mi_memid_t* memid)
@@ -474,16 +563,16 @@ static void* mi_arena_os_alloc_aligned(
   }
 
   if (align_offset > 0) {
-    return _mi_os_alloc_aligned_at_offset(size, alignment, align_offset, commit, allow_large, memid);
+    return _mi_os_alloc_aligned_at_offset(subproc, size, alignment, align_offset, commit, allow_large, memid);
   }
   else {
-    return _mi_os_alloc_aligned(size, alignment, commit, allow_large, memid);
+    return _mi_os_alloc_aligned(subproc, size, alignment, commit, allow_large, memid);
   }
 }
 
 
 // Allocate large sized memory
-void* _mi_arenas_alloc_aligned( mi_subproc_t* subproc,
+void* _mi_arenas_alloc_aligned( mi_heap_t* heap,
   size_t size, size_t alignment, size_t align_offset,
   bool commit, bool allow_large,
   mi_arena_t* req_arena, size_t tseq, int numa_node, mi_memid_t* memid)
@@ -491,24 +580,24 @@ void* _mi_arenas_alloc_aligned( mi_subproc_t* subproc,
   mi_assert_internal(memid != NULL);
   mi_assert_internal(size > 0);
 
-  // try to allocate in an arena if the alignment is small enough and the object is not too small (as for heap meta data)
-  if (!mi_option_is_enabled(mi_option_disallow_arena_alloc) &&           // is arena allocation allowed?
-      size >= MI_ARENA_MIN_OBJ_SIZE && size <= MI_ARENA_MAX_OBJ_SIZE &&               // and not too small or too large
-      alignment <= MI_ARENA_SLICE_ALIGN && align_offset == 0)            // and good alignment
+  // try to allocate in an arena if the alignment is small enough and the object is not too small (as for theap meta data)
+  if (!mi_option_is_enabled(mi_option_disallow_arena_alloc) &&                // is arena allocation allowed?
+      size >= MI_ARENA_MIN_OBJ_SIZE && size <= mi_arena_max_object_size() &&  // and not too small or too large
+      alignment <= MI_ARENA_SLICE_ALIGN && align_offset == 0)                 // and good alignment
   {
     const size_t slice_count = mi_slice_count_of_size(size);
-    void* p = mi_arenas_try_alloc(subproc,slice_count, alignment, commit, allow_large, req_arena, tseq, numa_node, memid);
+    void* p = mi_arenas_try_alloc(heap, slice_count, alignment, commit, allow_large, req_arena, tseq, numa_node, memid);
     if (p != NULL) return p;
   }
 
   // fall back to the OS
-  void* p = mi_arena_os_alloc_aligned(size, alignment, align_offset, commit, allow_large, req_arena, memid);
+  void* p = mi_arena_os_alloc_aligned(heap->subproc, size, alignment, align_offset, commit, allow_large, req_arena, memid);
   return p;
 }
 
-void* _mi_arenas_alloc(mi_subproc_t* subproc, size_t size, bool commit, bool allow_large, mi_arena_t* req_arena, size_t tseq, int numa_node, mi_memid_t* memid)
+void* _mi_arenas_alloc(mi_heap_t* heap, size_t size, bool commit, bool allow_large, mi_arena_t* req_arena, size_t tseq, int numa_node, mi_memid_t* memid)
 {
-  return _mi_arenas_alloc_aligned(subproc, size, MI_ARENA_SLICE_SIZE, 0, commit, allow_large, req_arena, tseq, numa_node, memid);
+  return _mi_arenas_alloc_aligned(heap, size, MI_ARENA_SLICE_SIZE, 0, commit, allow_large, req_arena, tseq, numa_node, memid);
 }
 
 
@@ -519,9 +608,10 @@ void* _mi_arenas_alloc(mi_subproc_t* subproc, size_t size, bool commit, bool all
 
 // release ownership of a page. This may free the page if all blocks were concurrently
 // freed in the meantime. Returns true if the page was freed.
-static bool mi_abandoned_page_unown(mi_page_t* page) {
+static bool mi_abandoned_page_unown(mi_page_t* page, mi_theap_t* current_theap) {
   mi_assert_internal(mi_page_is_owned(page));
   mi_assert_internal(mi_page_is_abandoned(page));
+  mi_assert_internal(_mi_thread_id()==current_theap->tld->thread_id);
   mi_thread_free_t tf_new;
   mi_thread_free_t tf_old = mi_atomic_load_relaxed(&page->xthread_free);
   do {
@@ -529,8 +619,8 @@ static bool mi_abandoned_page_unown(mi_page_t* page) {
     while mi_unlikely(mi_tf_block(tf_old) != NULL) {
       _mi_page_free_collect(page, false);  // update used
       if (mi_page_all_free(page)) {        // it may become free just before unowning it
-        _mi_arenas_page_unabandon(page);
-        _mi_arenas_page_free(page,NULL);
+        _mi_arenas_page_unabandon(page, current_theap);
+        _mi_arenas_page_free(page, current_theap);
         return true;
       }
       tf_old = mi_atomic_load_relaxed(&page->xthread_free);
@@ -542,11 +632,11 @@ static bool mi_abandoned_page_unown(mi_page_t* page) {
 }
 
 
-static bool mi_arena_try_claim_abandoned(size_t slice_index, mi_arena_t* arena, mi_heaptag_t heap_tag, bool* keep_abandoned) {
+static bool mi_arena_try_claim_abandoned(size_t slice_index, mi_arena_t* arena, bool* keep_abandoned) {
   // found an abandoned page of the right size
-  mi_page_t* const page  = (mi_page_t*)mi_arena_slice_start(arena, slice_index);
+  mi_page_t* const page  = mi_arena_page_at_slice(arena, slice_index);
   // can we claim ownership?
-  if (!mi_page_try_claim_ownership(page)) {
+  if (!mi_page_claim_ownership(page)) {
     // there was a concurrent free that reclaims this page ..
     // we need to keep it in the abandoned map as the free will call `mi_arena_page_unabandon`,
     // and wait for readers (us!) to finish. This is why it is very important to set the abandoned
@@ -554,30 +644,79 @@ static bool mi_arena_try_claim_abandoned(size_t slice_index, mi_arena_t* arena, 
     *keep_abandoned = true;
     return false;
   }
-  if (heap_tag != page->heap_tag) {
-    // wrong heap_tag.. we need to unown again
-    // note: this normally never happens unless heaptags are actually used.
-    // (an unown might free the page, and depending on that we can keep it in the abandoned map or not)
-    // note: a minor wrinkle: the page will still be mapped but the abandoned map entry is (temporarily) clear at this point.
-    //       so we cannot check in `mi_arenas_free` for this invariant to hold.
-    const bool freed = mi_abandoned_page_unown(page);
-    *keep_abandoned = !freed;
-    return false;
+  else {
+    // yes, we can reclaim it, keep the abandoned map entry clear
+    *keep_abandoned = false;
+    return true;
   }
-  // yes, we can reclaim it, keep the abandoned map entry clear
-  *keep_abandoned = false;
-  return true;
 }
 
-static mi_page_t* mi_arenas_page_try_find_abandoned(mi_subproc_t* subproc, size_t slice_count, size_t block_size, mi_arena_t* req_arena, mi_heaptag_t heaptag, size_t tseq)
+// allocate initial arena_pages from the main heap
+static mi_arena_pages_t* mi_arena_pages_alloc(mi_arena_t* arena);
+
+static mi_arena_pages_t* mi_heap_arena_pages(mi_heap_t* heap, mi_arena_t* arena) {
+  mi_assert_internal(arena!=NULL);
+  mi_assert_internal(heap!=NULL);
+  mi_assert(arena->arena_idx < MI_MAX_ARENAS);
+  return mi_atomic_load_ptr_acquire(mi_arena_pages_t, &heap->arena_pages[arena->arena_idx]);
+}
+
+static mi_arena_t* mi_page_arena_pages(mi_page_t* page, size_t* slice_index, size_t* slice_count, mi_arena_pages_t** parena_pages) {
+  // todo: maybe store the arena* directly in the page?
+  mi_assert_internal(mi_page_is_owned(page));
+  mi_arena_t* const arena = mi_arena_from_memid(page->memid, slice_index, slice_count);
+  mi_assert_internal(arena != NULL);
+  if (parena_pages != NULL) {
+    mi_heap_t* heap = mi_page_heap(page);
+    mi_arena_pages_t* const arena_pages = mi_heap_arena_pages(heap, arena);
+    mi_assert_internal(arena_pages != NULL);
+    mi_assert_internal(slice_index==NULL || mi_bitmap_is_set(arena_pages->pages, *slice_index));
+    *parena_pages = arena_pages;
+  }
+  return arena;
+}
+
+static mi_arena_pages_t* mi_heap_ensure_arena_pages(mi_heap_t* heap, mi_arena_t* arena) {
+  mi_assert_internal(arena!=NULL);
+  mi_assert_internal(heap!=NULL);
+  mi_assert(arena->arena_idx < MI_MAX_ARENAS);
+  mi_arena_pages_t* arena_pages = mi_heap_arena_pages(heap, arena);
+  if (arena_pages==NULL) {
+    mi_lock(&heap->arena_pages_lock) {
+      arena_pages = mi_atomic_load_ptr_acquire(mi_arena_pages_t, &heap->arena_pages[arena->arena_idx]);
+      if (arena_pages == NULL) {  // still NULL?
+        if (_mi_is_heap_main(heap)) {
+          // the page info for the main heap is always allocated as part of an arena
+          arena_pages = &arena->pages_main;
+        }
+        else {
+          // always allocate the arena pages info from the main heap
+          // todo: allocate into the current arena?
+          arena_pages = mi_arena_pages_alloc(arena);
+        }
+        mi_atomic_store_ptr_release(mi_arena_pages_t, &heap->arena_pages[arena->arena_idx], arena_pages);
+      }
+    }
+  }
+  if (_mi_is_heap_main(heap)) { mi_assert(arena_pages != NULL); }  // can never fail
+  return arena_pages;
+}
+
+static mi_page_t* mi_arenas_page_try_find_abandoned(mi_theap_t* theap, size_t slice_count, size_t block_size)
 {
+  mi_heap_t* const heap = _mi_theap_heap(theap);
+  const size_t tseq = theap->tld->thread_seq;
+  mi_arena_t* const req_arena = heap->exclusive_arena;
+
   MI_UNUSED(slice_count);
   const size_t bin = _mi_bin(block_size);
-  mi_assert_internal(bin < MI_BIN_COUNT);
+  if (bin >= MI_ARENA_BIN_COUNT) {
+    return NULL; // singleton page size
+  }
 
   // any abandoned in our size class?
-  mi_assert_internal(subproc != NULL);
-  if (mi_atomic_load_relaxed(&subproc->abandoned_count[bin]) == 0) {
+  mi_assert_internal(heap != NULL);
+  if (mi_atomic_load_relaxed(&heap->abandoned_count[bin]) == 0) {
     return NULL;
   }
 
@@ -585,213 +724,313 @@ static mi_page_t* mi_arenas_page_try_find_abandoned(mi_subproc_t* subproc, size_
   const bool allow_large = true;
   const int  any_numa = -1;
   const bool match_numa = true;
-  mi_forall_suitable_arenas(subproc, req_arena, tseq, match_numa, any_numa, allow_large, arena)
+  mi_forall_suitable_arenas(heap, req_arena, tseq, match_numa, any_numa, allow_large, arena)
   {
-    size_t slice_index;
-    mi_bitmap_t* const bitmap = arena->pages_abandoned[bin];
+    mi_arena_pages_t* const arena_pages = mi_heap_arena_pages(heap, arena);
+    if (arena_pages != NULL) {
+      size_t slice_index;
+      mi_bitmap_t* const bitmap = arena_pages->pages_abandoned[bin];
 
-    if (mi_bitmap_try_find_and_claim(bitmap, tseq, &slice_index, &mi_arena_try_claim_abandoned, arena, heaptag)) {
-      // found an abandoned page of the right size
-      // and claimed ownership.
-      mi_page_t* page = (mi_page_t*)mi_arena_slice_start(arena, slice_index);
-      mi_assert_internal(mi_page_is_owned(page));
-      mi_assert_internal(mi_page_is_abandoned(page));
-      mi_assert_internal(mi_arena_has_page(arena,page));
-      mi_atomic_decrement_relaxed(&subproc->abandoned_count[bin]);
-      mi_tld_t* tld = _mi_thread_tld();
-      mi_tld_stat_decrease( tld, pages_abandoned, 1);
-      mi_tld_stat_counter_increase( tld, pages_reclaim_on_alloc, 1);
+      if (mi_bitmap_try_find_and_claim(bitmap, tseq, &slice_index, &mi_arena_try_claim_abandoned, arena)) {
+        // found an abandoned page of the right size
+        // and claimed ownership.
+        mi_page_t* page = mi_arena_page_at_slice(arena, slice_index);
+        mi_assert_internal(mi_page_is_owned(page));
+        mi_assert_internal(mi_page_is_abandoned(page));
+        mi_assert_internal(mi_heap_has_page(heap, arena, page));
+        mi_atomic_decrement_relaxed(&heap->abandoned_count[bin]);
+        mi_theap_stat_decrease(theap, pages_abandoned, 1);
+        mi_theap_stat_counter_increase(theap, pages_reclaim_on_alloc, 1);
 
-      _mi_page_free_collect(page, false);  // update `used` count
-      mi_assert_internal(mi_bbitmap_is_clearN(arena->slices_free, slice_index, slice_count));
-      mi_assert_internal(page->slice_committed > 0 || mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
-      mi_assert_internal(mi_bitmap_is_setN(arena->slices_dirty, slice_index, slice_count));
-      mi_assert_internal(_mi_is_aligned(page, MI_PAGE_ALIGN));
-      mi_assert_internal(_mi_ptr_page(page)==page);
-      mi_assert_internal(_mi_ptr_page(mi_page_start(page))==page);
-      mi_assert_internal(mi_page_block_size(page) == block_size);
-      mi_assert_internal(!mi_page_is_full(page));
-      return page;
+        _mi_page_free_collect(page, false);  // update `used` count
+        mi_assert_internal(mi_bbitmap_is_clearN(arena->slices_free, slice_index, slice_count));
+        mi_assert_internal(mi_page_slice_committed(page) > 0 || mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
+        mi_assert_internal(mi_bitmap_is_setN(arena->slices_dirty, slice_index, slice_count));
+        mi_assert_internal(_mi_is_aligned(mi_page_slice_start(page), MI_PAGE_ALIGN));
+        mi_assert_internal(_mi_ptr_page(mi_page_start(page))==page);
+        mi_assert_internal(mi_page_block_size(page) == block_size);
+        mi_assert_internal(!mi_page_is_full(page));
+        return page;
+      }
     }
   }
   mi_forall_suitable_arenas_end();
   return NULL;
 }
 
-// Allocate a fresh page
-static mi_page_t* mi_arenas_page_alloc_fresh(size_t slice_count, size_t block_size, size_t block_alignment,
-                                            mi_arena_t* req_arena, int numa_node, bool commit, mi_tld_t* tld)
-{
-  const bool allow_large = (MI_SECURE < 2); // 2 = guard page at end of each arena page
-  const bool os_align = (block_alignment > MI_PAGE_MAX_OVERALLOC_ALIGN);
+static uint8_t* mi_arenas_page_alloc_fresh_area(mi_theap_t* theap, size_t slice_count, size_t block_size, size_t block_alignment, bool os_align, bool commit, mi_memid_t* memid, mi_arena_pages_t** parena_pages ) {
+  MI_UNUSED_RELEASE(block_size);
+  mi_assert_internal(parena_pages!=NULL);
+
+  *parena_pages = NULL;
+  const bool allow_large = (MI_SECURE < 5); // 5 = guard page at end of each arena page
   const size_t page_alignment = MI_ARENA_SLICE_ALIGN;
 
+  mi_heap_t*  const heap = _mi_theap_heap(theap);
+  mi_tld_t*   const tld  = theap->tld;
+  mi_arena_t* const req_arena = heap->exclusive_arena;
+  const int numa_node = (heap->numa_node >= 0 ? heap->numa_node : tld->numa_node);
+
   // try to allocate from free space in arena's
-  mi_memid_t memid = _mi_memid_none();
-  mi_page_t* page = NULL;
+  uint8_t* start = NULL;
+  *memid = _mi_memid_none();
   const size_t alloc_size = mi_size_of_slices(slice_count);
-  if (!mi_option_is_enabled(mi_option_disallow_arena_alloc) &&      // allowed to allocate from arena's?
-      !os_align &&                                                  // not large alignment
-      slice_count <= (MI_ARENA_MAX_OBJ_SIZE / MI_ARENA_SLICE_SIZE)) // and not too large
+  if (!mi_option_is_enabled(mi_option_disallow_arena_alloc) &&       // allowed to allocate from arena's?
+      !os_align &&                                                   // not large alignment
+      slice_count <= mi_arena_max_object_size()/MI_ARENA_SLICE_SIZE) // and not too large
   {
-    page = (mi_page_t*)mi_arenas_try_alloc(tld->subproc, slice_count, page_alignment, commit, allow_large, req_arena, tld->thread_seq, numa_node, &memid);
-    if (page != NULL) {
-      mi_assert_internal(mi_bitmap_is_clearN(memid.mem.arena.arena->pages, memid.mem.arena.slice_index, memid.mem.arena.slice_count));
-      mi_bitmap_set(memid.mem.arena.arena->pages, memid.mem.arena.slice_index);
+    start = (uint8_t*)mi_arenas_try_alloc(heap, slice_count, page_alignment, commit, allow_large, req_arena, tld->thread_seq, numa_node, memid);
+    if (start != NULL) {
+      mi_arena_pages_t* const arena_pages = mi_heap_ensure_arena_pages(heap, memid->mem.arena.arena);
+      *parena_pages = arena_pages;
+      if (arena_pages==NULL) {
+        _mi_arenas_free(heap->subproc, start, mi_size_of_slices(slice_count), *memid); // roll back
+        start = NULL;
+      }
+      else {
+        // note: the following assert should hold if we could check it atomically, but in a concurrent setting we may already allocate in slice_count
+        // mi_assert_internal(mi_bitmap_is_clearN(arena_pages->pages, memid->mem.arena.slice_index, memid->mem.arena.slice_count));
+        mi_assert_internal(mi_bitmap_is_clear(arena_pages->pages, memid->mem.arena.slice_index));
+        // don't set yet: mi_bitmap_set(arena_pages->pages, memid->mem.arena.slice_index);
+      }
     }
   }
 
   // otherwise fall back to the OS
-  if (page == NULL) {
+  if (start == NULL) {
     if (os_align) {
       // note: slice_count already includes the page
       mi_assert_internal(slice_count >= mi_slice_count_of_size(block_size) + mi_slice_count_of_size(page_alignment));
-      page = (mi_page_t*)mi_arena_os_alloc_aligned(alloc_size, block_alignment, page_alignment /* align offset */, commit, allow_large, req_arena, &memid);
+      start = (uint8_t*)mi_arena_os_alloc_aligned(heap->subproc, alloc_size, block_alignment, page_alignment /* align offset */, commit, allow_large, req_arena, memid);
     }
     else {
-      page = (mi_page_t*)mi_arena_os_alloc_aligned(alloc_size, page_alignment, 0 /* align offset */, commit, allow_large, req_arena, &memid);
+      start = (uint8_t*)mi_arena_os_alloc_aligned(heap->subproc, alloc_size, page_alignment, 0 /* align offset */, commit, allow_large, req_arena, memid);
     }
   }
 
-  if (page == NULL) return NULL;
-  mi_assert_internal(_mi_is_aligned(page, MI_PAGE_ALIGN));
-  mi_assert_internal(!os_align || _mi_is_aligned((uint8_t*)page + page_alignment, block_alignment));
+  if (start == NULL) return NULL;
+  mi_assert_internal(_mi_is_aligned(start, MI_PAGE_ALIGN));
+  mi_assert_internal(!os_align || _mi_is_aligned(start + page_alignment, block_alignment));
+  return start;
+}
 
-  // guard page at the end of mimalloc page?
-  #if MI_SECURE < 2
-  const size_t page_noguard_size = alloc_size;
-  #else
-  mi_assert(alloc_size > _mi_os_secure_guard_page_size());
-  const size_t page_noguard_size = alloc_size - _mi_os_secure_guard_page_size();
-  if (memid.initially_committed) {
-    _mi_os_secure_guard_page_set_at((uint8_t*)page + page_noguard_size, memid);
-  }
-  #endif
-
-  // claimed free slices: initialize the page partly
-  if (!memid.initially_zero && memid.initially_committed) {
-    mi_track_mem_undefined(page, slice_count * MI_ARENA_SLICE_SIZE);
-    _mi_memzero_aligned(page, sizeof(*page));
-  }
-  else if (memid.initially_committed) {
-    mi_track_mem_defined(page, slice_count * MI_ARENA_SLICE_SIZE);
-  }
-  #if MI_DEBUG > 1
-  if (memid.initially_zero && memid.initially_committed) {
-    if (!mi_mem_is_zero(page, page_noguard_size)) {
-      _mi_error_message(EFAULT, "internal error: page memory was not zero initialized.\n");
-      memid.initially_zero = false;
-      _mi_memzero_aligned(page, sizeof(*page));
-    }
-  }
-  #endif
-  mi_assert(MI_PAGE_INFO_SIZE >= mi_page_info_size());
-
-  size_t block_start;
+static size_t mi_page_block_start(size_t block_size, bool os_align)
+{
+  size_t offset;
   #if MI_GUARDED
   // in a guarded build, we align pages with blocks a multiple of an OS page size, to the OS page size
   // this ensures that all blocks in such pages are OS page size aligned (which is needed for the guard pages)
   const size_t os_page_size = _mi_os_page_size();
   mi_assert_internal(MI_PAGE_ALIGN >= os_page_size);
   if (!os_align && block_size % os_page_size == 0 && block_size > os_page_size /* at least 2 or more */ ) {
-    block_start = _mi_align_up(mi_page_info_size(), os_page_size);
+    offset = _mi_align_up(mi_page_info_size(), os_page_size);
   }
   else
   #endif
   if (os_align) {
-    block_start = MI_PAGE_ALIGN;
+    offset = MI_PAGE_ALIGN;
   }
   else if (_mi_is_power_of_two(block_size) && block_size <= MI_PAGE_MAX_START_BLOCK_ALIGN2) {
     // naturally align power-of-2 blocks up to MI_PAGE_MAX_START_BLOCK_ALIGN2 size (4KiB)
-    block_start = _mi_align_up(mi_page_info_size(), block_size);
+    offset = _mi_align_up(mi_page_info_size(), block_size);
   }
   else if (block_size != 0 && (block_size % MI_PAGE_OSPAGE_BLOCK_ALIGN2) == 0) {
     // also align large pages that are a multiple of MI_PAGE_OSPAGE_BLOCK_ALIGN2 (4KiB)
-    block_start = _mi_align_up(mi_page_info_size(), MI_PAGE_OSPAGE_BLOCK_ALIGN2);
+    offset = _mi_align_up(mi_page_info_size(), MI_PAGE_OSPAGE_BLOCK_ALIGN2);
   }
   else {
     // otherwise start after the info
-    block_start = mi_page_info_size();
+    offset = mi_page_info_size();
   }
-  const size_t reserved    = (os_align ? 1 : (page_noguard_size - block_start) / block_size);
-  mi_assert_internal(reserved > 0 && reserved <= UINT16_MAX);
+  return _mi_align_up(offset,MI_MAX_ALIGN_SIZE);
+}
+
+// Free a page without modifying page_bin stats
+static void mi_arenas_page_free_prim(mi_page_t* page);
+
+// Allocate a fresh page
+static mi_page_t* mi_arenas_page_alloc_fresh(mi_theap_t* theap, size_t slice_count, size_t block_size, size_t block_alignment, bool commit)
+{
+  const bool os_align           = (block_alignment > MI_PAGE_MAX_OVERALLOC_ALIGN);
+  const size_t alloc_size       = mi_size_of_slices(slice_count);
+  mi_memid_t memid              = _mi_memid_none();
+  mi_arena_pages_t* arena_pages = NULL;
+  uint8_t* const slice_start    = mi_arenas_page_alloc_fresh_area(theap,slice_count,block_size,block_alignment,os_align,commit,&memid,&arena_pages);
+  if (!slice_start) return NULL;
+
+  // guard page at the end of mimalloc page?
+  #if MI_SECURE>=5
+  mi_assert(alloc_size > _mi_os_secure_guard_page_size());
+  const size_t page_noguard_size = alloc_size - _mi_os_secure_guard_page_size();
+  #else
+  const size_t page_noguard_size = alloc_size;
+  #endif
+
+  // allocate the page meta info
+  mi_page_t* page = NULL;
+  bool page_meta_is_separate = false;
+  size_t block_start = 0;
+
+  // allocate page meta info at the arena start?
+  if (memid.memkind == MI_MEM_ARENA) {
+    mi_arena_t* const arena = memid.mem.arena.arena;
+    if (arena->pages_meta != NULL) {
+      mi_assert_internal(MI_PAGE_META_IS_SEPARATED!=0);
+      mi_page_t* const page_meta = &arena->pages_meta[memid.mem.arena.slice_index];
+      mi_assert_internal(page_meta->block_size == 0);
+      #if MI_PAGE_META_ALIGNED_FREE_SMALL
+      // if `block_size <= MI_SMALL_SIZE_MAX` we put the page info in front of the slice,
+      // (note: it is important that `page_meta->block_size == 0` for `mi_arena_page_at_slice`)
+      if (block_size > MI_SMALL_SIZE_MAX)
+      #endif
+      {
+        page = page_meta;
+        page_meta_is_separate = true;
+        block_start = 0;
+        #if !defined(MI_PAGE_BLOCK_START_MAX_OFFSET)
+        #define MI_PAGE_BLOCK_START_MAX_OFFSET  (8*MI_INTPTR_BITS) /* 512 */
+        #endif
+        if (block_size >= MI_INTPTR_SIZE && block_size <= MI_PAGE_BLOCK_START_MAX_OFFSET && _mi_is_power_of_two(block_size)) {
+          block_start += block_size;
+        }
+        mi_assert_internal(page->block_size == 0);
+        _mi_memzero_aligned(page, sizeof(*page));
+      }
+    }
+  }
+  if (page == NULL) {
+    // put page meta info in front of the slice
+    page = (mi_page_t*)slice_start;
+    block_start = mi_page_block_start(block_size, os_align);
+  }
+  mi_assert_internal(block_start % MI_MAX_ALIGN_SIZE == 0);
 
   // commit first block?
   size_t commit_size = 0;
   if (!memid.initially_committed) {
-    commit_size = _mi_align_up(block_start + block_size, MI_PAGE_MIN_COMMIT_SIZE);
+    commit_size = _mi_align_up(block_start + block_size, mi_page_min_commit_size());
     if (commit_size > page_noguard_size) { commit_size = page_noguard_size; }
-    bool is_zero;
-    if mi_unlikely(!mi_arena_commit( mi_memid_arena(memid), page, commit_size, &is_zero, 0)) {
-      _mi_arenas_free(page, alloc_size, memid);
+    bool is_zero = false;
+    if mi_unlikely(!mi_arena_commit( _mi_theap_subproc(theap), mi_memid_arena(memid), slice_start, commit_size, &is_zero, 0)) {
+      _mi_arenas_free(_mi_theap_subproc(theap), slice_start, alloc_size, memid);
       return NULL;
     }
-    if (!memid.initially_zero && !is_zero) {
-      _mi_memzero_aligned(page, commit_size);
-    }
+  }
+  // now we can finish initalization and use `mi_arenas_free_page_prim` on error
+
+  // zero initialize the page meta data
+  if (!memid.initially_zero && !page_meta_is_separate) {
+    _mi_memzero_aligned(page, sizeof(*page));
   }
 
-  // initialize
+  // set the guard page
+  #if MI_SECURE>=5
+  if (memid.initially_committed) {
+    _mi_os_secure_guard_page_set_at(_mi_theap_subproc(theap), slice_start + page_noguard_size, memid);
+  }
+  #endif
+
+  // claimed free slices: initialize the page partly
+  if (!memid.initially_zero && memid.initially_committed) {
+    mi_track_mem_undefined(slice_start, slice_count * MI_ARENA_SLICE_SIZE);
+  }
+  else if (memid.initially_committed) {
+    mi_track_mem_defined(slice_start, slice_count * MI_ARENA_SLICE_SIZE);
+  }
+  #if MI_DEBUG > 1
+  if (memid.initially_zero && memid.initially_committed) {
+    if (!mi_mem_is_zero(slice_start, page_noguard_size)) {
+      _mi_error_message(EFAULT, "internal error: page memory was not zero initialized.\n");
+      memid.initially_zero = false;
+      if (block_start > 0) { _mi_memzero_aligned(page, sizeof(*page)); }
+    }
+  }
+  #endif
+  const size_t reserved = (os_align ? 1 : (page_noguard_size - block_start) / block_size);
+  mi_assert_internal(reserved > 0 && reserved <= UINT16_MAX);
+
+  // initialize the page start
+  uint8_t* const start = slice_start + block_start;
+  mi_assert_internal(start > (uint8_t*)page);
+  const size_t offset = start - (uint8_t*)page;
+  mi_assert_internal((offset % MI_MAX_ALIGN_SIZE) == 0 && (offset / MI_MAX_ALIGN_SIZE) <= UINT32_MAX);
+  page->page_ma_offset = (uint32_t)(offset / MI_MAX_ALIGN_SIZE);
+
+  // initialize page meta-data
   page->reserved = (uint16_t)reserved;
-  page->page_start = (uint8_t*)page + block_start;
   page->block_size = block_size;
-  page->slice_committed = commit_size;
   page->memid = memid;
   page->free_is_zero = memid.initially_zero;
-  
+
+  mi_assert_internal((commit && commit_size==0) || (!commit && (commit_size <= UINT16_MAX * _mi_os_page_size())));
+  page->slice_pcommitted = (uint16_t)(commit_size / _mi_os_page_size());
+
+  page->heap = _mi_theap_heap(theap);
+  mi_page_set_theap(page,theap);
+  // mi_assert_internal(mi_page_theap(page) == _mi_heap_theap_peek(page->heap));
+
+  mi_assert_internal(page->free==NULL);
+  mi_assert_internal(page_meta_is_separate == mi_page_meta_is_separated(page));
+  mi_assert_internal(mi_page_slice_start(page) == slice_start);
+  mi_assert_internal(mi_page_size(page) <= page_noguard_size);
+
+  // now register in the arena_pages
+  if (arena_pages!=NULL) {
+    mi_assert_internal(memid.memkind == MI_MEM_ARENA);
+    mi_bitmap_set(arena_pages->pages, memid.mem.arena.slice_index);
+  }
+
   // and own it
-  mi_page_try_claim_ownership(page);
+  mi_page_claim_ownership(page);
 
   // register in the page map
   if mi_unlikely(!_mi_page_map_register(page)) {
-    _mi_arenas_free( page, alloc_size, memid );
+    mi_arenas_page_free_prim(page);
     return NULL;
   }
 
   // stats
-  mi_tld_stat_increase(tld, pages, 1);
-  mi_tld_stat_increase(tld, page_bins[_mi_page_stats_bin(page)], 1);
+  mi_theap_stat_increase(theap, pages, 1);
+  mi_theap_stat_increase(theap, page_bins[_mi_page_stats_bin(page)], 1);
 
-  mi_assert_internal(_mi_ptr_page(page)==page);
+  mi_assert_internal(_mi_is_aligned(mi_page_slice_start(page),MI_PAGE_ALIGN));
   mi_assert_internal(_mi_ptr_page(mi_page_start(page))==page);
   mi_assert_internal(mi_page_block_size(page) == block_size);
-  mi_assert_internal(mi_page_is_abandoned(page));
+  // mi_assert_internal(mi_page_is_abandoned(page));
   mi_assert_internal(mi_page_is_owned(page));
 
   return page;
 }
 
 // Allocate a regular small/medium/large page.
-static mi_page_t* mi_arenas_page_regular_alloc(mi_heap_t* heap, size_t slice_count, size_t block_size) {
-  mi_arena_t* req_arena = heap->exclusive_arena;
-  mi_tld_t* const tld = heap->tld;
-
+static mi_page_t* mi_arenas_page_regular_alloc(mi_theap_t* theap, size_t slice_count, size_t block_size)
+{
   // 1. look for an abandoned page
-  mi_page_t* page = mi_arenas_page_try_find_abandoned(tld->subproc, slice_count, block_size, req_arena, heap->tag, tld->thread_seq);
+  mi_page_t* page = mi_arenas_page_try_find_abandoned(theap, slice_count, block_size);
   if (page != NULL) {
     return page;  // return as abandoned
   }
 
   // 2. find a free block, potentially allocating a new arena
   const long commit_on_demand = mi_option_get(mi_option_page_commit_on_demand);
-  const bool commit = (slice_count <= mi_slice_count_of_size(MI_PAGE_MIN_COMMIT_SIZE) ||  // always commit small pages
-                       (commit_on_demand == 2 && _mi_os_has_overcommit()) || (commit_on_demand == 0));
-  page = mi_arenas_page_alloc_fresh(slice_count, block_size, 1, req_arena, heap->numa_node, commit, tld);
+  const bool commit = (slice_count <= mi_slice_count_of_size(mi_page_min_commit_size()) ||           // always commit small pages
+                       (slice_count >= mi_slice_count_of_size(UINT16_MAX * _mi_os_page_size())) ||   // always commit pages too large to hold a 32-bit slice_committed
+                        (commit_on_demand == 2 && _mi_os_has_overcommit()) || (commit_on_demand == 0));
+  page = mi_arenas_page_alloc_fresh(theap, slice_count, block_size, 1, commit);
   if (page == NULL) return NULL;
 
   mi_assert_internal(page->memid.memkind != MI_MEM_ARENA || page->memid.mem.arena.slice_count == slice_count);
-  if (!_mi_page_init(heap, page)) {
-    _mi_arenas_free( page, mi_page_full_size(page), page->memid);
+  if (!_mi_page_init(theap, page)) {
+    _mi_arenas_page_free(page,theap);
     return NULL;
   }
-  
+
   return page;
 }
 
 // Allocate a page containing one block (very large, or with large alignment)
-static mi_page_t* mi_arenas_page_singleton_alloc(mi_heap_t* heap, size_t block_size, size_t block_alignment) {
-  mi_arena_t* req_arena = heap->exclusive_arena;
-  mi_tld_t* const tld = heap->tld;
+static mi_page_t* mi_arenas_page_singleton_alloc(mi_theap_t* theap, size_t block_size, size_t block_alignment)
+{
   const bool os_align = (block_alignment > MI_PAGE_MAX_OVERALLOC_ALIGN);
   const size_t info_size = (os_align ? MI_PAGE_ALIGN : mi_page_info_size());
   #if MI_SECURE < 2
@@ -800,12 +1039,12 @@ static mi_page_t* mi_arenas_page_singleton_alloc(mi_heap_t* heap, size_t block_s
   const size_t slice_count = mi_slice_count_of_size(_mi_align_up(info_size + block_size, _mi_os_secure_guard_page_size()) + _mi_os_secure_guard_page_size());
   #endif
 
-  mi_page_t* page = mi_arenas_page_alloc_fresh(slice_count, block_size, block_alignment, req_arena, heap->numa_node, true /* commit singletons always */, tld);
+  mi_page_t* page = mi_arenas_page_alloc_fresh(theap, slice_count, block_size, block_alignment, true /* commit singletons always */);
   if (page == NULL) return NULL;
 
   mi_assert(page->reserved == 1);
-  if (!_mi_page_init(heap, page)) {
-    _mi_arenas_free( page, mi_page_full_size(page), page->memid);
+  if (!_mi_page_init(theap, page)) {
+    _mi_arenas_page_free(page,theap);
     return NULL;
   }
 
@@ -813,159 +1052,192 @@ static mi_page_t* mi_arenas_page_singleton_alloc(mi_heap_t* heap, size_t block_s
 }
 
 
-mi_page_t* _mi_arenas_page_alloc(mi_heap_t* heap, size_t block_size, size_t block_alignment) {
+mi_page_t* _mi_arenas_page_alloc(mi_theap_t* theap, size_t block_size, size_t block_alignment) {
   mi_page_t* page;
+  // semi static assert: ensure that all non-singleton block size bins are covered.
+  mi_assert(_mi_bin(MI_LARGE_MAX_OBJ_SIZE)  < MI_ARENA_BIN_COUNT);
   if mi_unlikely(block_alignment > MI_PAGE_MAX_OVERALLOC_ALIGN) {
     mi_assert_internal(_mi_is_power_of_two(block_alignment));
-    page = mi_arenas_page_singleton_alloc(heap, block_size, block_alignment);
+    page = mi_arenas_page_singleton_alloc(theap, block_size, block_alignment);
   }
   else if (block_size <= MI_SMALL_MAX_OBJ_SIZE) {
-    page = mi_arenas_page_regular_alloc(heap, mi_slice_count_of_size(MI_SMALL_PAGE_SIZE), block_size);
+    page = mi_arenas_page_regular_alloc(theap, mi_slice_count_of_size(MI_SMALL_PAGE_SIZE), block_size);
   }
   else if (block_size <= MI_MEDIUM_MAX_OBJ_SIZE) {
-    page = mi_arenas_page_regular_alloc(heap, mi_slice_count_of_size(MI_MEDIUM_PAGE_SIZE), block_size);
+    page = mi_arenas_page_regular_alloc(theap, mi_slice_count_of_size(MI_MEDIUM_PAGE_SIZE), block_size);
   }
   #if MI_ENABLE_LARGE_PAGES
   else if (block_size <= MI_LARGE_MAX_OBJ_SIZE) {
-    page = mi_arenas_page_regular_alloc(heap, mi_slice_count_of_size(MI_LARGE_PAGE_SIZE), block_size);
+    page = mi_arenas_page_regular_alloc(theap, mi_slice_count_of_size(MI_LARGE_PAGE_SIZE), block_size);
   }
   #endif
   else {
-    page = mi_arenas_page_singleton_alloc(heap, block_size, block_alignment);
+    page = mi_arenas_page_singleton_alloc(theap, block_size, block_alignment);
   }
   if mi_unlikely(page == NULL) {
     return NULL;
   }
   // mi_assert_internal(page == NULL || _mi_page_segment(page)->subproc == tld->subproc);
-  mi_assert_internal(_mi_is_aligned(page, MI_PAGE_ALIGN));
-  mi_assert_internal(_mi_ptr_page(page)==page);
+  mi_assert_internal(_mi_is_aligned(mi_page_slice_start(page), MI_PAGE_ALIGN));
   mi_assert_internal(_mi_ptr_page(mi_page_start(page))==page);
   mi_assert_internal(block_alignment <= MI_PAGE_MAX_OVERALLOC_ALIGN || _mi_is_aligned(mi_page_start(page), block_alignment));
 
   return page;
 }
 
-void _mi_arenas_page_free(mi_page_t* page, mi_tld_t* stats_tld /* can be NULL */) {
-  mi_assert_internal(_mi_is_aligned(page, MI_PAGE_ALIGN));
-  mi_assert_internal(_mi_ptr_page(page)==page);
+static void mi_arenas_page_free_prim(mi_page_t* page) {
+  mi_assert_internal(_mi_is_aligned(mi_page_slice_start(page), MI_PAGE_ALIGN));
+  mi_assert_internal(_mi_ptr_page(mi_page_start(page))==page);
   mi_assert_internal(mi_page_is_owned(page));
   mi_assert_internal(mi_page_all_free(page));
-  mi_assert_internal(mi_page_is_abandoned(page));
   mi_assert_internal(page->next==NULL && page->prev==NULL);
-
-  if (stats_tld != NULL) { 
-    mi_tld_stat_decrease(stats_tld, page_bins[_mi_page_stats_bin(page)], 1);
-    mi_tld_stat_decrease(stats_tld, pages, 1);
-  }
-  else {
-    mi_os_stat_decrease(page_bins[_mi_page_stats_bin(page)], 1);
-    mi_os_stat_decrease(pages, 1);
-  }
 
   #if MI_DEBUG>1
   if (page->memid.memkind==MI_MEM_ARENA && !mi_page_is_full(page)) {
     size_t bin = _mi_bin(mi_page_block_size(page));
     size_t slice_index;
     size_t slice_count;
-    mi_arena_t* const arena = mi_page_arena(page, &slice_index, &slice_count);
+    mi_arena_pages_t* arena_pages = NULL;
+    mi_arena_t* const arena = mi_page_arena_pages(page, &slice_index, &slice_count, &arena_pages);
     mi_assert_internal(mi_bbitmap_is_clearN(arena->slices_free, slice_index, slice_count));
-    mi_assert_internal(page->slice_committed > 0 || mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
-    mi_assert_internal(mi_bitmap_is_clearN(arena->pages_abandoned[bin], slice_index, 1));
-    mi_assert_internal(mi_bitmap_is_setN(page->memid.mem.arena.arena->pages, page->memid.mem.arena.slice_index, 1));
+    mi_assert_internal(mi_page_slice_committed(page) > 0 || mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
+    mi_assert_internal(bin >= MI_ARENA_BIN_COUNT || mi_bitmap_is_clearN(arena_pages->pages_abandoned[bin], slice_index, 1));
+    mi_assert_internal(mi_bitmap_is_setN(arena_pages->pages, slice_index, 1));
     // note: we cannot check for `!mi_page_is_abandoned_and_mapped` since that may
     // be (temporarily) not true if the free happens while trying to reclaim
-    // see `mi_arana_try_claim_abandoned`
-  }
-  #endif
-
-  // recommit guard page at the end?
-  // we must do this since we may later allocate large spans over this page and cannot have a guard page in between
-  #if MI_SECURE >= 2
-  if (!page->memid.is_pinned) {
-    _mi_os_secure_guard_page_reset_before((uint8_t*)page + mi_page_full_size(page), page->memid);
+    // see `mi_arena_try_claim_abandoned`
   }
   #endif
 
   // unregister page
   _mi_page_map_unregister(page);
+
+  // recommit guard page at the end?
+  // we must do this since we may later allocate large spans over this page and cannot have a guard page in between
+  #if MI_SECURE >= 5
+  if (!page->memid.is_pinned) {
+    _mi_os_secure_guard_page_reset_before(mi_page_subproc(page), mi_page_slice_start(page) + mi_page_full_size(page), page->memid);
+  }
+  #endif
+
+  // and free
   if (page->memid.memkind == MI_MEM_ARENA) {
-    mi_arena_t* const arena = page->memid.mem.arena.arena;
-    mi_bitmap_clear(arena->pages, page->memid.mem.arena.slice_index);
-    if (page->slice_committed > 0) {
+    mi_arena_pages_t* arena_pages;
+    size_t slice_index;
+    size_t slice_count; MI_UNUSED(slice_count);
+    mi_arena_t* const arena = mi_page_arena_pages(page, &slice_index, &slice_count, &arena_pages);
+    mi_assert_internal(arena_pages!=NULL);
+    mi_assert_internal(arena->subproc == mi_page_subproc(page));
+    mi_bitmap_clear(arena_pages->pages, slice_index);
+    const size_t slice_committed = mi_page_slice_committed(page);
+    if (slice_committed > 0) {
       // if committed on-demand, set the commit bits to account commit properly
-      mi_assert_internal(mi_page_full_size(page) >= page->slice_committed);
-      const size_t total_slices = page->slice_committed / MI_ARENA_SLICE_SIZE;  // conservative
-      //mi_assert_internal(mi_bitmap_is_clearN(arena->slices_committed, page->memid.mem.arena.slice_index, total_slices));
-      mi_assert_internal(page->memid.mem.arena.slice_count >= total_slices);
+      mi_assert_internal(mi_page_full_size(page) >= slice_committed);
+      const size_t total_slices = slice_committed / MI_ARENA_SLICE_SIZE;  // conservative
+      //mi_assert_internal(mi_bitmap_is_clearN(arena->slices_committed, slice_index, total_slices));
+      mi_assert_internal(slice_count >= total_slices);
       if (total_slices > 0) {
-        mi_bitmap_setN(arena->slices_committed, page->memid.mem.arena.slice_index, total_slices, NULL);
+        mi_bitmap_setN(arena->slices_committed, slice_index, total_slices, NULL);
       }
       // any left over?
-      const size_t extra = page->slice_committed % MI_ARENA_SLICE_SIZE;
+      const size_t extra = slice_committed % MI_ARENA_SLICE_SIZE;
       if (extra > 0) {
         // pretend it was decommitted already
-        mi_os_stat_decrease(committed, extra);
+        mi_subproc_stat_decrease(arena->subproc, committed, extra);
       }
     }
     else {
-      mi_assert_internal(mi_bitmap_is_setN(arena->slices_committed, page->memid.mem.arena.slice_index, page->memid.mem.arena.slice_count));
+      mi_assert_internal(mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
     }
   }
-  _mi_arenas_free(page, mi_page_full_size(page), page->memid);
+  if (mi_page_meta_is_separated(page)) { page->block_size = 0; }  // for assertion checking
+  _mi_arenas_free( mi_page_subproc(page), mi_page_slice_start(page), mi_page_full_size(page), page->memid);
+}
+
+void _mi_arenas_page_free(mi_page_t* page, mi_theap_t* current_theapx) {
+  mi_assert_internal(_mi_is_aligned(mi_page_slice_start(page), MI_PAGE_ALIGN));
+  mi_assert_internal(_mi_ptr_page(mi_page_start(page))==page);
+  mi_assert_internal(mi_page_is_owned(page));
+  mi_assert_internal(mi_page_all_free(page));
+  mi_assert_internal(mi_page_is_abandoned(page));
+  mi_assert_internal(page->next==NULL && page->prev==NULL);
+  mi_assert_internal(current_theapx == NULL || _mi_thread_id()==current_theapx->tld->thread_id);
+
+  if (current_theapx != NULL) {
+    mi_theap_stat_decrease(current_theapx, page_bins[_mi_page_stats_bin(page)], 1);
+    mi_theap_stat_decrease(current_theapx, pages, 1);
+  }
+  else {
+    mi_heap_t* const heap = mi_page_heap(page);
+    mi_heap_stat_decrease(heap, page_bins[_mi_page_stats_bin(page)], 1);
+    mi_heap_stat_decrease(heap, pages, 1);
+  }
+  mi_arenas_page_free_prim(page);
 }
 
 /* -----------------------------------------------------------
   Arena abandon
 ----------------------------------------------------------- */
 
-void _mi_arenas_page_abandon(mi_page_t* page, mi_tld_t* tld) {
-  mi_assert_internal(_mi_is_aligned(page, MI_PAGE_ALIGN));
-  mi_assert_internal(_mi_ptr_page(page)==page);
+void _mi_arenas_page_abandon(mi_page_t* page, mi_theap_t* current_theap) {
+  mi_assert_internal(_mi_is_aligned(mi_page_slice_start(page), MI_PAGE_ALIGN));
+  mi_assert_internal(_mi_ptr_page(mi_page_start(page))==page);
   mi_assert_internal(mi_page_is_owned(page));
   mi_assert_internal(mi_page_is_abandoned(page));
   mi_assert_internal(!mi_page_all_free(page));
   mi_assert_internal(page->next==NULL && page->prev == NULL);
+  mi_assert_internal(_mi_thread_id()==current_theap->tld->thread_id);
+  // mi_assert_internal(current_theap == _mi_page_associated_theap(page));
 
+  // add to abandoned?
+  mi_heap_t* heap = mi_page_heap(page);
+  mi_assert_internal(heap==_mi_theap_heap(current_theap));
   if (page->memid.memkind==MI_MEM_ARENA && !mi_page_is_full(page)) {
     // make available for allocations
     size_t bin = _mi_bin(mi_page_block_size(page));
-    size_t slice_index;
-    size_t slice_count;
-    mi_arena_t* arena = mi_page_arena(page, &slice_index, &slice_count);
-    mi_assert_internal(!mi_page_is_singleton(page));
-    mi_assert_internal(mi_bbitmap_is_clearN(arena->slices_free, slice_index, slice_count));
-    mi_assert_internal(page->slice_committed > 0 || mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
-    mi_assert_internal(mi_bitmap_is_setN(arena->slices_dirty, slice_index, slice_count));
+    mi_assert_internal(bin < MI_ARENA_BIN_COUNT);
+    if (bin < MI_ARENA_BIN_COUNT) { // paranoia
+      size_t slice_index;
+      size_t slice_count;
+      mi_arena_pages_t* arena_pages = NULL;
+      mi_arena_t* const arena = mi_page_arena_pages(page, &slice_index, &slice_count, &arena_pages); MI_UNUSED(arena);
 
-    mi_page_set_abandoned_mapped(page);
-    const bool wasclear = mi_bitmap_set(arena->pages_abandoned[bin], slice_index);
-    MI_UNUSED(wasclear); mi_assert_internal(wasclear);
-    mi_atomic_increment_relaxed(&arena->subproc->abandoned_count[bin]);
-    mi_tld_stat_increase(tld, pages_abandoned, 1);
-  }
-  else {
-    // page is full (or a singleton), or the page is OS/externally allocated
-    // leave as is; it will be reclaimed when an object is free'd in the page
-    mi_subproc_t* subproc = _mi_subproc();
-    // but for non-arena pages, add to the subproc list so these can be visited
-    if (page->memid.memkind != MI_MEM_ARENA && mi_option_is_enabled(mi_option_visit_abandoned)) {
-      mi_lock(&subproc->os_abandoned_pages_lock) {
-        // push in front
-        page->prev = NULL;
-        page->next = subproc->os_abandoned_pages;
-        if (page->next != NULL) { page->next->prev = page; }
-        subproc->os_abandoned_pages = page;
-      }
+      mi_assert_internal(!mi_page_is_singleton(page));
+      mi_assert_internal(mi_bbitmap_is_clearN(arena->slices_free, slice_index, slice_count));
+      mi_assert_internal(mi_page_slice_committed(page) > 0 || mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
+      mi_assert_internal(mi_bitmap_is_setN(arena->slices_dirty, slice_index, slice_count));
+
+      mi_page_set_abandoned_mapped(page);
+      const bool was_clear = mi_bitmap_set(arena_pages->pages_abandoned[bin], slice_index);
+      MI_UNUSED(was_clear); mi_assert_internal(was_clear);
+      mi_atomic_increment_relaxed(&heap->abandoned_count[bin]);
+      mi_theap_stat_increase(current_theap, pages_abandoned, 1);
+      mi_abandoned_page_unown(page, current_theap);
+      return;
     }
-    mi_tld_stat_increase(tld, pages_abandoned, 1);
   }
-  mi_abandoned_page_unown(page);
+  // otherwise,
+  // page is full (or a singleton), or the page is OS/externally allocated
+  // leave as is; it will be reclaimed when an object is free'd in the page
+  // but for non-arena pages, add to the subproc list so these can be visited
+  if (page->memid.memkind != MI_MEM_ARENA) {
+    mi_lock(&heap->os_abandoned_pages_lock) {
+      // push in front
+      page->prev = NULL;
+      page->next = heap->os_abandoned_pages;
+      if (page->next != NULL) { page->next->prev = page; }
+      heap->os_abandoned_pages = page;
+    }
+  }
+  mi_theap_stat_increase(current_theap, pages_abandoned, 1);
+  mi_abandoned_page_unown(page, current_theap);
 }
+
 
 // this is called from `free.c:mi_free_try_collect_mt` only.
 bool _mi_arenas_page_try_reabandon_to_mapped(mi_page_t* page) {
-  mi_assert_internal(_mi_is_aligned(page, MI_PAGE_ALIGN));
-  mi_assert_internal(_mi_ptr_page(page)==page);
+  mi_assert_internal(_mi_is_aligned(mi_page_slice_start(page), MI_PAGE_ALIGN));
+  mi_assert_internal(_mi_ptr_page(mi_page_start(page))==page);
   mi_assert_internal(mi_page_is_owned(page));
   mi_assert_internal(mi_page_is_abandoned(page));
   mi_assert_internal(!mi_page_is_abandoned_mapped(page));
@@ -976,52 +1248,65 @@ bool _mi_arenas_page_try_reabandon_to_mapped(mi_page_t* page) {
     return false;
   }
   else {
-    mi_tld_t* tld = _mi_thread_tld();
-    mi_tld_stat_counter_increase( tld, pages_reabandon_full, 1);
-    mi_tld_stat_adjust_decrease( tld, pages_abandoned, 1);  // adjust as we are not abandoning fresh
-    _mi_arenas_page_abandon(page,tld);
-    return true;
+    // do not use _mi_heap_theap as we may call this during shutdown of threads and don't want to reinitialize the theap
+    mi_theap_t* const theap = _mi_page_associated_theap_peek(page);
+    if (theap == NULL) {
+      return false;
+    }
+    else {
+      mi_theap_stat_counter_increase(theap, pages_reabandon_full, 1);
+      mi_theap_stat_adjust_decrease(theap, pages_abandoned, 1);  // adjust as we are not abandoning fresh
+      _mi_arenas_page_abandon(page, theap);
+      return true;
+    }
   }
 }
 
 // called from `mi_free` if trying to unabandon an abandoned page
-void _mi_arenas_page_unabandon(mi_page_t* page) {
-  mi_assert_internal(_mi_is_aligned(page, MI_PAGE_ALIGN));
-  mi_assert_internal(_mi_ptr_page(page)==page);
+void _mi_arenas_page_unabandon(mi_page_t* page, mi_theap_t* current_theapx) {
+  mi_assert_internal(_mi_is_aligned(mi_page_slice_start(page), MI_PAGE_ALIGN));
+  mi_assert_internal(_mi_ptr_page(mi_page_start(page))==page);
   mi_assert_internal(mi_page_is_owned(page));
   mi_assert_internal(mi_page_is_abandoned(page));
+  mi_assert_internal(current_theapx==NULL || _mi_thread_id()==current_theapx->tld->thread_id);
 
+  mi_heap_t* const heap = mi_page_heap(page);
   if (mi_page_is_abandoned_mapped(page)) {
     mi_assert_internal(page->memid.memkind==MI_MEM_ARENA);
     // remove from the abandoned map
-    size_t bin = _mi_bin(mi_page_block_size(page));
+    const size_t bin = _mi_bin(mi_page_block_size(page));
+    mi_assert_internal(bin < MI_ARENA_BIN_COUNT);
     size_t slice_index;
     size_t slice_count;
-    mi_arena_t* arena = mi_page_arena(page, &slice_index, &slice_count);
+    mi_arena_pages_t* arena_pages;
+    mi_arena_t* arena = mi_page_arena_pages(page, &slice_index, &slice_count, &arena_pages);  MI_UNUSED(arena);
 
     mi_assert_internal(mi_bbitmap_is_clearN(arena->slices_free, slice_index, slice_count));
-    mi_assert_internal(page->slice_committed > 0 || mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
+    mi_assert_internal(mi_page_slice_committed(page) > 0 || mi_bitmap_is_setN(arena->slices_committed, slice_index, slice_count));
 
     // this busy waits until a concurrent reader (from alloc_abandoned) is done
-    mi_bitmap_clear_once_set(arena->pages_abandoned[bin], slice_index);
+    mi_bitmap_clear_once_set(arena->subproc, arena_pages->pages_abandoned[bin], slice_index);
     mi_page_clear_abandoned_mapped(page);
-    mi_atomic_decrement_relaxed(&arena->subproc->abandoned_count[bin]);
-    mi_tld_stat_decrease(_mi_thread_tld(), pages_abandoned, 1);
+    mi_atomic_decrement_relaxed(&heap->abandoned_count[bin]);
   }
   else {
     // page is full (or a singleton), page is OS allocated
-    mi_tld_stat_decrease(_mi_thread_tld(), pages_abandoned, 1);
     // if not an arena page, remove from the subproc os pages list
-    if (page->memid.memkind != MI_MEM_ARENA && mi_option_is_enabled(mi_option_visit_abandoned)) {
-      mi_subproc_t* subproc = _mi_subproc();
-      mi_lock(&subproc->os_abandoned_pages_lock) {
+    if (page->memid.memkind != MI_MEM_ARENA) {
+      mi_lock(&heap->os_abandoned_pages_lock) {
         if (page->prev != NULL) { page->prev->next = page->next; }
         if (page->next != NULL) { page->next->prev = page->prev; }
-        if (subproc->os_abandoned_pages == page) { subproc->os_abandoned_pages = page->next; }
+        if (heap->os_abandoned_pages == page) { heap->os_abandoned_pages = page->next; }
         page->next = NULL;
         page->prev = NULL;
       }
     }
+  }
+  if (current_theapx!=NULL) {
+    mi_theap_stat_decrease(current_theapx, pages_abandoned, 1);
+  }
+  else {
+    mi_heap_stat_decrease(heap, pages_abandoned, 1);
   }
 }
 
@@ -1032,7 +1317,7 @@ void _mi_arenas_page_unabandon(mi_page_t* page) {
 static void mi_arena_schedule_purge(mi_arena_t* arena, size_t slice_index, size_t slices);
 static void mi_arenas_try_purge(bool force, bool visit_all, mi_subproc_t* subproc, size_t tseq);
 
-void _mi_arenas_free(void* p, size_t size, mi_memid_t memid) {
+void _mi_arenas_free(mi_subproc_t* subproc, void* p, size_t size, mi_memid_t memid) {
   if (p==NULL) return;
   if (size==0) return;
 
@@ -1041,26 +1326,28 @@ void _mi_arenas_free(void* p, size_t size, mi_memid_t memid) {
 
   if (mi_memkind_is_os(memid.memkind)) {
     // was a direct OS allocation, pass through
-    _mi_os_free(p, size, memid);
+    _mi_os_free(subproc, p, size, memid);
   }
   else if (memid.memkind == MI_MEM_ARENA) {
     // allocated in an arena
     size_t slice_count;
     size_t slice_index;
     mi_arena_t* arena = mi_arena_from_memid(memid, &slice_index, &slice_count);
+    mi_assert_internal(arena!=NULL);
+    mi_assert_internal(arena->subproc == subproc);
     mi_assert_internal((size%MI_ARENA_SLICE_SIZE)==0);
     mi_assert_internal((slice_count*MI_ARENA_SLICE_SIZE)==size);
     mi_assert_internal(mi_arena_slice_start(arena,slice_index) <= (uint8_t*)p);
     mi_assert_internal(mi_arena_slice_start(arena,slice_index) + mi_size_of_slices(slice_count) > (uint8_t*)p);
     // checks
     if (arena == NULL) {
-      _mi_error_message(EINVAL, "trying to free from an invalid arena: %p, size %zu, memid: 0x%zx\n", p, size, memid);
+      _mi_error_message(EINVAL, "trying to free from an invalid arena: %p, size %zu, memkind: 0x%x\n", p, size, memid.memkind);
       return;
     }
     mi_assert_internal(slice_index < arena->slice_count);
     mi_assert_internal(slice_index >= mi_arena_info_slices(arena));
-    if (slice_index < mi_arena_info_slices(arena) || slice_index > arena->slice_count) {
-      _mi_error_message(EINVAL, "trying to free from an invalid arena block: %p, size %zu, memid: 0x%zx\n", p, size, memid);
+    if (slice_index < mi_arena_info_slices(arena) || slice_index >= arena->slice_count) {
+      _mi_error_message(EINVAL, "trying to free from an invalid arena block: %p, size %zu, memkind: 0x%x\n", p, size, memid.memkind);
       return;
     }
 
@@ -1078,7 +1365,7 @@ void _mi_arenas_free(void* p, size_t size, mi_memid_t memid) {
     };
   }
   else if (memid.memkind == MI_MEM_META) {
-    _mi_meta_free(p, size, memid);
+    _mi_meta_free(subproc, p, size, memid);
   }
   else {
     // arena was none, external, or static; nothing to do
@@ -1096,25 +1383,41 @@ void _mi_arenas_collect(bool force_purge, bool visit_all, mi_tld_t* tld) {
 
 
 // Is a pointer contained in the given arena area?
-bool mi_arena_contains(mi_arena_id_t arena_id, const void* p) {
-  mi_arena_t* arena = _mi_arena_from_id(arena_id);
-  return (mi_arena_start(arena) <= (const uint8_t*)p &&
+static bool mi_arena_strictly_contains(mi_arena_t* arena, const void* p) {
+  return (arena != NULL &&
+          mi_arena_start(arena) <= (const uint8_t*)p &&
           mi_arena_start(arena) + mi_size_of_slices(arena->slice_count) >(const uint8_t*)p);
 }
 
 // Is a pointer inside any of our arenas?
-bool _mi_arenas_contain(const void* p) {
+static bool mi_arenas_contain_ex(const void* p, mi_arena_t* parent) {
   mi_subproc_t* subproc = _mi_subproc();
   const size_t max_arena = mi_arenas_get_count(subproc);
   for (size_t i = 0; i < max_arena; i++) {
     mi_arena_t* arena = mi_atomic_load_ptr_acquire(mi_arena_t, &subproc->arenas[i]);
-    if (arena != NULL && mi_arena_contains(arena,p)) {
-      return true;
+    if (arena != NULL) {
+      if (parent==NULL || arena==parent || arena->parent==parent) {
+        if (mi_arena_strictly_contains(arena, p)) {
+          return true;
+        }
+      }
     }
   }
   return false;
 }
 
+// // Is a pointer inside any of our arenas?
+// bool _mi_arenas_contain(const void* p) {
+//   return mi_arenas_contain_ex(p, NULL);
+// }
+
+// Is a pointer contained in the given arena area?
+bool mi_arena_contains(mi_arena_id_t arena_id, const void* p) {
+  mi_arena_t* arena = _mi_arena_from_id(arena_id);
+  if (arena==NULL) return false;
+  else if (mi_arena_strictly_contains(arena, p)) return true;
+  else return mi_arenas_contain_ex(p, arena);  // maybe a subarena?
+}
 
 
 /* -----------------------------------------------------------
@@ -1132,13 +1435,13 @@ static void mi_arenas_unsafe_destroy(mi_subproc_t* subproc) {
       // mi_lock_done(&arena->abandoned_visit_lock);
       mi_atomic_store_ptr_release(mi_arena_t, &subproc->arenas[i], NULL);
       if (mi_memkind_is_os(arena->memid.memkind)) {
-        _mi_os_free_ex(mi_arena_start(arena), mi_arena_size(arena), true, arena->memid, subproc); // pass `subproc` to avoid accessing the heap pointer (in `_mi_subproc()`)
+        _mi_os_free_ex(subproc, mi_arena_start(arena), mi_arena_size(arena), true, arena->memid);
       }
     }
   }
   // try to lower the max arena.
   size_t expected = arena_count;
-  mi_atomic_cas_strong_acq_rel(&subproc->arena_count, &expected, 0);
+  mi_atomic_cas_strong_acq_rel(&subproc->arena_count, &expected, (size_t)0);
 }
 
 
@@ -1158,49 +1461,65 @@ static bool mi_arenas_add(mi_subproc_t* subproc, mi_arena_t* arena, mi_arena_id_
 {
   mi_assert_internal(arena != NULL);
   mi_assert_internal(arena->slice_count > 0);
-  if (arena_id != NULL) { *arena_id = NULL; }
+  if (arena_id != NULL) { *arena_id = _mi_arena_id_none(); }
 
   // try to find a NULL entry
   mi_arena_t* expected;
   size_t count = mi_arenas_get_count(subproc);
-  for (size_t i = 0; i < count; i++) {
-    if (mi_arena_from_index(subproc, i) == NULL) {
-      // arena->arena_idx = i;
+  for( size_t i = 0; i < count; i++) {
+    if (mi_arena_from_index(subproc,i) == NULL) {
+      arena->arena_idx = i;
       expected = NULL;
       if (mi_atomic_cas_ptr_strong_release(mi_arena_t, &subproc->arenas[i], &expected, arena)) {
         // success
-        if (arena_id != NULL) { *arena_id = arena; }
+        if (arena_id != NULL) { *arena_id = mi_arena_id_from_arena(arena); }
         return true;
       }
     }
   }
 
   // otherwise, try to allocate a fresh slot
-  while (count<MI_MAX_ARENAS) {
+  while(count<MI_MAX_ARENAS) {
     if (mi_atomic_cas_strong_release(&subproc->arena_count, &count, count+1)) {
-      // arena->arena_idx = count;
+      arena->arena_idx = count;
       expected = NULL;
       if (mi_atomic_cas_ptr_strong_release(mi_arena_t, &subproc->arenas[count], &expected, arena)) {
         mi_subproc_stat_counter_increase(arena->subproc, arena_count, 1);
-        if (arena_id != NULL) { *arena_id = arena; }
+        if (arena_id != NULL) { *arena_id = mi_arena_id_from_arena(arena); }
         return true;
       }
     }
   }
 
   // failed
-  // arena->arena_idx = 0;
+  arena->arena_idx = 0;
   arena->subproc = NULL;
   return false;
+}
+
+static size_t mi_arena_pages_size(size_t slice_count, size_t* bitmap_base) {
+  if (slice_count == 0) slice_count = MI_BCHUNK_BITS;
+  mi_assert_internal((slice_count % MI_BCHUNK_BITS) == 0);
+  const size_t base_size = _mi_align_up(sizeof(mi_arena_pages_t), MI_BCHUNK_SIZE);
+  const size_t bitmaps_count = 1 + MI_ARENA_BIN_COUNT; // pages, and abandoned
+  const size_t bitmaps_size = bitmaps_count * mi_bitmap_size(slice_count, NULL);
+  const size_t size = base_size + bitmaps_size;
+  if (bitmap_base != NULL) *bitmap_base = base_size;
+  return size;
 }
 
 static size_t mi_arena_info_slices_needed(size_t slice_count, size_t* bitmap_base) {
   if (slice_count == 0) slice_count = MI_BCHUNK_BITS;
   mi_assert_internal((slice_count % MI_BCHUNK_BITS) == 0);
   const size_t base_size = _mi_align_up(sizeof(mi_arena_t), MI_BCHUNK_SIZE);
-  const size_t bitmaps_count = 4 + MI_BIN_COUNT; // commit, dirty, purge, pages, and abandonded
+  const size_t bitmaps_count = 4 + MI_ARENA_BIN_COUNT; // commit, dirty, purge, pages, and abandoned
   const size_t bitmaps_size = bitmaps_count * mi_bitmap_size(slice_count, NULL) + mi_bbitmap_size(slice_count, NULL); // + free
-  const size_t size = base_size + bitmaps_size;
+  #if MI_PAGE_META_IS_SEPARATED
+  const size_t pages_size = slice_count * sizeof(mi_page_t);
+  #else
+  const size_t pages_size = 0;
+  #endif
+  const size_t size = base_size + bitmaps_size + pages_size;
 
   const size_t os_page_size = _mi_os_page_size();
   const size_t info_size = _mi_align_up(size, os_page_size) + _mi_os_secure_guard_page_size();
@@ -1216,48 +1535,51 @@ static mi_bitmap_t* mi_arena_bitmap_init(size_t slice_count, uint8_t** base) {
   return bitmap;
 }
 
-static mi_bbitmap_t* mi_arena_bbitmap_init(size_t slice_count, uint8_t** base) {
+static mi_bbitmap_t* mi_arena_bbitmap_init(mi_subproc_t* subproc, size_t slice_count, uint8_t** base) {
   mi_bbitmap_t* bbitmap = (mi_bbitmap_t*)(*base);
-  *base = (*base) + mi_bbitmap_init(bbitmap, slice_count, true /* already zero */);
+  *base = (*base) + mi_bbitmap_init(subproc, bbitmap, slice_count, true /* already zero */);
   return bbitmap;
 }
 
+static mi_arena_pages_t* mi_arena_pages_alloc(mi_arena_t* arena) {
+  const size_t slice_count = arena->slice_count;
+  size_t bitmap_base = 0;
+  const size_t size = mi_arena_pages_size(slice_count, &bitmap_base);
+  mi_arena_pages_t* arena_pages = (mi_arena_pages_t*)mi_heap_zalloc_aligned(arena->subproc->heap_main, size, MI_BCHUNK_SIZE);
+  if (arena_pages==NULL) return NULL;
+  uint8_t* base = (uint8_t*)arena_pages + bitmap_base;
+  mi_assert_internal(_mi_is_aligned(base, MI_BCHUNK_SIZE));
+  arena_pages->pages = mi_arena_bitmap_init(slice_count, &base);
+  for (size_t i = 0; i < MI_ARENA_BIN_COUNT; i++) {
+    arena_pages->pages_abandoned[i] = mi_arena_bitmap_init(slice_count, &base);
+  }
+  return arena_pages;
+}
 
-static bool mi_manage_os_memory_ex2(mi_subproc_t* subproc, void* start, size_t size, int numa_node, bool exclusive,
-                                    mi_memid_t memid, mi_commit_fun_t* commit_fun, void* commit_fun_arg, mi_arena_id_t* arena_id) mi_attr_noexcept
+static mi_arena_t* mi_arena_initialize(mi_subproc_t* subproc, void* start,
+                                        size_t slice_count, mi_arena_t* parent, size_t total_size,
+                                        int numa_node, bool exclusive,
+                                        mi_memid_t memid, mi_commit_fun_t* commit_fun, void* commit_fun_arg, mi_arena_id_t* arena_id)
 {
-  mi_assert(_mi_is_aligned(start,MI_ARENA_SLICE_SIZE));
-  mi_assert(start!=NULL);
-  if (arena_id != NULL) { *arena_id = _mi_arena_id_none(); }
-  if (start==NULL) return false;
-  if (!_mi_is_aligned(start,MI_ARENA_SLICE_SIZE)) {
-    // we can align the start since the memid tracks the real base of the memory.
-    void* const aligned_start = _mi_align_up_ptr(start, MI_ARENA_SLICE_SIZE);
-    const size_t diff = (uint8_t*)aligned_start - (uint8_t*)start;
-    if (diff >= size || (size - diff) < MI_ARENA_SLICE_SIZE) {
-      _mi_warning_message("after alignment, the size of the arena becomes too small (memory at %p with size %zu)\n", start, size);
-      return false;
-    }
-    start = aligned_start;
-    size = size - diff;
+  mi_assert_internal(_mi_is_aligned(start,MI_ARENA_SLICE_ALIGN));
+  mi_assert_internal(mi_size_of_slices(slice_count)>=MI_ARENA_MIN_SIZE);
+
+  if (slice_count > MI_BITMAP_MAX_BIT_COUNT) {  // 16 GiB for now
+    // note: this should never happen if called from `mi_manage_os_memory` (as that allocates sub-arenas when needed)
+    _mi_warning_message("cannot use OS memory since it is too large (size %zu MiB, maximum is %zu MiB)", mi_size_of_slices(slice_count)/MI_MiB, mi_size_of_slices(MI_BITMAP_MAX_BIT_COUNT)/MI_MiB);
+    return NULL;
   }
 
-  const size_t slice_count = _mi_align_down(size / MI_ARENA_SLICE_SIZE, MI_BCHUNK_BITS);
-  if (slice_count > MI_BITMAP_MAX_BIT_COUNT) {  // 16 GiB for now
-    // todo: allow larger areas (either by splitting it up in arena's or having larger arena's)
-    _mi_warning_message("cannot use OS memory since it is too large (size %zu MiB, maximum is %zu MiB)", size/MI_MiB, mi_size_of_slices(MI_BITMAP_MAX_BIT_COUNT)/MI_MiB);
-    return false;
-  }
   size_t bitmap_base;
   const size_t info_slices = mi_arena_info_slices_needed(slice_count, &bitmap_base);
   if (slice_count < info_slices+1) {
-    _mi_warning_message("cannot use OS memory since it is not large enough (size %zu KiB, minimum required is %zu KiB)", size/MI_KiB, mi_size_of_slices(info_slices+1)/MI_KiB);
-    return false;
+    _mi_warning_message("cannot use OS memory since it is not large enough (size %zu KiB, minimum required is %zu KiB)", mi_size_of_slices(slice_count)/MI_KiB, mi_size_of_slices(info_slices+1)/MI_KiB);
+    return NULL;
   }
-  else if (info_slices >= MI_ARENA_MAX_CHUNK_OBJ_SLICES) {
-    _mi_warning_message("cannot use OS memory since it is too large with respect to the maximum object size (size %zu MiB, meta-info slices %zu, maximum object slices are %zu)", size/MI_MiB, info_slices, MI_ARENA_MAX_CHUNK_OBJ_SLICES);
-    return false;
-  }
+  // else if (info_slices >= MI_ARENA_MAX_CHUNK_OBJ_SLICES) {
+  //   _mi_warning_message("cannot use OS memory since it is too large with respect to the maximum object size (size %zu MiB, meta-info slices %zu, maximum object slices are %zu)", mi_size_of_slices(slice_count)/MI_MiB, info_slices, MI_ARENA_MAX_CHUNK_OBJ_SLICES);
+  //   return NULL;
+  // }
 
   mi_arena_t* arena = (mi_arena_t*)start;
 
@@ -1271,44 +1593,56 @@ static bool mi_manage_os_memory_ex2(mi_subproc_t* subproc, void* start, size_t s
       ok = (*commit_fun)(true /* commit */, arena, commit_size, NULL, commit_fun_arg);
     }
     else {
-      ok = _mi_os_commit(arena, commit_size, NULL);
+      ok = _mi_os_commit(subproc, arena, commit_size, NULL);
     }
     if (!ok) {
       _mi_warning_message("unable to commit meta-data for OS memory");
-      return false;
+      return NULL;
     }
   }
   else if (!memid.is_pinned) {
-    // if MI_SECURE, set a guard page at the end
+    // if MI_SECURE, set a guard page at the end of the arena info
     // todo: this does not respect the commit_fun as the memid is of external memory
-    _mi_os_secure_guard_page_set_before((uint8_t*)arena + mi_size_of_slices(info_slices), memid);
+    _mi_os_secure_guard_page_set_before(subproc, (uint8_t*)arena + mi_size_of_slices(info_slices), memid);
   }
   if (!memid.initially_zero) {
     _mi_memzero(arena, mi_size_of_slices(info_slices) - _mi_os_secure_guard_page_size());
   }
 
   // init
-  arena->subproc      = subproc;
-  arena->memid        = memid;
+  arena->subproc = subproc;
+  arena->memid = memid;
   arena->is_exclusive = exclusive;
-  arena->slice_count  = slice_count;
-  arena->info_slices  = info_slices;
-  arena->numa_node    = numa_node; // TODO: or get the current numa node if -1? (now it allows anyone to allocate on -1)
+  arena->slice_count = slice_count;
+  arena->info_slices = info_slices;
+  if (numa_node<0 && mi_option_is_enabled(mi_option_arena_is_numa_local)) {
+    arena->numa_node = _mi_os_numa_node();
+  }
+  else {
+    arena->numa_node = numa_node;
+  }
   arena->purge_expire = 0;
-  arena->commit_fun   = commit_fun;
+  arena->commit_fun = commit_fun;
   arena->commit_fun_arg = commit_fun_arg;
-  // mi_lock_init(&arena->abandoned_visit_lock);
+  arena->parent = parent;
+  arena->total_size = total_size;
 
   // init bitmaps
   uint8_t* base = mi_arena_start(arena) + bitmap_base;
-  arena->slices_free = mi_arena_bbitmap_init(slice_count,&base);
-  arena->slices_committed = mi_arena_bitmap_init(slice_count,&base);
-  arena->slices_dirty = mi_arena_bitmap_init(slice_count,&base);
+  arena->slices_free = mi_arena_bbitmap_init(subproc, slice_count, &base);
+  arena->slices_committed = mi_arena_bitmap_init(slice_count, &base);
+  arena->slices_dirty = mi_arena_bitmap_init(slice_count, &base);
   arena->slices_purge = mi_arena_bitmap_init(slice_count, &base);
-  arena->pages = mi_arena_bitmap_init(slice_count, &base);
-  for( size_t i = 0; i < MI_ARENA_BIN_COUNT; i++) {
-    arena->pages_abandoned[i] = mi_arena_bitmap_init(slice_count,&base);
+  arena->pages_main.pages = mi_arena_bitmap_init(slice_count, &base);
+  for (size_t i = 0; i < MI_ARENA_BIN_COUNT; i++) {
+    arena->pages_main.pages_abandoned[i] = mi_arena_bitmap_init(slice_count, &base);
   }
+  #if MI_PAGE_META_IS_SEPARATED
+  arena->pages_meta = (mi_page_t*)base;
+  base += (slice_count * sizeof(mi_page_t));
+  #else
+  arena->pages_meta = NULL;
+  #endif
   mi_assert_internal(mi_size_of_slices(info_slices) >= (size_t)(base - mi_arena_start(arena)));
 
   // reserve our meta info (and reserve slices outside the memory area)
@@ -1316,19 +1650,82 @@ static bool mi_manage_os_memory_ex2(mi_subproc_t* subproc, void* start, size_t s
   if (memid.initially_committed) {
     mi_bitmap_unsafe_setN(arena->slices_committed, 0, arena->slice_count);
   }
-  else {
-    mi_bitmap_setN(arena->slices_committed, 0, info_slices, NULL);
-  }
   if (!memid.initially_zero) {
     mi_bitmap_unsafe_setN(arena->slices_dirty, 0, arena->slice_count);
   }
-  else {
-    mi_bitmap_setN(arena->slices_dirty, 0, info_slices, NULL);
-  }
 
-  return mi_arenas_add(subproc, arena, arena_id);
+  if (!mi_arenas_add(subproc, arena, arena_id)) { return NULL;  }
+  return arena;
 }
 
+static bool mi_manage_os_memory_ex2(mi_subproc_t* subproc, void* start, size_t size, int numa_node, bool exclusive,
+  mi_memid_t memid, mi_commit_fun_t* commit_fun, void* commit_fun_arg, mi_arena_id_t* arena_id) mi_attr_noexcept
+{
+  // checks
+  mi_assert(start!=NULL);
+  if (arena_id != NULL) { *arena_id = _mi_arena_id_none(); }
+  if (start==NULL) return false;
+  if (!_mi_is_aligned(start, MI_ARENA_SLICE_SIZE)) {
+    // we can align the start since the memid tracks the real base of the memory.
+    void* const aligned_start = _mi_align_up_ptr(start, MI_ARENA_SLICE_SIZE);
+    const size_t diff = (uint8_t*)aligned_start - (uint8_t*)start;
+    if (diff >= size || (size - diff) < MI_ARENA_SLICE_SIZE) {
+      _mi_warning_message("after alignment, the size of the arena becomes too small (memory at %p with size %zu)\n", start, size);
+      return false;
+    }
+    start = aligned_start;
+    size = size - diff;
+  }
+
+  // allocate enough arena's to span the full memory area
+  // the first arena is the owner, the rest are "sub-arena" (with `parent` pointing to the first one)
+  size_t total_slice_count = _mi_align_down(size / MI_ARENA_SLICE_SIZE, MI_BCHUNK_BITS);
+  size_t total_size = mi_size_of_slices(total_slice_count);
+  if (total_size < MI_ARENA_MIN_SIZE) {
+    _mi_warning_message("cannot use OS memory since it is not large enough (size %zu KiB, minimum required is %zu KiB)", size/MI_KiB, MI_ARENA_MIN_SIZE/MI_KiB);
+    return false;
+  }
+
+  mi_arena_t* parent = NULL;
+  do {
+    // counting down on the total_slice_count
+    size_t slice_count = total_slice_count;
+    if (slice_count > MI_BITMAP_MAX_BIT_COUNT) {  // 16 GiB for now (with 64KiB slices)
+      slice_count = MI_BITMAP_MAX_BIT_COUNT;
+    }
+
+    // initialize
+    mi_arena_t* arena = mi_arena_initialize( subproc, start, slice_count, parent,
+                                              (parent==NULL ? total_size : 0), numa_node, exclusive,
+                                              memid, commit_fun, commit_fun_arg,
+                                              (parent==NULL ? arena_id : NULL));
+    if (arena==NULL) {
+      // failed to initialize due to failing commit or too many arena's
+      if (parent==NULL) {
+        return false;
+      }
+      else {
+        // partial success, but failed to use the full area..
+        // todo: roll-back in this case? that requires a lock on the arena's array though
+        mi_assert(mi_size_of_slices(total_slice_count) <= parent->total_size);
+        parent->total_size -= mi_size_of_slices(total_slice_count);
+        return true;
+      }
+    }
+
+    // success
+    if (parent==NULL) {
+      parent = arena;
+      memid.memkind = MI_MEM_NONE;
+    }
+    mi_assert(slice_count <= total_slice_count);
+    total_slice_count -= slice_count;
+    start = (uint8_t*)start + mi_size_of_slices(slice_count);
+  }
+  while (total_slice_count > 0);
+
+  return true;
+}
 
 bool mi_manage_os_memory_ex(void* start, size_t size, bool is_committed, bool is_pinned, bool is_zero, int numa_node, bool exclusive, mi_arena_id_t* arena_id) mi_attr_noexcept {
   mi_memid_t memid = _mi_memid_create(MI_MEM_EXTERNAL);
@@ -1340,7 +1737,7 @@ bool mi_manage_os_memory_ex(void* start, size_t size, bool is_committed, bool is
   return mi_manage_os_memory_ex2(_mi_subproc(), start, size, numa_node, exclusive, memid, NULL, NULL, arena_id);
 }
 
-bool mi_manage_memory(void* start, size_t size, bool is_committed, bool is_zero, bool is_pinned, int numa_node, bool exclusive, mi_commit_fun_t* commit_fun, void* commit_fun_arg, mi_arena_id_t* arena_id) mi_attr_noexcept
+bool mi_manage_memory(void* start, size_t size, bool is_committed, bool is_pinned, bool is_zero, int numa_node, bool exclusive, mi_commit_fun_t* commit_fun, void* commit_fun_arg, mi_arena_id_t* arena_id) mi_attr_noexcept
 {
   mi_memid_t memid = _mi_memid_create(MI_MEM_EXTERNAL);
   memid.mem.os.base = start;
@@ -1355,12 +1752,18 @@ bool mi_manage_memory(void* start, size_t size, bool is_committed, bool is_zero,
 // Reserve a range of regular OS memory
 static int mi_reserve_os_memory_ex2(mi_subproc_t* subproc, size_t size, bool commit, bool allow_large, bool exclusive, mi_arena_id_t* arena_id) {
   if (arena_id != NULL) *arena_id = _mi_arena_id_none();
-  size = _mi_align_up(size, MI_ARENA_SLICE_SIZE); // at least one slice
+  if (size <= MI_MAX_ALLOC_SIZE) {
+    size = _mi_align_up(size, MI_ARENA_SLICE_SIZE); // at least one slice
+  }
+  if (size > MI_MAX_ALLOC_SIZE) {
+    _mi_error_message(EOVERFLOW, "memory reservation request is too large (size %zu)\n", size);
+    return ENOMEM;
+  }
   mi_memid_t memid;
-  void* start = _mi_os_alloc_aligned(size, MI_ARENA_SLICE_ALIGN, commit, allow_large, &memid);
+  void* start = _mi_os_alloc_aligned(subproc, size, MI_ARENA_SLICE_ALIGN, commit, allow_large, &memid);
   if (start == NULL) return ENOMEM;
   if (!mi_manage_os_memory_ex2(subproc, start, size, -1 /* numa node */, exclusive, memid, NULL, NULL, arena_id)) {
-    _mi_os_free_ex(start, size, commit, memid, NULL);
+    _mi_os_free_ex(subproc, start, size, commit, memid);
     _mi_verbose_message("failed to reserve %zu KiB memory\n", _mi_divide_up(size, 1024));
     return ENOMEM;
   }
@@ -1393,10 +1796,8 @@ int mi_reserve_os_memory(size_t size, bool commit, bool allow_large) mi_attr_noe
 // Return idx of the slice past the last used slice
 static size_t mi_arena_used_slices(mi_arena_t* arena) {
   size_t idx;
-  if (mi_bitmap_bsr(arena->pages, &idx)) {
-    mi_page_t* page = (mi_page_t*)mi_arena_slice_start(arena, idx);
-    const size_t page_slice_count = page->memid.mem.arena.slice_count;
-    return (idx + page_slice_count);
+  if (mi_bbitmap_bsr_inv(arena->slices_free, &idx)) {
+    return (idx + 1);
   }
   else {
     return mi_arena_info_slices(arena);
@@ -1438,27 +1839,26 @@ static void mi_debug_color(char* buf, size_t* k, mi_ansi_color_t color) {
 }
 
 static int mi_page_commit_usage(mi_page_t* page) {
-  // if (mi_page_size(page) <= MI_PAGE_MIN_COMMIT_SIZE) return 100;
   const size_t committed_size = mi_page_committed(page);
   const size_t used_size = page->used * mi_page_block_size(page);
   return (int)(used_size * 100 / committed_size);
 }
 
-static size_t mi_debug_show_page_bfield(mi_bfield_t field, char* buf, size_t* k, mi_arena_t* arena, size_t slice_index, long* pbit_of_page, mi_ansi_color_t* pcolor_of_page ) {
+static size_t mi_debug_show_page_bfield(char* buf, size_t* k, mi_arena_t* arena, size_t slice_index, long* pbit_of_page, mi_ansi_color_t* pcolor_of_page ) {
   size_t bit_set_count = 0;
   long bit_of_page = *pbit_of_page;
   mi_ansi_color_t color = *pcolor_of_page;
   mi_ansi_color_t prev_color = MI_GRAY;
   for (int bit = 0; bit < MI_BFIELD_BITS; bit++, bit_of_page--) {
-    bool is_set = ((((mi_bfield_t)1 << bit) & field) != 0);
+    // bool is_set = ((((mi_bfield_t)1 << bit) & field) != 0);
     void* start = mi_arena_slice_start(arena, slice_index + bit);
+    mi_page_t* page = _mi_safe_ptr_page(start);
     char c = ' ';
-    if (is_set) {
+    if (page!=NULL && start==mi_page_slice_start(page)) {
       mi_assert_internal(bit_of_page <= 0);
       bit_set_count++;
       c = 'p';
       color = MI_GRAY;
-      mi_page_t* page = (mi_page_t*)start;
       if (mi_page_is_singleton(page)) { c = 's'; }
       else if (mi_page_is_full(page)) { c = 'f'; }
       if (!mi_page_is_abandoned(page)) { c = _mi_toupper(c); }
@@ -1472,12 +1872,12 @@ static size_t mi_debug_show_page_bfield(mi_bfield_t field, char* buf, size_t* k,
     else {
       c = '?';
       if (bit_of_page > 0) { c = '-'; }
-      else if (_mi_meta_is_meta_page(start)) { c = 'm'; color = MI_GRAY; }
+      else if (_mi_meta_is_meta_page(arena->subproc,start)) { c = 'm'; color = MI_GRAY; }
       else if (slice_index + bit < arena->info_slices) { c = 'i'; color = MI_GRAY; }
       // else if (mi_bitmap_is_setN(arena->pages_purge, slice_index + bit, NULL)) { c = '*'; }
       else if (mi_bbitmap_is_setN(arena->slices_free, slice_index+bit,1)) {
         if (mi_bitmap_is_set(arena->slices_purge, slice_index + bit)) { c = '~'; color = MI_ORANGE; }
-        else if (mi_bitmap_is_setN(arena->slices_committed, slice_index + bit, 1)) { c = '_'; color = MI_GRAY; }
+        else if (mi_bitmap_is_set(arena->slices_committed, slice_index + bit)) { c = '_'; color = MI_GRAY; }
         else { c = '.'; color = MI_GRAY; }
       }
       if (bit==MI_BFIELD_BITS-1 && bit_of_page > 1) { c = '>'; }
@@ -1515,7 +1915,6 @@ static size_t mi_debug_show_chunks(const char* header1, const char* header2, con
     }
 
     size_t k = 0;
-    mi_bchunk_t* chunk = &chunks[i];
 
     if (i<10)        { buf[k++] = ('0' + (char)i); buf[k++] = ' '; buf[k++] = ' '; }
     else if (i<100)  { buf[k++] = ('0' + (char)(i/10)); buf[k++] = ('0' + (char)(i%10)); buf[k++] = ' '; }
@@ -1544,10 +1943,13 @@ static size_t mi_debug_show_chunks(const char* header1, const char* header2, con
         _mi_memset(buf, ' ', 5); k = 5;
       }
       if (bit_count < slice_count) {
-        mi_bfield_t bfield = chunk->bfields[j];
+        mi_bfield_t bfield = 0;
+        if (chunks!=NULL) {
+          bfield = chunks[i].bfields[j];
+        }
         if (invert) bfield = ~bfield;
-        size_t xcount = (arena!=NULL ? mi_debug_show_page_bfield(bfield, buf, &k, arena, bit_count, &bit_of_page, &color_of_page)
-                                     : mi_debug_show_bfield(bfield, buf, &k));
+        size_t xcount = (chunks==NULL ? mi_debug_show_page_bfield(buf, &k, arena, bit_count, &bit_of_page, &color_of_page)
+                                      : mi_debug_show_bfield(bfield, buf, &k));
         if (invert) xcount = MI_BFIELD_BITS - xcount;
         bit_set_count += xcount;
         buf[k++] = ' ';
@@ -1564,12 +1966,13 @@ static size_t mi_debug_show_chunks(const char* header1, const char* header2, con
   return bit_set_count;
 }
 
-static size_t mi_debug_show_bitmap_binned(const char* header1, const char* header2, const char* header3, size_t slice_count, mi_bitmap_t* bitmap, mi_bchunkmap_t* chunk_bins, bool invert, mi_arena_t* arena, bool narrow) {
-  return mi_debug_show_chunks(header1, header2, header3, slice_count, mi_bitmap_chunk_count(bitmap), &bitmap->chunks[0], chunk_bins, invert, arena, narrow);
-}
+//static size_t mi_debug_show_bitmap_binned(const char* header1, const char* header2, const char* header3, size_t slice_count,
+//                                           mi_bitmap_t* bitmap, mi_bchunkmap_t* chunk_bins, bool invert, mi_arena_t* arena, bool narrow) {
+//  return mi_debug_show_chunks(header1, header2, header3, slice_count, mi_bitmap_chunk_count(bitmap), &bitmap->chunks[0], chunk_bins, invert, arena, narrow);
+//}
 
-static void mi_debug_show_arenas_ex(bool show_pages, bool narrow) mi_attr_noexcept {
-  mi_subproc_t* subproc = _mi_subproc();
+static void mi_debug_show_arenas_ex(mi_heap_t* heap, bool show_pages, bool narrow) mi_attr_noexcept {
+  mi_subproc_t* subproc = heap->subproc;
   size_t max_arenas = mi_arenas_get_count(subproc);
   //size_t free_total = 0;
   //size_t slice_total = 0;
@@ -1577,10 +1980,13 @@ static void mi_debug_show_arenas_ex(bool show_pages, bool narrow) mi_attr_noexce
   size_t page_total = 0;
   for (size_t i = 0; i < max_arenas; i++) {
     mi_arena_t* arena = mi_atomic_load_ptr_acquire(mi_arena_t, &subproc->arenas[i]);
-    if (arena == NULL) break;
+    if (arena == NULL) continue;
     mi_assert(arena->subproc == subproc);
     // slice_total += arena->slice_count;
-    _mi_raw_message("arena %zu at %p: %zu slices (%zu MiB)%s, subproc: %p\n", i, arena, arena->slice_count, (size_t)(mi_size_of_slices(arena->slice_count)/MI_MiB), (arena->memid.is_pinned ? ", pinned" : ""), arena->subproc);
+    _mi_raw_message("%sarena %zu at %p: %zu slices (%zu MiB)%s%s, subproc: %zu, numa: %i\n",
+        (arena->parent==NULL ? "" : "(sub)"), i, arena, arena->slice_count, (size_t)(mi_size_of_slices(arena->slice_count)/MI_MiB),
+        (arena->memid.is_pinned ? ", pinned" : ""), (arena->is_exclusive ? ", exclusive" : ""),
+        arena->subproc->subproc_seq, arena->numa_node);
     //if (show_inuse) {
     //  free_total += mi_debug_show_bbitmap("in-use slices", arena->slice_count, arena->slices_free, true, NULL);
     //}
@@ -1592,10 +1998,16 @@ static void mi_debug_show_arenas_ex(bool show_pages, bool narrow) mi_attr_noexce
     //  purge_total += mi_debug_show_bitmap("purgeable slices", arena->slice_count, arena->slices_purge, false, NULL);
     //}
     if (show_pages) {
-      const char* header1 = "chunks (p:page, f:full, s:singleton, P,F,S:not abandoned, i:arena-info, m:meta-data, ~:free-purgable, _:free-committed, .:free-reserved)";
-      const char* header2 = (narrow ? "\n       " : " ");
-      const char* header3 = "(chunk bin: S:small, M : medium, L : large, X : other)";
-      page_total += mi_debug_show_bitmap_binned(header1, header2, header3, arena->slice_count, arena->pages, arena->slices_free->chunkmap_bins, false, arena, narrow);
+      // mi_arena_pages_t* arena_pages = mi_heap_arena_pages(heap, arena);
+      // if (arena_pages != NULL)
+      {
+        const char* header1 = "chunks (p:page, f:full, s:singleton, P,F,S:not abandoned, i:arena-info, m:meta-data, ~:free-purgable, _:free-committed, .:free-reserved)";
+        const char* header2 = (narrow ? "\n       " : " ");
+        const char* header3 = "(chunk bin: S:small, M : medium, L : large, X : other)";
+        page_total += mi_debug_show_chunks(header1, header2, header3, arena->slice_count,
+                                           mi_bbitmap_chunk_count(arena->slices_free), NULL,
+                                           arena->slices_free->chunkmap_bins, false, arena, narrow);
+      }
     }
   }
   // if (show_inuse)     _mi_raw_message("total inuse slices    : %zu\n", slice_total - free_total);
@@ -1604,7 +2016,7 @@ static void mi_debug_show_arenas_ex(bool show_pages, bool narrow) mi_attr_noexce
 }
 
 void mi_debug_show_arenas(void) mi_attr_noexcept {
-  mi_debug_show_arenas_ex(true /* show pages */, true /* narrow? */);
+  mi_debug_show_arenas_ex(mi_heap_main(), true /* show pages */, true /* narrow? */);
 }
 
 void mi_arenas_print(void) mi_attr_noexcept {
@@ -1621,18 +2033,19 @@ int mi_reserve_huge_os_pages_at_ex(size_t pages, int numa_node, size_t timeout_m
   if (pages==0) return 0;
   if (numa_node < -1) numa_node = -1;
   if (numa_node >= 0) numa_node = numa_node % _mi_os_numa_node_count();
+  mi_subproc_t* subproc = _mi_subproc();
   size_t hsize = 0;
   size_t pages_reserved = 0;
   mi_memid_t memid;
-  void* p = _mi_os_alloc_huge_os_pages(pages, numa_node, timeout_msecs, &pages_reserved, &hsize, &memid);
+  void* p = _mi_os_alloc_huge_os_pages(subproc, pages, numa_node, timeout_msecs, &pages_reserved, &hsize, &memid);
   if (p==NULL || pages_reserved==0) {
     _mi_warning_message("failed to reserve %zu GiB huge pages\n", pages);
     return ENOMEM;
   }
   _mi_verbose_message("numa node %i: reserved %zu GiB huge pages (of the %zu GiB requested)\n", numa_node, pages_reserved, pages);
 
-  if (!mi_manage_os_memory_ex2(_mi_subproc(), p, hsize, numa_node, exclusive, memid, NULL, NULL, arena_id)) {
-    _mi_os_free(p, hsize, memid);
+  if (!mi_manage_os_memory_ex2(subproc, p, hsize, numa_node, exclusive, memid, NULL, NULL, arena_id)) {
+    _mi_os_free(subproc, p, hsize, memid);
     return ENOMEM;
   }
   return 0;
@@ -1689,7 +2102,14 @@ int mi_reserve_huge_os_pages(size_t pages, double max_secs, size_t* pages_reserv
 
 static long mi_arena_purge_delay(void) {
   // <0 = no purging allowed, 0=immediate purging, >0=milli-second delay
-  return (mi_option_get(mi_option_purge_delay) * mi_option_get(mi_option_arena_purge_mult));
+  const long delay = mi_option_get(mi_option_purge_delay);
+  const long mult  = mi_option_get(mi_option_arena_purge_mult);
+  if (delay<0 || mult<0)   { return -1; }
+  if (delay==0 || mult==0) { return 0; }
+  size_t total;
+  if (mi_mul_overflow((size_t)delay, (size_t)mult, &total)) { return delay; }
+  if (total > LONG_MAX) { return delay; }
+  return (long)total;
 }
 
 // reset or decommit in an arena and update the commit bitmap
@@ -1705,19 +2125,19 @@ static bool mi_arena_purge(mi_arena_t* arena, size_t slice_index, size_t slice_c
   size_t already_committed;
   mi_bitmap_setN(arena->slices_committed, slice_index, slice_count, &already_committed); // pretend all committed.. (as we lack a clearN call that counts the already set bits..)
   const bool all_committed = (already_committed == slice_count);
-  const bool needs_recommit = _mi_os_purge_ex(p, size, all_committed /* allow reset? */, mi_size_of_slices(already_committed), arena->commit_fun, arena->commit_fun_arg);
+  const bool needs_recommit = _mi_os_purge_ex(arena->subproc, p, size, all_committed /* allow reset? */, mi_size_of_slices(already_committed), arena->commit_fun, arena->commit_fun_arg);
 
   if (needs_recommit) {
     // no longer committed
     mi_bitmap_clearN(arena->slices_committed, slice_index, slice_count);
     // we just counted in the purge to decommit all, but the some part was not committed so adjust that here
-    // mi_os_stat_decrease(committed, mi_size_of_slices(slice_count - already_committed));
+    // mi_subproc_stat_decrease(arena->subproc, committed, mi_size_of_slices(slice_count - already_committed));
   }
   else if (!all_committed) {
     // we cannot assume any of these are committed any longer (even with reset since we did setN and may have marked uncommitted slices as committed)
     mi_bitmap_clearN(arena->slices_committed, slice_index, slice_count);
     // we adjust the commit count as parts will be re-committed
-    // mi_os_stat_decrease(committed, mi_size_of_slices(already_committed));
+    // mi_subproc_stat_decrease(arena->subproc, committed, mi_size_of_slices(already_committed));
   }
 
   return needs_recommit;
@@ -1796,15 +2216,21 @@ static bool mi_arena_try_purge_visitor(size_t slice_index, size_t slice_count, m
   return true; // continue
 }
 
-// returns true if anything was purged
-static bool mi_arena_try_purge(mi_arena_t* arena, mi_msecs_t now, bool force)
+// returns
+// -1 = nothing was purged
+// 0  = nothing was purged yet because have not yet reached the expire time
+// 1  = some pages in the arena were purged
+static int mi_arena_try_purge(mi_arena_t* arena, mi_msecs_t now, bool force)
 {
   // check pre-conditions
-  if (arena->memid.is_pinned) return false;
+  if (arena->memid.is_pinned) return -1;
 
   // expired yet?
   mi_msecs_t expire = mi_atomic_loadi64_relaxed(&arena->purge_expire);
-  if (!force && (expire == 0 || expire > now)) return false;
+  if (!force) {
+    if (expire==0) return -1;
+    if (expire > now) return 0;
+  }
 
   // reset expire
   mi_atomic_storei64_release(&arena->purge_expire, (mi_msecs_t)0);
@@ -1818,8 +2244,8 @@ static bool mi_arena_try_purge(mi_arena_t* arena, mi_msecs_t now, bool force)
   // we purge by at least `minslices` to not fragment transparent huge pages for example
   const size_t minslices = mi_slice_count_of_size(_mi_os_minimal_purge_size());
   _mi_bitmap_forall_setc_rangesn(arena->slices_purge, minslices, &mi_arena_try_purge_visitor, arena, &vinfo);
-  
-  return vinfo.any_purged;
+
+  return (vinfo.any_purged ? 1 : -1);
 }
 
 
@@ -1852,72 +2278,81 @@ static void mi_arenas_try_purge(bool force, bool visit_all, mi_subproc_t* subpro
       if (i >= max_arena) { i -= max_arena; }
       mi_arena_t* arena = mi_arena_from_index(subproc,i);
       if (arena != NULL) {
-        if (mi_arena_try_purge(arena, now, force)) {
+        const int purged = mi_arena_try_purge(arena, now, force);
+        if (purged >= 0) {      // purged, or arena expire is not yet reached
           any_purged = true;
-          if (max_purge_count <= 1) {
-            all_visited = false;
-            break;
+          if (purged >= 1) {    // purged
+            if (max_purge_count <= 1) {
+              all_visited = false;
+              break;
+            }
+            max_purge_count--;
           }
-          max_purge_count--;
         }
       }
     }
     if (all_visited && !any_purged) {
-      mi_atomic_storei64_release(&subproc->purge_expire, 0);
+      mi_atomic_storei64_release(&subproc->purge_expire, (mi_msecs_t)0);
     }
   }
 }
 
+
 /* -----------------------------------------------------------
-  Visit abandoned pages
+  Visit all pages and blocks in a heap
 ----------------------------------------------------------- */
 
-typedef struct mi_abandoned_page_visit_info_s {
-  int heap_tag;
+typedef struct mi_heap_visit_info_s {
+  mi_heap_t* heap;
   mi_block_visit_fun* visitor;
   void* arg;
   bool visit_blocks;
-} mi_abandoned_page_visit_info_t;
+} mi_heap_visit_info_t;
 
-static bool abandoned_page_visit(mi_page_t* page, mi_abandoned_page_visit_info_t* vinfo) {
-  if (page->heap_tag != vinfo->heap_tag) { return true; } // continue
+static bool mi_heap_visit_page(mi_page_t* page, mi_heap_visit_info_t* vinfo) {
   mi_heap_area_t area;
   _mi_heap_area_init(&area, page);
-  if (!vinfo->visitor(NULL, &area, NULL, area.block_size, vinfo->arg)) {
+  mi_assert_internal(vinfo->heap == mi_page_heap(page));
+  if (!vinfo->visitor(vinfo->heap, &area, NULL, area.block_size, vinfo->arg)) {
     return false;
   }
   if (vinfo->visit_blocks) {
-    return _mi_heap_area_visit_blocks(&area, page, vinfo->visitor, vinfo->arg);
+    return _mi_theap_area_visit_blocks(&area, page, vinfo->visitor, vinfo->arg);
   }
   else {
     return true;
   }
 }
 
-static bool abandoned_page_visit_at(size_t slice_index, size_t slice_count, mi_arena_t* arena, void* arg) {
+static bool mi_heap_visit_page_at(size_t slice_index, size_t slice_count, mi_arena_t* arena, void* arg) {
   MI_UNUSED(slice_count);
-  mi_abandoned_page_visit_info_t* vinfo = (mi_abandoned_page_visit_info_t*)arg;
-  mi_page_t* page = (mi_page_t*)mi_arena_slice_start(arena, slice_index);
-  mi_assert_internal(mi_page_is_abandoned_mapped(page));
-  return abandoned_page_visit(page, vinfo);
+  mi_heap_visit_info_t* vinfo = (mi_heap_visit_info_t*)arg;
+  mi_page_t* page = mi_arena_page_at_slice(arena, slice_index);
+  return mi_heap_visit_page(page, vinfo);
 }
 
-// Visit all abandoned pages in this subproc.
-bool mi_abandoned_visit_blocks(mi_subproc_id_t subproc_id, int heap_tag, bool visit_blocks, mi_block_visit_fun* visitor, void* arg) {
-  mi_abandoned_page_visit_info_t visit_info = { heap_tag, visitor, arg, visit_blocks };
-  MI_UNUSED(subproc_id); MI_UNUSED(heap_tag); MI_UNUSED(visit_blocks); MI_UNUSED(visitor); MI_UNUSED(arg);
-
-  // visit abandoned pages in the arenas
-  // we don't have to claim because we assume we are the only thread running (in this subproc).
+bool _mi_heap_visit_blocks(mi_heap_t* heap, bool abandoned_only, bool visit_blocks, mi_block_visit_fun* visitor, void* arg) {
+  mi_assert(visitor!=NULL);
+  if (visitor==NULL) return false;
+  if (heap==NULL) { heap = mi_heap_main(); }
+  // visit all pages in a heap
+  // we don't have to claim because we assume we are the only thread running (with this heap).
   // (but we could atomically claim as well by first doing abandoned_reclaim and afterwards reabandoning).
+  mi_heap_visit_info_t visit_info = { heap, visitor, arg, visit_blocks };
   bool ok = true;
-  mi_subproc_t* subproc = _mi_subproc_from_id(subproc_id);
-  mi_forall_arenas(subproc, NULL, 0, arena) {
-    mi_assert_internal(arena->subproc == subproc);
-    for (size_t bin = 0; ok && bin < MI_BIN_COUNT; bin++) {
-      // todo: if we had a single abandoned page map as well, this can be faster.
-      if (mi_atomic_load_relaxed(&subproc->abandoned_count[bin]) > 0) {
-        ok = _mi_bitmap_forall_set(arena->pages_abandoned[bin], &abandoned_page_visit_at, arena, &visit_info);
+  mi_forall_arenas(heap, NULL, 0, arena) {
+    mi_arena_pages_t* arena_pages = mi_heap_arena_pages(heap, arena);
+    if (ok && arena_pages != NULL) {
+      if (abandoned_only) {
+        for (size_t bin = 0; ok && bin < MI_ARENA_BIN_COUNT; bin++) {
+          // todo: if we had a single abandoned page map as well, this can be faster.
+          if (mi_atomic_load_relaxed(&heap->abandoned_count[bin]) > 0) {
+            ok = _mi_bitmap_forall_set(arena_pages->pages_abandoned[bin], &mi_heap_visit_page_at, arena, &visit_info);
+          }
+        }
+      }
+      else {
+        ok = _mi_bitmap_forall_set(arena_pages->pages, &mi_heap_visit_page_at, arena, &visit_info);
       }
     }
   }
@@ -1925,24 +2360,159 @@ bool mi_abandoned_visit_blocks(mi_subproc_id_t subproc_id, int heap_tag, bool vi
   if (!ok) return false;
 
   // visit abandoned pages in OS allocated memory
-  // (technically we don't need the lock as we assume we are the only thread running in this subproc)
-  mi_lock(&subproc->os_abandoned_pages_lock) {
-    for (mi_page_t* page = subproc->os_abandoned_pages; ok && page != NULL; page = page->next) {
-      ok = abandoned_page_visit(page, &visit_info);
-    }
+  // (technically we don't need the initial lock as we assume we are the only thread running in this subproc)
+  mi_page_t* page = NULL;
+  mi_lock(&heap->os_abandoned_pages_lock) {
+    page = heap->os_abandoned_pages;
+  }
+  while (ok && page != NULL) {
+    mi_page_t* next = page->next;  // read upfront in case the visitor frees the page
+    ok = mi_heap_visit_page(page, &visit_info);
+    page = next;
   }
 
   return ok;
 }
 
+bool mi_heap_visit_blocks(mi_heap_t* heap, bool visit_blocks, mi_block_visit_fun* visitor, void* arg) {
+  return _mi_heap_visit_blocks(heap, false, visit_blocks, visitor, arg);
+}
+
+bool mi_heap_visit_abandoned_blocks(mi_heap_t* heap, bool visit_blocks, mi_block_visit_fun* visitor, void* arg) {
+  return _mi_heap_visit_blocks(heap, true, visit_blocks, visitor, arg);
+}
+
+
+typedef struct mi_heap_delete_visit_info_s {
+  mi_heap_t*  heap_target;
+  mi_theap_t* theap_target;
+  mi_theap_t* theap;
+} mi_heap_delete_visit_info_t;
+
+static bool mi_heap_delete_page(const mi_heap_t* heap, const mi_heap_area_t* area, void* block, size_t block_size, void* arg) {
+  MI_UNUSED(block); MI_UNUSED(block_size); MI_UNUSED(heap);
+  mi_heap_delete_visit_info_t* info = (mi_heap_delete_visit_info_t*)arg;
+  mi_heap_t*  heap_target           = info->heap_target;
+  mi_theap_t* const theap           = NULL; // info->theap;       mi_assert_internal(_mi_theap_heap(theap) == heap);
+  mi_page_t*  const page            = (mi_page_t*)area->reserved1;
+
+  mi_page_claim_ownership(page);       // claim ownership
+  if (mi_page_is_abandoned(page)) {
+    _mi_arenas_page_unabandon(page,theap);
+  }
+  else {
+    page->next = page->prev = NULL;    // yikes.. better not to try to access this from a thread later on..
+    mi_page_set_theap(page,NULL);      // set threadid to abandoned
+  }
+  mi_assert_internal(mi_page_is_abandoned(page));
+  mi_assert_internal(mi_page_is_owned(page));
+
+  if (page->used==0) {
+    // free the page
+    _mi_arenas_page_free(page, theap);
+  }
+  else if (heap_target==NULL) {
+    #if MI_GUARDED
+    _mi_page_unguard_all(page);          // remove potential interior guard pages
+    #endif
+    // destroy the page
+    page->used=0;                        // note: invariant `|local_free| + |free| == reserved - used`  does not hold in this case
+    _mi_arenas_page_free(page, theap);
+  }
+  else {
+    // move the page to `heap_target` as an abandoned page
+    // first remove it from the current heap
+    const size_t sbin = _mi_page_stats_bin(page);
+    mi_arena_t* arena = NULL;
+    size_t slice_index = 0;
+    if (page->memid.memkind == MI_MEM_ARENA) {
+      size_t slice_count;
+      mi_arena_pages_t* arena_pages = NULL;
+      arena = mi_page_arena_pages(page, &slice_index, &slice_count, &arena_pages);
+      mi_assert_internal(mi_bitmap_is_set(arena_pages->pages, slice_index));
+      mi_bitmap_clear(arena_pages->pages, slice_index);
+    }
+    else {
+      // os allocated
+      mi_assert_internal(mi_memid_is_os(page->memid) && page->next == NULL);
+    }
+    if (theap != NULL) {
+      mi_theap_stat_decrease(theap, page_bins[sbin], 1);
+      mi_theap_stat_decrease(theap, pages, 1);
+    }
+    else {
+      mi_heap_stat_decrease((mi_heap_t*)heap, page_bins[_mi_page_stats_bin(page)], 1);
+      mi_heap_stat_decrease((mi_heap_t*)heap, pages, 1);
+    }
+    mi_theap_t* theap_target = info->theap_target;
+
+    // and then add it to the new target heap
+    if (arena != NULL) {
+      mi_arena_pages_t* arena_pages_target = mi_heap_ensure_arena_pages(heap_target, arena);
+      if mi_unlikely(arena_pages_target==NULL) {
+        // if we cannot allocate this, we move it to the main heap instead (which does not require allocation)
+        heap_target = mi_arena_heap_main(arena);
+        theap_target = mi_heap_theap(heap_target);  // todo: find through theap_target tld?
+        arena_pages_target = mi_heap_ensure_arena_pages(heap_target, arena);
+        mi_assert_internal(arena_pages_target!=NULL);
+      }
+      mi_assert_internal(mi_bitmap_is_clear(arena_pages_target->pages, slice_index));
+      mi_bitmap_set(arena_pages_target->pages, slice_index);
+    }
+    page->heap = heap_target;
+    mi_theap_stat_increase(theap_target, page_bins[sbin], 1);
+    mi_theap_stat_increase(theap_target, pages, 1);
+
+    // and abandon in the new heap
+    _mi_arenas_page_abandon(page,theap_target);
+  }
+  return true;
+}
+
+static void mi_heap_delete_pages(mi_heap_t* heap, mi_heap_t* heap_target) {
+  mi_theap_t* const theap_target = (heap_target != NULL ? _mi_heap_theap(heap_target) : NULL);
+  // mi_theap_t* const theap = _mi_heap_theap(heap);
+  mi_heap_delete_visit_info_t info = { heap_target, theap_target, NULL };
+  _mi_heap_visit_blocks(heap, false, false, &mi_heap_delete_page, &info);
+  #if MI_DEBUG>1
+  // no more arena pages?
+  for (size_t i = 0; i < MI_MAX_ARENAS; i++) {
+    mi_arena_pages_t* const arena_pages = mi_atomic_load_ptr_relaxed(mi_arena_pages_t, &heap->arena_pages[i]);
+    if (arena_pages!=NULL) {
+      mi_assert_internal(mi_bitmap_is_all_clear(arena_pages->pages));
+    }
+  }
+  // nor os abandoned pages?
+  mi_lock(&heap->os_abandoned_pages_lock) {
+
+    mi_assert_internal(heap->os_abandoned_pages == NULL);
+  }
+  // nor arena abandoned pages?
+  for (size_t i = 0; i < MI_ARENA_BIN_COUNT; i++) {
+    mi_assert_internal(mi_atomic_load_relaxed(&heap->abandoned_count[i])==0);
+  }
+  #endif
+}
+
+void _mi_heap_move_pages(mi_heap_t* heap_from, mi_heap_t* heap_to) {
+  if (_mi_is_heap_main(heap_from)) return;
+  if (heap_to==NULL) { heap_to = heap_from->subproc->heap_main; }
+  mi_heap_delete_pages(heap_from, heap_to);
+}
+
+void _mi_heap_destroy_pages(mi_heap_t* heap_from) {
+  if (_mi_is_heap_main(heap_from)) return;
+  mi_heap_delete_pages(heap_from, NULL);
+}
 
 /* -----------------------------------------------------------
   Unloading and reloading an arena.
 ----------------------------------------------------------- */
+/*
 static bool mi_arena_page_register(size_t slice_index, size_t slice_count, mi_arena_t* arena, void* arg) {
   MI_UNUSED(arg); MI_UNUSED(slice_count);
   mi_assert_internal(slice_count == 1);
-  mi_page_t* page = (mi_page_t*)mi_arena_slice_start(arena, slice_index);
+  mi_page_t* page = mi_arena_page_at_slice(arena, slice_index);
   mi_assert_internal(mi_bitmap_is_setN(page->memid.mem.arena.arena->pages, page->memid.mem.arena.slice_index, 1));
   if (!_mi_page_map_register(page)) return false; // break
   mi_assert_internal(_mi_ptr_page(page)==page);
@@ -1975,7 +2545,7 @@ mi_decl_export bool mi_arena_unload(mi_arena_id_t arena_id, void** base, size_t*
 
   // adjust abandoned page count
   mi_subproc_t* const subproc = arena->subproc;
-  for (size_t bin = 0; bin < MI_BIN_COUNT; bin++) {
+  for (size_t bin = 0; bin < MI_ARENA_BIN_COUNT; bin++) {
     const size_t count = mi_bitmap_popcount(arena->pages_abandoned[bin]);
     if (count > 0) { mi_atomic_decrement_acq_rel(&subproc->abandoned_count[bin]); }
   }
@@ -2035,7 +2605,7 @@ mi_decl_export bool mi_arena_reload(void* start, size_t size, mi_commit_fun_t* c
   }
 
   // adjust abandoned page count
-  for (size_t bin = 0; bin < MI_BIN_COUNT; bin++) {
+  for (size_t bin = 0; bin < MI_ARENA_BIN_COUNT; bin++) {
     const size_t count = mi_bitmap_popcount(arena->pages_abandoned[bin]);
     if (count > 0) { mi_atomic_decrement_acq_rel(&arena->subproc->abandoned_count[bin]); }
   }
@@ -2043,4 +2613,4 @@ mi_decl_export bool mi_arena_reload(void* start, size_t size, mi_commit_fun_t* c
   return true;
 }
 
-
+*/

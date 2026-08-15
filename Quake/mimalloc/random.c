@@ -94,7 +94,8 @@ static void chacha_init(mi_random_ctx_t* ctx, const uint8_t key[32], uint64_t no
   // since we only use chacha for randomness (and not encryption) we
   // do not _need_ to read 32-bit values as little endian but we do anyways
   // just for being compatible :-)
-  _mi_memzero(ctx, sizeof(*ctx));
+  ctx->output_available = 0;
+  _mi_memzero(ctx->output,sizeof(ctx->output));
   for (size_t i = 0; i < 4; i++) {
     const uint8_t* sigma = (uint8_t*)"expand 32-byte k";
     ctx->input[i] = read32(sigma,i);
@@ -110,6 +111,7 @@ static void chacha_init(mi_random_ctx_t* ctx, const uint8_t key[32], uint64_t no
 
 static void chacha_split(mi_random_ctx_t* ctx, uint64_t nonce, mi_random_ctx_t* ctx_new) {
   _mi_memzero(ctx_new, sizeof(*ctx_new));
+  ctx_new->weak = ctx->weak;
   _mi_memcpy(ctx_new->input, ctx->input, sizeof(ctx_new->input));
   ctx_new->input[12] = 0;
   ctx_new->input[13] = 0;
@@ -133,7 +135,8 @@ static bool mi_random_is_initialized(mi_random_ctx_t* ctx) {
 void _mi_random_split(mi_random_ctx_t* ctx, mi_random_ctx_t* ctx_new) {
   mi_assert_internal(mi_random_is_initialized(ctx));
   mi_assert_internal(ctx != ctx_new);
-  chacha_split(ctx, (uintptr_t)ctx_new /*nonce*/, ctx_new);
+  const uintptr_t nonce_rnd = _mi_random_next(ctx);
+  chacha_split(ctx, (uintptr_t)ctx_new ^ nonce_rnd /*nonce*/, ctx_new);
 }
 
 uintptr_t _mi_random_next(mi_random_ctx_t* ctx) {
@@ -178,9 +181,12 @@ static void mi_random_init_ex(mi_random_ctx_t* ctx, bool use_weak) {
     if (!use_weak) { _mi_warning_message("unable to use secure randomness\n"); }
     #endif
     uintptr_t x = _mi_os_random_weak(0);
-    for (size_t i = 0; i < 8; i++, x++) {  // key is eight 32-bit words.
+    for (size_t i = 0; i < 32; i+=4, x++) {
       x = _mi_random_shuffle(x);
-      ((uint32_t*)key)[i] = (uint32_t)x;
+      key[i]   = (uint8_t)(x);
+      key[i+1] = (uint8_t)(x>>8);
+      key[i+2] = (uint8_t)(x>>16);
+      key[i+3] = (uint8_t)(x>>24);
     }
     ctx->weak = true;
   }
@@ -188,6 +194,7 @@ static void mi_random_init_ex(mi_random_ctx_t* ctx, bool use_weak) {
     ctx->weak = false;
   }
   chacha_init(ctx, key, (uintptr_t)ctx /*nonce*/ );
+  _mi_memzero(key, sizeof(key));
 }
 
 void _mi_random_init(mi_random_ctx_t* ctx) {

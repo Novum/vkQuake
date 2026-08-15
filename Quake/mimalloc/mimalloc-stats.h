@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------------
-Copyright (c) 2018-2025, Microsoft Research, Daan Leijen
+Copyright (c) 2024-2026, Microsoft Research, Daan Leijen
 This is free software; you can redistribute it and/or modify it under the
 terms of the MIT license. A copy of the license can be found in the file
 "LICENSE" at the root of this distribution.
@@ -9,9 +9,22 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MIMALLOC_STATS_H
 
 #include <mimalloc.h>
-#include <stdint.h>
+#include <string.h>   // memset
+#include <stdint.h>   // int64_t
 
-#define MI_STAT_VERSION   3   // increased on every backward incompatible change
+#define MI_STAT_VERSION   5  // increased on every backward incompatible change
+
+// alignment for atomic fields
+#if defined(_MSC_VER)
+#define mi_decl_align(a)        __declspec(align(a))
+#elif defined(__GNUC__)
+#define mi_decl_align(a)        __attribute__((aligned(a)))
+#elif __cplusplus >= 201103L
+#define mi_decl_align(a)        alignas(a)
+#else
+#define mi_decl_align(a)        _Alignas(a)
+#endif
+
 
 // count allocation over time
 typedef struct mi_stat_count_s {
@@ -32,7 +45,7 @@ typedef struct mi_stat_counter_s {
   MI_STAT_COUNTER(reset)                    /* reset bytes */ \
   MI_STAT_COUNTER(purged)                   /* purged bytes */ \
   MI_STAT_COUNT(page_committed)             /* committed memory inside pages */ \
-  MI_STAT_COUNT(pages_abandoned)            /* abandonded pages count */ \
+  MI_STAT_COUNT(pages_abandoned)            /* abandoned pages count */ \
   MI_STAT_COUNT(threads)                    /* number of threads */ \
   MI_STAT_COUNT(malloc_normal)              /* allocated bytes <= MI_LARGE_OBJ_SIZE_MAX */ \
   MI_STAT_COUNT(malloc_huge)                /* allocated bytes in huge pages */ \
@@ -60,11 +73,13 @@ typedef struct mi_stat_counter_s {
   MI_STAT_COUNT(segments_cache) \
   MI_STAT_COUNT(_segments_reserved) \
   /* only on v3 */ \
+  MI_STAT_COUNT(heaps) \
+  MI_STAT_COUNT(theaps) \
   MI_STAT_COUNTER(pages_reclaim_on_alloc) \
   MI_STAT_COUNTER(pages_reclaim_on_free) \
   MI_STAT_COUNTER(pages_reabandon_full) \
   MI_STAT_COUNTER(pages_unabandon_busy_wait) \
-
+  MI_STAT_COUNTER(heaps_delete_wait)
 
 // Size bins for chunks
 typedef enum mi_chunkbin_e {
@@ -85,9 +100,10 @@ typedef enum mi_chunkbin_e {
 
 typedef struct mi_stats_s
 {
-  int version;
+  size_t size;          // size of the mi_stats_t structure
+  size_t version;
 
-  MI_STAT_FIELDS()
+  mi_decl_align(8)  MI_STAT_FIELDS()
 
   // future extension
   mi_stat_count_t   _stat_reserved[4];
@@ -102,14 +118,47 @@ typedef struct mi_stats_s
 #undef MI_STAT_COUNT
 #undef MI_STAT_COUNTER
 
+// Initialization
+static inline void mi_stats_header_init(mi_stats_t* stats) {
+  stats->size = sizeof(*stats);
+  stats->version = MI_STAT_VERSION;
+}
+static inline void mi_stats_init(mi_stats_t* stats) {
+  memset(stats,0,sizeof(*stats));
+  mi_stats_header_init(stats);
+}
+
+#define mi_stats_t_decl(name)  mi_stats_t name; mi_stats_init(&name);
 
 // Exported definitions
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-mi_decl_export void    mi_stats_get( size_t stats_size, mi_stats_t* stats ) mi_attr_noexcept;
-mi_decl_export char*   mi_stats_get_json( size_t buf_size, char* buf ) mi_attr_noexcept;    // use mi_free to free the result if the input buf == NULL
+// stats from a heap
+mi_decl_export bool    mi_heap_stats_get(mi_heap_t* heap, mi_stats_t* stats) mi_attr_noexcept;
+mi_decl_export char*   mi_heap_stats_get_json(mi_heap_t* heap, size_t buf_size, char* buf) mi_attr_noexcept;      // use mi_free to free the result if the input buf == NULL
+mi_decl_export void    mi_heap_stats_print_out(mi_heap_t* heap, mi_output_fun* out, void* arg) mi_attr_noexcept;
+
+// stats from a subprocess and its heaps aggregated
+mi_decl_export bool    mi_subproc_stats_get(mi_subproc_id_t subproc_id, mi_stats_t* stats) mi_attr_noexcept;
+mi_decl_export char*   mi_subproc_stats_get_json(mi_subproc_id_t subproc_id, size_t buf_size, char* buf) mi_attr_noexcept;      // use mi_free to free the result if the input buf == NULL
+mi_decl_export void    mi_subproc_stats_print_out(mi_subproc_id_t subproc_id, mi_output_fun* out, void* arg) mi_attr_noexcept;
+// print subprocess and all its heap stats segregated
+mi_decl_export void    mi_subproc_heap_stats_print_out(mi_subproc_id_t subproc_id, mi_output_fun* out, void* arg) mi_attr_noexcept;
+
+// stats aggregated for the current subprocess and all its heaps.
+mi_decl_export bool    mi_stats_get(mi_stats_t* stats) mi_attr_noexcept;
+mi_decl_export char*   mi_stats_get_json(size_t buf_size, char* buf) mi_attr_noexcept;      // use mi_free to free the result if the input buf == NULL
+mi_decl_export void    mi_stats_print_out(mi_output_fun* out, void* arg) mi_attr_noexcept;
+
+// add the stats of the heap to the subprocess and clear the heap stats
+mi_decl_export void    mi_heap_stats_merge_to_subproc(mi_heap_t* heap);
+
+// stats from the subprocess without aggregating its heaps
+mi_decl_export bool    mi_subproc_stats_get_exclusive(mi_subproc_id_t subproc_id, mi_stats_t* stats) mi_attr_noexcept;
+
+mi_decl_export char*   mi_stats_as_json(mi_stats_t* stats, size_t buf_size, char* buf) mi_attr_noexcept;      // use mi_free to free the result if the input buf == NULL
 mi_decl_export size_t  mi_stats_get_bin_size(size_t bin) mi_attr_noexcept;
 
 #ifdef __cplusplus

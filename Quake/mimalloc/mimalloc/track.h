@@ -47,7 +47,7 @@ defined, undefined, or not accessible at all:
 // valgrind tool
 
 #define MI_TRACK_ENABLED      1
-#define MI_TRACK_HEAP_DESTROY 1           // track free of individual blocks on heap_destroy
+#define MI_TRACK_HEAP_DESTROY 1           // track free of individual blocks on theap_destroy
 #define MI_TRACK_TOOL         "valgrind"
 
 #include <valgrind/valgrind.h>
@@ -84,7 +84,8 @@ defined, undefined, or not accessible at all:
 
 #include "../src/prim/windows/etw.h"
 
-#define mi_track_init()                           EventRegistermicrosoft_windows_mimalloc();
+#define mi_track_init()                           EventRegistermicrosoft_windows_mimalloc()
+#define mi_track_done()                           EventUnregistermicrosoft_windows_mimalloc()
 #define mi_track_malloc_size(p,reqsize,size,zero) EventWriteETW_MI_ALLOC((UINT64)(p), size)
 #define mi_track_free_size(p,size)                EventWriteETW_MI_FREE((UINT64)(p), size)
 
@@ -104,7 +105,7 @@ defined, undefined, or not accessible at all:
 // Utility definitions
 
 #ifndef mi_track_resize
-#define mi_track_resize(p,oldsize,newsize)      mi_track_free_size(p,oldsize); mi_track_malloc(p,newsize,false)
+#define mi_track_resize(p,oldsize,newsize)      do{ mi_track_free_size(p,oldsize); mi_track_malloc(p,newsize,false); } while(0)
 #endif
 
 #ifndef mi_track_align
@@ -113,6 +114,10 @@ defined, undefined, or not accessible at all:
 
 #ifndef mi_track_init
 #define mi_track_init()
+#endif
+
+#ifndef mi_track_done
+#define mi_track_done()
 #endif
 
 #ifndef mi_track_mem_defined
@@ -130,16 +135,16 @@ defined, undefined, or not accessible at all:
 
 #if MI_PADDING
 #define mi_track_malloc(p,reqsize,zero) \
-  if ((p)!=NULL) { \
+  do { if ((p)!=NULL) { \
     mi_assert_internal(mi_usable_size(p)==(reqsize)); \
     mi_track_malloc_size(p,reqsize,reqsize,zero); \
-  }
+  } } while(0)
 #else
 #define mi_track_malloc(p,reqsize,zero) \
-  if ((p)!=NULL) { \
+  do { if ((p)!=NULL) { \
     mi_assert_internal(mi_usable_size(p)>=(reqsize)); \
     mi_track_malloc_size(p,reqsize,mi_usable_size(p),zero); \
-  }
+  } } while(0)
 #endif
 
 #endif // MI_TRACK_H
