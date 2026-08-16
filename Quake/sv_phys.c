@@ -704,20 +704,31 @@ PUSHMOVE
 // 0=off; 1=legacy DIST_EPSILON nudge, clients only; 2=legacy nudge, all entities; 3=robust pusher contact (default)
 cvar_t sv_gameplayfix_elevators = {"sv_gameplayfix_elevators", "3", CVAR_NONE};
 
-typedef struct
+// Private C-side movement frame for pusher support. QuakeC still observes the
+// normal FL_ONGROUND, groundentity, origin and velocity contract.
+typedef enum
 {
-	edict_t *pusher;
-	qboolean qc_kept_ground;
-	vec3_t	 pusher_velocity;
-	vec3_t	 support_normal;
-} sv_client_support_t;
+	SV_MOVE_FRAME_NONE,
+	SV_MOVE_FRAME_GROUND,
+	SV_MOVE_FRAME_AIRBORNE,
+	SV_MOVE_FRAME_AIRBORNE_WORLD_VELOCITY
+} sv_client_move_frame_state_t;
 
 typedef struct
 {
-	unsigned frame;
-	int		 pusher_entnum;
-	vec3_t	 pusher_velocity;
-	vec3_t	 pusher_move;
+	edict_t						*pusher;
+	sv_client_move_frame_state_t state;
+	vec3_t						 pusher_velocity;
+	vec3_t						 support_normal;
+} sv_client_move_frame_t;
+
+typedef struct
+{
+	unsigned					 frame;
+	int							 pusher_entnum;
+	sv_client_move_frame_state_t state;
+	vec3_t						 pusher_velocity;
+	vec3_t						 pusher_move;
 } sv_pusher_support_record_t;
 
 static sv_pusher_support_record_t sv_pusher_support[MAX_EDICTS];
@@ -784,6 +795,15 @@ static qboolean SV_TouchingPusherAtOrigin (edict_t *ent, edict_t *pusher, const 
 	return SV_TracePusherFloorAtOrigin (ent, pusher, pusher_origin, PUSH_CONTACT_EPSILON, &trace);
 }
 
+static qboolean SV_IsClientMoveFramePusher (edict_t *pusher)
+{
+	if (!pusher || pusher->free)
+		return false;
+	if (pusher->v.movetype != MOVETYPE_PUSH || pusher->v.solid != SOLID_BSP)
+		return false;
+	return true;
+}
+
 static edict_t *SV_GetGroundPusher (edict_t *ent)
 {
 	edict_t *ground;
@@ -794,7 +814,7 @@ static edict_t *SV_GetGroundPusher (edict_t *ent)
 		return NULL;
 
 	ground = PROG_TO_EDICT (ent->v.groundentity);
-	if (ground->free || ground->v.movetype != MOVETYPE_PUSH || ground->v.solid != SOLID_BSP)
+	if (!SV_IsClientMoveFramePusher (ground))
 		return NULL;
 
 	return ground;
@@ -843,27 +863,36 @@ static void SV_RestorePusherSupport (edict_t *ent, const sv_pusher_support_recor
 		*support = *backup;
 }
 
-static void SV_RecordPusherSupport (edict_t *ent, edict_t *pusher, const vec3_t pusher_move)
+static qboolean
+SV_WritePusherSupportRecord (edict_t *ent, edict_t *pusher, sv_client_move_frame_state_t state, const vec3_t pusher_velocity, const vec3_t pusher_move)
 {
 	int							pushernum;
 	sv_pusher_support_record_t *support;
-	trace_t						trace;
+
+	pushernum = NUM_FOR_EDICT (pusher);
+	if (pushernum <= 0 || pushernum >= MAX_EDICTS)
+		return false;
+	if (!SV_GetPusherSupportRecord (ent, &support))
+		return false;
+
+	support->frame = sv_pusher_support_frame;
+	support->pusher_entnum = pushernum;
+	support->state = state;
+	VectorCopy (pusher_velocity, support->pusher_velocity);
+	VectorCopy (pusher_move, support->pusher_move);
+	return true;
+}
+
+static void SV_RecordPusherSupport (edict_t *ent, edict_t *pusher, const vec3_t pusher_move)
+{
+	trace_t trace;
 
 	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
 		return;
 	if (!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
 		return;
-
-	pushernum = NUM_FOR_EDICT (pusher);
-	if (pushernum <= 0 || pushernum >= MAX_EDICTS)
+	if (!SV_WritePusherSupportRecord (ent, pusher, SV_MOVE_FRAME_GROUND, pusher->v.velocity, pusher_move))
 		return;
-	if (!SV_GetPusherSupportRecord (ent, &support))
-		return;
-
-	support->frame = sv_pusher_support_frame;
-	support->pusher_entnum = pushernum;
-	VectorCopy (pusher->v.velocity, support->pusher_velocity);
-	VectorCopy (pusher_move, support->pusher_move);
 
 	if (ent->v.movetype == MOVETYPE_WALK)
 	{
@@ -872,18 +901,61 @@ static void SV_RecordPusherSupport (edict_t *ent, edict_t *pusher, const vec3_t 
 	}
 }
 
-static void SV_CaptureClientSupport (edict_t *ent, sv_client_support_t *support)
+static void SV_ClearClientMoveFrame (sv_client_move_frame_t *frame)
+{
+	frame->pusher = NULL;
+	frame->state = SV_MOVE_FRAME_NONE;
+	VectorCopy (vec3_origin, frame->pusher_velocity);
+	VectorCopy (vec3_origin, frame->support_normal);
+}
+
+static void SV_SetClientPusherMoveFrame (
+	sv_client_move_frame_t *frame, edict_t *pusher, sv_client_move_frame_state_t state, const vec3_t pusher_velocity, const float *support_normal)
+{
+	frame->pusher = pusher;
+	frame->state = state;
+	VectorCopy (pusher_velocity, frame->pusher_velocity);
+	if (support_normal)
+		VectorCopy (support_normal, frame->support_normal);
+	else
+		VectorCopy (vec3_origin, frame->support_normal);
+}
+
+static qboolean SV_CaptureRecordedPusherMoveFrame (edict_t *ent, sv_client_move_frame_t *frame, const sv_pusher_support_record_t *record, edict_t *pusher)
+{
+	trace_t trace;
+
+	switch (record->state)
+	{
+	case SV_MOVE_FRAME_AIRBORNE:
+		if ((int)ent->v.flags & FL_ONGROUND)
+			return false;
+		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_AIRBORNE_WORLD_VELOCITY, record->pusher_velocity, NULL);
+		return true;
+
+	case SV_MOVE_FRAME_GROUND:
+		if (ent->v.groundentity != EDICT_TO_PROG (pusher))
+			return false;
+		if (!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
+			return false;
+
+		ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_GROUND, record->pusher_velocity, trace.plane.normal);
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static void SV_CaptureClientMoveFrameBeforeQC (edict_t *ent, sv_client_move_frame_t *frame)
 {
 	int							entnum;
 	sv_pusher_support_record_t *record;
-	edict_t					   *pusher = NULL;
+	edict_t					   *pusher;
 	trace_t						trace;
 
-	support->pusher = NULL;
-	support->qc_kept_ground = false;
-	VectorCopy (vec3_origin, support->pusher_velocity);
-	VectorCopy (vec3_origin, support->support_normal);
-
+	SV_ClearClientMoveFrame (frame);
 	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
 		return;
 
@@ -895,59 +967,61 @@ static void SV_CaptureClientSupport (edict_t *ent, sv_client_support_t *support)
 	if (record->frame && record->frame + 1 == sv_pusher_support_frame && record->pusher_entnum > 0 && record->pusher_entnum < qcvm->num_edicts)
 	{
 		pusher = EDICT_NUM (record->pusher_entnum);
-		if (pusher->free || pusher->v.movetype != MOVETYPE_PUSH || pusher->v.solid != SOLID_BSP || ent->v.groundentity != EDICT_TO_PROG (pusher) ||
-			!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
-			pusher = NULL;
-		else
+		if (SV_IsClientMoveFramePusher (pusher))
 		{
-			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
-			support->pusher = pusher;
-			VectorCopy (record->pusher_velocity, support->pusher_velocity);
-			VectorCopy (trace.plane.normal, support->support_normal);
-			return;
+			if (SV_CaptureRecordedPusherMoveFrame (ent, frame, record, pusher))
+				return;
 		}
 	}
 
 	pusher = SV_GetGroundPusher (ent);
 	if (pusher && SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
-	{
-		support->pusher = pusher;
-		VectorCopy (pusher->v.velocity, support->pusher_velocity);
-		VectorCopy (trace.plane.normal, support->support_normal);
-	}
+		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_GROUND, pusher->v.velocity, trace.plane.normal);
 }
 
-static qboolean SV_ClientHasPusherContact (const sv_client_support_t *support)
+static qboolean SV_ClientMoveFrameHasGroundSupport (const sv_client_move_frame_t *frame)
 {
-	if (!support->pusher)
+	if (frame->state != SV_MOVE_FRAME_GROUND)
 		return false;
-	if (support->pusher->free || support->pusher->v.movetype != MOVETYPE_PUSH || support->pusher->v.solid != SOLID_BSP)
+	if (!SV_IsClientMoveFramePusher (frame->pusher))
 		return false;
-	if (DotProduct (support->support_normal, support->support_normal) <= DIST_EPSILON * DIST_EPSILON)
+	if (DotProduct (frame->support_normal, frame->support_normal) <= DIST_EPSILON * DIST_EPSILON)
 		return false;
 	return true;
 }
 
-static qboolean SV_ClientSupportedByPusher (const sv_client_support_t *support)
+static qboolean SV_ClientMoveFrameIsAirbornePusher (const sv_client_move_frame_t *frame)
 {
-	if (!support->qc_kept_ground)
+	if (frame->state != SV_MOVE_FRAME_AIRBORNE)
 		return false;
-	if (!SV_ClientHasPusherContact (support))
+	if (!SV_IsClientMoveFramePusher (frame->pusher))
 		return false;
 	return true;
 }
 
-static void SV_SetWalkSupportClipContext (const sv_client_support_t *support)
+static void SV_RecordAirbornePusherMoveFrame (edict_t *ent, const sv_client_move_frame_t *move_frame)
 {
-	if (!SV_ClientHasPusherContact (support))
+	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
+		return;
+	if (!SV_ClientMoveFrameIsAirbornePusher (move_frame))
+		return;
+	if ((int)ent->v.flags & FL_ONGROUND)
+		return;
+
+	SV_WritePusherSupportRecord (ent, move_frame->pusher, SV_MOVE_FRAME_AIRBORNE, move_frame->pusher->v.velocity, vec3_origin);
+}
+
+static void SV_SetWalkMoveFrameClipContext (const sv_client_move_frame_t *move_frame)
+{
+	if (!SV_ClientMoveFrameHasGroundSupport (move_frame))
 	{
 		sv_walk_support_pusher = NULL;
 		VectorCopy (vec3_origin, sv_walk_support_normal);
 		return;
 	}
 
-	sv_walk_support_pusher = support->pusher;
-	VectorCopy (support->support_normal, sv_walk_support_normal);
+	sv_walk_support_pusher = move_frame->pusher;
+	VectorCopy (move_frame->support_normal, sv_walk_support_normal);
 }
 
 static void SV_ClearWalkSupportClipContext (void)
@@ -956,34 +1030,71 @@ static void SV_ClearWalkSupportClipContext (void)
 	VectorCopy (vec3_origin, sv_walk_support_normal);
 }
 
-static void SV_ResolveClientSupportAfterQC (edict_t *ent, sv_client_support_t *support)
+static int SV_FlyMoveWithMoveFrameClipContext (edict_t *ent, float time, const sv_client_move_frame_t *move_frame, trace_t *steptrace)
 {
-	if (!support->pusher)
-		return;
+	int clip;
 
-	support->qc_kept_ground = (int)ent->v.flags & FL_ONGROUND;
-
-	if (!support->qc_kept_ground && ent->v.movetype == MOVETYPE_WALK)
-	{
-		ent->v.velocity[2] += support->pusher_velocity[2];
-		if (ent->v.groundentity == EDICT_TO_PROG (support->pusher))
-			ent->v.groundentity = 0;
-	}
+	SV_SetWalkMoveFrameClipContext (move_frame);
+	clip = SV_FlyMove (ent, time, steptrace);
+	SV_ClearWalkSupportClipContext ();
+	return clip;
 }
 
-static qboolean SV_GroundClientOnPusherSupport (edict_t *ent, const sv_client_support_t *support)
+static void SV_DropClientMoveFramePusherGround (edict_t *ent, sv_client_move_frame_t *move_frame)
+{
+	move_frame->state = SV_MOVE_FRAME_AIRBORNE;
+	VectorCopy (move_frame->pusher->v.velocity, move_frame->pusher_velocity);
+	if (ent->v.groundentity == EDICT_TO_PROG (move_frame->pusher))
+		ent->v.groundentity = 0;
+}
+
+static void SV_UpdateClientMoveFrameAfterQC (edict_t *ent, sv_client_move_frame_t *move_frame)
+{
+	if (!move_frame->pusher)
+		return;
+
+	if (move_frame->state == SV_MOVE_FRAME_AIRBORNE_WORLD_VELOCITY)
+	{
+		if (ent->v.movetype != MOVETYPE_WALK)
+			move_frame->state = SV_MOVE_FRAME_NONE;
+		return;
+	}
+
+	if (move_frame->state != SV_MOVE_FRAME_GROUND)
+		return;
+
+	if (!((int)ent->v.flags & FL_ONGROUND) && ent->v.movetype == MOVETYPE_WALK)
+		SV_DropClientMoveFramePusherGround (ent, move_frame);
+}
+
+static void SV_BeginClientWalkMoveFrame (edict_t *ent, sv_client_move_frame_t *move_frame)
+{
+	if (move_frame->state != SV_MOVE_FRAME_AIRBORNE_WORLD_VELOCITY)
+		return;
+	if (!SV_IsClientMoveFramePusher (move_frame->pusher))
+	{
+		move_frame->state = SV_MOVE_FRAME_NONE;
+		return;
+	}
+
+	VectorSubtract (ent->v.velocity, move_frame->pusher_velocity, ent->v.velocity);
+	VectorCopy (move_frame->pusher->v.velocity, move_frame->pusher_velocity);
+	move_frame->state = SV_MOVE_FRAME_AIRBORNE;
+}
+
+static qboolean SV_GroundClientOnMoveFramePusher (edict_t *ent, const sv_client_move_frame_t *move_frame)
 {
 	trace_t trace;
 
-	if (!SV_ClientSupportedByPusher (support))
+	if (!SV_ClientMoveFrameHasGroundSupport (move_frame))
 		return false;
-	if (!SV_TracePusherFloorAtOrigin (ent, support->pusher, support->pusher->v.origin, STEPSIZE, &trace))
+	if (!SV_TracePusherFloorAtOrigin (ent, move_frame->pusher, move_frame->pusher->v.origin, STEPSIZE, &trace))
 		return false;
 
 	VectorCopy (trace.endpos, ent->v.origin);
 	SV_LinkEdict (ent, false);
 	ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
-	ent->v.groundentity = EDICT_TO_PROG (support->pusher);
+	ent->v.groundentity = EDICT_TO_PROG (move_frame->pusher);
 	ent->v.velocity[2] = 0;
 	return true;
 }
@@ -1000,6 +1111,18 @@ static qboolean SV_TestEntityPositionOnPusher (edict_t *ent, edict_t *pusher, co
 	trace = SV_ClipMoveToEntity (pusher, trace_origin, ent->v.mins, ent->v.maxs, trace_origin, CONTENTMASK_ANYSOLID);
 	VectorCopy (old_origin, pusher->v.origin);
 	return trace.startsolid;
+}
+
+static qboolean SV_EntityPositionBlockedIgnoringPusher (edict_t *ent, edict_t *pusher)
+{
+	float	 solid_backup;
+	qboolean blocked;
+
+	solid_backup = pusher->v.solid;
+	pusher->v.solid = SOLID_NOT;
+	blocked = SV_TestEntityPosition (ent) != NULL;
+	pusher->v.solid = solid_backup;
+	return blocked;
 }
 
 static qboolean SV_EntityRidingPusher (edict_t *ent, edict_t *pusher)
@@ -1125,6 +1248,66 @@ static trace_t SV_PushEntityTo (edict_t *ent, vec3_t end)
 	return trace;
 }
 
+static trace_t SV_PushEntityToIgnoringPusher (edict_t *ent, edict_t *pusher, vec3_t end)
+{
+	float	solid_backup;
+	trace_t trace;
+
+	solid_backup = pusher->v.solid;
+	pusher->v.solid = SOLID_NOT;
+	trace = SV_PushEntityTo (ent, end);
+	pusher->v.solid = solid_backup;
+	return trace;
+}
+
+static float SV_PusherMoveTimeThisFrame (edict_t *pusher)
+{
+	float thinktime;
+	float movetime;
+
+	thinktime = pusher->v.nextthink;
+	if (thinktime < pusher->v.ltime + host_frametime)
+	{
+		movetime = thinktime - pusher->v.ltime;
+		if (movetime < 0)
+			movetime = 0;
+	}
+	else
+		movetime = host_frametime;
+
+	return movetime;
+}
+
+static void SV_EndClientMoveFrame (edict_t *ent, const sv_client_move_frame_t *move_frame)
+{
+	float  movetime;
+	vec3_t move, neworigin, dest;
+
+	if (!SV_ClientMoveFrameIsAirbornePusher (move_frame))
+		return;
+	if (ent->free || ent->v.movetype != MOVETYPE_WALK)
+		return;
+
+	movetime = SV_PusherMoveTimeThisFrame (move_frame->pusher);
+	if (movetime > 0)
+	{
+		VectorScale (move_frame->pusher->v.velocity, movetime, move);
+		VectorAdd (move_frame->pusher->v.origin, move, neworigin);
+		if (move[0] || move[1] || move[2])
+		{
+			VectorAdd (ent->v.origin, move, dest);
+			SV_PushEntityToIgnoringPusher (ent, move_frame->pusher, dest);
+		}
+	}
+
+	if (!ent->free && ent->v.movetype == MOVETYPE_WALK)
+	{
+		SV_RecordAirbornePusherMoveFrame (ent, move_frame);
+		VectorAdd (ent->v.velocity, move_frame->pusher_velocity, ent->v.velocity);
+		SV_CheckVelocity (ent);
+	}
+}
+
 /*
 ============
 SV_PushMove
@@ -1157,23 +1340,10 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	const float	   newltime = pusher->v.ltime + movetime;
 	vec3_t		   neworigin;
 
+	VectorScale (pusher->v.velocity, movetime, move);
+	VectorAdd (pusher->v.origin, move, neworigin);
 	for (i = 0; i < 3; i++)
 	{
-		if (robust_push)
-		{
-			// the mover runs at constant velocity until its think at nextthink, so
-			// evaluate the position on that trajectory in double instead of
-			// accumulating velocity*movetime rounding every tick: the final partial
-			// step lands exactly on the destination QC aimed for
-			const double dest = (double)pusher->v.origin[i] + (double)pusher->v.velocity[i] * ((double)pusher->v.nextthink - (double)pusher->v.ltime);
-			neworigin[i] = (float)(dest - (double)pusher->v.velocity[i] * ((double)pusher->v.nextthink - (double)newltime));
-			move[i] = neworigin[i] - pusher->v.origin[i];
-		}
-		else
-		{
-			move[i] = pusher->v.velocity[i] * movetime;
-			neworigin[i] = pusher->v.origin[i] + move[i];
-		}
 		mins[i] = pusher->v.absmin[i] + move[i];
 		maxs[i] = pusher->v.absmax[i] + move[i];
 		// the grid query must span the whole sweep: riders rest on the pre-move
@@ -1401,14 +1571,7 @@ static void SV_Physics_Pusher (edict_t *ent)
 	oldltime = ent->v.ltime;
 
 	thinktime = ent->v.nextthink;
-	if (thinktime < ent->v.ltime + host_frametime)
-	{
-		movetime = thinktime - ent->v.ltime;
-		if (movetime < 0)
-			movetime = 0;
-	}
-	else
-		movetime = host_frametime;
+	movetime = SV_PusherMoveTimeThisFrame (ent);
 
 	timing = sv_speeds.value && qcvm == &sv.qcvm && (movetime || thinktime > oldltime);
 	if (timing)
@@ -1491,11 +1654,9 @@ static void SV_CheckStuck (edict_t *ent)
 	Con_DPrintf ("player is stuck.\n");
 }
 
-static void SV_CheckStuckWithSupport (edict_t *ent, const sv_client_support_t *support)
+static void SV_CheckStuckWithMoveFrame (edict_t *ent, const sv_client_move_frame_t *move_frame)
 {
-	float solid_backup;
-
-	if (!SV_ClientSupportedByPusher (support))
+	if (!SV_ClientMoveFrameHasGroundSupport (move_frame))
 	{
 		SV_CheckStuck (ent);
 		return;
@@ -1507,15 +1668,11 @@ static void SV_CheckStuckWithSupport (edict_t *ent, const sv_client_support_t *s
 		return;
 	}
 
-	solid_backup = support->pusher->v.solid;
-	support->pusher->v.solid = SOLID_NOT;
-	if (!SV_TestEntityPosition (ent))
+	if (!SV_EntityPositionBlockedIgnoringPusher (ent, move_frame->pusher))
 	{
-		support->pusher->v.solid = solid_backup;
 		VectorCopy (ent->v.origin, ent->v.oldorigin);
 		return;
 	}
-	support->pusher->v.solid = solid_backup;
 
 	SV_CheckStuck (ent);
 }
@@ -1676,7 +1833,7 @@ SV_WalkMove
 Only used by players
 ======================
 */
-static void SV_WalkMove (edict_t *ent, const sv_client_support_t *support)
+static void SV_WalkMove (edict_t *ent, const sv_client_move_frame_t *move_frame)
 {
 	vec3_t	upmove, downmove;
 	vec3_t	oldorg, oldvel;
@@ -1694,13 +1851,11 @@ static void SV_WalkMove (edict_t *ent, const sv_client_support_t *support)
 	VectorCopy (ent->v.origin, oldorg);
 	VectorCopy (ent->v.velocity, oldvel);
 
-	SV_SetWalkSupportClipContext (support);
-	clip = SV_FlyMove (ent, host_frametime, &steptrace);
-	SV_ClearWalkSupportClipContext ();
+	clip = SV_FlyMoveWithMoveFrameClipContext (ent, host_frametime, move_frame, &steptrace);
 
 	if (!(clip & 2))
 	{
-		SV_GroundClientOnPusherSupport (ent, support);
+		SV_GroundClientOnMoveFramePusher (ent, move_frame);
 		return; // move didn't block on a step
 	}
 
@@ -1734,9 +1889,7 @@ static void SV_WalkMove (edict_t *ent, const sv_client_support_t *support)
 	ent->v.velocity[0] = oldvel[0];
 	ent->v.velocity[1] = oldvel[1];
 	ent->v.velocity[2] = 0;
-	SV_SetWalkSupportClipContext (support);
-	clip = SV_FlyMove (ent, host_frametime, &steptrace);
-	SV_ClearWalkSupportClipContext ();
+	clip = SV_FlyMoveWithMoveFrameClipContext (ent, host_frametime, move_frame, &steptrace);
 
 	// check for stuckness, possibly due to the limited precision of floats
 	// in the clipping hulls. Disable when using pr_checkextension to avoid
@@ -1760,7 +1913,7 @@ static void SV_WalkMove (edict_t *ent, const sv_client_support_t *support)
 
 	if (downtrace.plane.normal[2] > MIN_WALK_NORMAL)
 	{
-		if (ent->v.solid == SOLID_BSP || (SV_ClientSupportedByPusher (support) && downtrace.ent == support->pusher))
+		if (ent->v.solid == SOLID_BSP || (SV_ClientMoveFrameHasGroundSupport (move_frame) && downtrace.ent == move_frame->pusher))
 		{
 			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
 
@@ -1776,7 +1929,7 @@ static void SV_WalkMove (edict_t *ent, const sv_client_support_t *support)
 		// cause the player to hop up higher on a slope too steep to climb
 		VectorCopy (nosteporg, ent->v.origin);
 		VectorCopy (nostepvel, ent->v.velocity);
-		SV_GroundClientOnPusherSupport (ent, support);
+		SV_GroundClientOnMoveFramePusher (ent, move_frame);
 	}
 }
 
@@ -1787,28 +1940,36 @@ SV_Physics_Client
 Player character actions
 ================
 */
-static void SV_Physics_ClientWalk (edict_t *ent, const sv_client_support_t *support)
+static void SV_Physics_ClientWalk (edict_t *ent, sv_client_move_frame_t *move_frame)
 {
-	const qboolean supported_by_pusher = SV_ClientSupportedByPusher (support);
-	const qboolean in_water = SV_CheckWater (ent);
-	const qboolean apply_gravity = !supported_by_pusher && !in_water && !((int)ent->v.flags & FL_WATERJUMP);
+	qboolean supported_by_pusher;
+	qboolean in_water;
+	qboolean apply_gravity;
+
+	SV_BeginClientWalkMoveFrame (ent, move_frame);
+
+	supported_by_pusher = SV_ClientMoveFrameHasGroundSupport (move_frame);
+	in_water = SV_CheckWater (ent);
+	apply_gravity = !supported_by_pusher && !in_water && !((int)ent->v.flags & FL_WATERJUMP);
 
 	if (apply_gravity)
 		SV_AddGravity (ent);
 	else if (supported_by_pusher)
 		ent->v.velocity[2] = 0;
 
-	SV_CheckStuckWithSupport (ent, support);
+	SV_CheckStuckWithMoveFrame (ent, move_frame);
 	assert_always (!ent->free);
-	SV_WalkMove (ent, support);
+	SV_WalkMove (ent, move_frame);
 
 	if (!ent->free && apply_gravity)
 		SV_FinishGravity (ent);
+	if (!ent->free)
+		SV_EndClientMoveFrame (ent, move_frame);
 }
 
 static void SV_Physics_Client (edict_t *ent, int num)
 {
-	sv_client_support_t support;
+	sv_client_move_frame_t move_frame;
 
 	if (!svs.clients[num - 1].active)
 		return; // unconnected slot
@@ -1816,7 +1977,7 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	if (!svs.clients[num - 1].knowntoqc && sv_gameplayfix_spawnbeforethinks.value)
 		return; // don't spam prethinks before we called putclientinserver.
 
-	SV_CaptureClientSupport (ent, &support);
+	SV_CaptureClientMoveFrameBeforeQC (ent, &move_frame);
 
 	//
 	// call standard client pre-think
@@ -1827,7 +1988,7 @@ static void SV_Physics_Client (edict_t *ent, int num)
 
 	assert_always (!ent->free);
 
-	SV_ResolveClientSupportAfterQC (ent, &support);
+	SV_UpdateClientMoveFrameAfterQC (ent, &move_frame);
 
 	//
 	// do a move
@@ -1847,7 +2008,7 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	case MOVETYPE_WALK:
 		if (!SV_RunThink (ent))
 			return;
-		SV_Physics_ClientWalk (ent, &support);
+		SV_Physics_ClientWalk (ent, &move_frame);
 		break;
 
 	case MOVETYPE_TOSS:
