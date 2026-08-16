@@ -1287,14 +1287,16 @@ static trace_t SV_PushEntityToIgnoringPusher (edict_t *ent, edict_t *pusher, vec
 
 static void SV_EndClientMoveFrame (edict_t *ent, const sv_client_move_frame_t *move_frame)
 {
-	float  movetime;
-	vec3_t move, dest;
+	edict_t *ground;
+	float	 movetime;
+	vec3_t	 move, support_move, dest;
 
 	if (!SV_ClientMoveFrameIsAirbornePusher (move_frame))
 		return;
 	if (ent->free || ent->v.movetype != MOVETYPE_WALK)
 		return;
 
+	VectorCopy (vec3_origin, move);
 	movetime = SV_PusherMoveTimeThisFrame (move_frame->pusher);
 	if (movetime > 0)
 	{
@@ -1306,12 +1308,26 @@ static void SV_EndClientMoveFrame (edict_t *ent, const sv_client_move_frame_t *m
 		}
 	}
 
-	if (!ent->free && ent->v.movetype == MOVETYPE_WALK)
+	if (ent->free || ent->v.movetype != MOVETYPE_WALK)
+		return;
+
+	if ((int)ent->v.flags & FL_ONGROUND)
 	{
-		SV_RecordAirbornePusherMoveFrame (ent, move_frame);
-		VectorAdd (ent->v.velocity, move_frame->pusher_velocity, ent->v.velocity);
-		SV_CheckVelocity (ent);
+		ground = SV_GetGroundPusher (ent);
+		if (ground)
+		{
+			if (ground == move_frame->pusher)
+				VectorCopy (move, support_move);
+			else
+				VectorCopy (vec3_origin, support_move);
+			SV_WritePusherSupportRecord (ent, ground, SV_MOVE_FRAME_GROUND, ground->v.velocity, support_move);
+		}
+		return;
 	}
+
+	SV_RecordAirbornePusherMoveFrame (ent, move_frame);
+	VectorAdd (ent->v.velocity, move_frame->pusher_velocity, ent->v.velocity);
+	SV_CheckVelocity (ent);
 }
 
 /*
