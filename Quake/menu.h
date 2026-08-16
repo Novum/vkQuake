@@ -47,6 +47,7 @@ enum m_state_e
 	m_slist,
 	m_mods,
 	m_maps,
+	m_skill,
 };
 
 extern enum m_state_e m_state;

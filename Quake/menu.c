@@ -42,6 +42,7 @@ static void M_Menu_Keys_f (void);
 static void M_Menu_Help_f (void);
 static void M_Menu_Mods_f (void);
 static void M_Menu_Maps_f (void);
+static void M_Menu_Skill_f (void);
 
 static void M_Main_Draw (cb_context_t *cbx);
 static void M_SinglePlayer_Draw (cb_context_t *cbx);
@@ -57,6 +58,7 @@ static void M_ServerList_Draw (cb_context_t *cbx);
 static void M_Options_Draw (cb_context_t *cbx);
 static void M_Mods_Draw (cb_context_t *cbx);
 static void M_Maps_Draw (cb_context_t *cbx);
+static void M_Skill_Draw (cb_context_t *cbx);
 static void M_Keys_Draw (cb_context_t *cbx);
 static void M_Help_Draw (cb_context_t *cbx);
 static void M_Quit_Draw (cb_context_t *cbx);
@@ -77,6 +79,7 @@ static void M_Keys_Key (int key);
 static void M_Help_Key (int key);
 static void M_Mods_Key (int key);
 static void M_Maps_Key (int key);
+static void M_Skill_Key (int key);
 static void M_Quit_Key (int key);
 
 qboolean		m_entersound; // play after drawing a frame, so caching
@@ -106,7 +109,8 @@ static int scrollbar_x;
 static int scrollbar_y;
 static int scrollbar_size;
 
-void M_ConfigureNetSubsystem (void);
+void		M_ConfigureNetSubsystem (void);
+static void M_SetSkillMenuMap (const char *name);
 
 extern qboolean keydown[256];
 
@@ -3043,6 +3047,8 @@ static void M_Menu_Maps_Cmd_f (void)
 
 		mapsmenu.cursor = i;
 		M_Maps_CenterCursor ();
+		M_SetSkillMenuMap (mapname);
+		M_Menu_Skill_f ();
 	}
 }
 
@@ -3378,15 +3384,8 @@ static void M_Maps_Key (int key)
 			const char *mapname = mapsmenu.items[mapsmenu.cursor].name;
 			M_Maps_ClearSearch ();
 			m_entersound = true;
-			IN_Activate ();
-			key_dest = key_game;
-			m_state = m_none;
-			if (sv.active)
-				Cbuf_AddText ("disconnect\n");
-			Cbuf_AddText ("maxplayers 1\n");
-			Cbuf_AddText ("deathmatch 0\n");
-			Cbuf_AddText ("coop 0\n");
-			Cbuf_AddText (va ("map \"%s\"\n", mapname));
+			M_SetSkillMenuMap (mapname);
+			M_Menu_Skill_f ();
 		}
 		else
 			S_LocalSound ("misc/menu3.wav");
@@ -3435,6 +3434,125 @@ static void M_Maps_Char (int key)
 static qboolean M_Maps_TextEntry (void)
 {
 	return true;
+}
+
+//=============================================================================
+/* SKILL MENU */
+
+static int			  m_skill_cursor;
+static qboolean		  m_skill_usegfx;
+static qboolean		  m_skill_usecustomtitle;
+static char			  m_skill_mapname[MAX_QPATH];
+static char			  m_skill_maptitle[1024];
+static menuticker_t	  m_skill_ticker;
+static enum m_state_e m_skill_prevmenu;
+
+static void M_SetSkillMenuMap (const char *name)
+{
+	q_strlcpy (m_skill_mapname, name, sizeof (m_skill_mapname));
+	if (!Mod_LoadMapDescription (m_skill_maptitle, sizeof (m_skill_maptitle), name) || !m_skill_maptitle[0])
+		q_strlcpy (m_skill_maptitle, name, sizeof (m_skill_maptitle));
+}
+
+static void M_Menu_Skill_f (void)
+{
+	M_MenuChanged ();
+	IN_Deactivate (true);
+	key_dest = key_menu;
+	m_skill_prevmenu = m_state;
+	m_state = m_skill;
+	m_entersound = true;
+	M_Ticker_Init (&m_skill_ticker);
+
+	m_skill_cursor = (int)skill.value;
+	m_skill_cursor = CLAMP (0, m_skill_cursor, 3);
+}
+
+static void M_Skill_Draw (cb_context_t *cbx)
+{
+	int		x, y, f;
+	qpic_t *p;
+
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	p = Draw_CachePic (m_skill_usecustomtitle ? "gfx/p_skill.lmp" : "gfx/ttl_sgl.lmp");
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
+
+	x = 72;
+	y = 32;
+
+	M_Ticker_Update (&m_skill_ticker);
+	M_PrintScroll (cbx, x, y, 30 * CHARACTER_SIZE, m_skill_maptitle, m_skill_ticker.scroll_time, false);
+
+	y += 16;
+
+	if (m_skill_usegfx)
+	{
+		M_DrawTransPic (cbx, x, y, Draw_CachePic ("gfx/skillmenu.lmp"));
+		M_Mouse_UpdateListCursor (&m_skill_cursor, x, 320, y, 20, 4, 0);
+		f = (int)(realtime * 10) % 6;
+		M_DrawTransPic (cbx, x - 18, y + m_skill_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
+	}
+	else
+	{
+		static const char *const skills[] = {
+			"EASY",
+			"NORMAL",
+			"HARD",
+			"NIGHTMARE",
+		};
+
+		for (f = 0; f < 4; f++)
+			M_Print (cbx, x, y + f * 16 + 2, skills[f]);
+
+		M_Mouse_UpdateListCursor (&m_skill_cursor, x, 320, y, 16, 4, 0);
+		Draw_Character (cbx, x - 16, y + m_skill_cursor * 16 + 4, 12 + ((int)(realtime * 4) & 1));
+	}
+}
+
+static void M_Skill_Key (int key)
+{
+	if (M_Ticker_Key (&m_skill_ticker, key))
+		return;
+
+	switch (key)
+	{
+	case K_MOUSE2:
+	case K_ESCAPE:
+	case K_BBUTTON:
+		m_state = m_skill_prevmenu;
+		m_entersound = true;
+		break;
+
+	case K_DOWNARROW:
+	case K_KP_DOWNARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (++m_skill_cursor > 3)
+			m_skill_cursor = 0;
+		break;
+
+	case K_UPARROW:
+	case K_KP_UPARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (--m_skill_cursor < 0)
+			m_skill_cursor = 3;
+		break;
+
+	case K_MOUSE1:
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+		IN_Activate ();
+		key_dest = key_game;
+		m_state = m_none;
+		if (sv.active)
+			Cbuf_AddText ("disconnect\n");
+		Cbuf_AddText (va ("skill %d\n", m_skill_cursor));
+		Cbuf_AddText ("maxplayers 1\n");
+		Cbuf_AddText ("deathmatch 0\n");
+		Cbuf_AddText ("coop 0\n");
+		Cbuf_AddText (va ("map \"%s\"\n", m_skill_mapname));
+		break;
+	}
 }
 
 //=============================================================================
@@ -4470,9 +4588,11 @@ static qboolean M_CheckCustomGfx (const char *custompath, const char *basepath, 
 
 void M_CheckMods (void)
 {
-	const unsigned int sp_hashes[] = {0x86a6f086};
+	const unsigned int sp_hashes[] = {0x86a6f086}, sgl_hashes[] = {0x7bba813d};
 
 	m_singleplayer_showlevels = M_CheckCustomGfx ("gfx/sp_maps.lmp", "gfx/sp_menu.lmp", 14856, sp_hashes, countof (sp_hashes));
+	m_skill_usegfx = M_CheckCustomGfx ("gfx/skillmenu.lmp", "gfx/sp_menu.lmp", 14856, sp_hashes, countof (sp_hashes));
+	m_skill_usecustomtitle = M_CheckCustomGfx ("gfx/p_skill.lmp", "gfx/ttl_sgl.lmp", 6728, sgl_hashes, countof (sgl_hashes));
 }
 
 //=============================================================================
@@ -4505,7 +4625,7 @@ void M_Init (void)
 void M_NewGame (void)
 {
 	m_main_cursor = 0;
-	if (m_state == m_maps) // the map list is about to be rebuilt
+	if (m_state == m_maps || m_state == m_skill) // the map list is about to be rebuilt
 		m_state = m_main;
 }
 
@@ -4647,6 +4767,10 @@ void M_Draw (cb_context_t *cbx)
 		M_Maps_Draw (cbx);
 		break;
 
+	case m_skill:
+		M_Skill_Draw (cbx);
+		break;
+
 	case m_quit:
 		if (!cl_confirmquit.value)
 		{ /* QuakeSpasm customization: */
@@ -4738,6 +4862,10 @@ void M_Keydown (int key)
 
 	case m_maps:
 		M_Maps_Key (key);
+		break;
+
+	case m_skill:
+		M_Skill_Key (key);
 		break;
 
 	case m_keys:
