@@ -157,6 +157,7 @@ SHADER_OBJS = \
 	md5_alphatest_mboit_composite_msaa_frag.o \
 	alias_vert.o \
 	md5_vert.o \
+	md5_8_vert.o \
 	basic_alphatest_frag.o \
 	screen_effects_8bit_comp.o \
 	screen_effects_8bit_scale_comp.o \
@@ -199,7 +200,8 @@ SHADER_OBJS = \
 	update_lightmap_10bit_rt_comp.o \
 	ray_debug_comp.o \
 	mesh_interpolate_comp.o \
-	skinning_comp.o
+	skinning_comp.o \
+	skinning_8_comp.o
 
 GLOBJS = \
 	palette.o \
@@ -344,6 +346,7 @@ $(eval $(call SHADER_VARIANT,md5_mboit_composite_frag,alias.frag,-DMBOIT=1 -DMBO
 $(eval $(call SHADER_VARIANT,md5_alphatest_mboit_composite_frag,alias.frag,-DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMBOIT_INPUT_SET=4))
 $(eval $(call SHADER_VARIANT,md5_mboit_composite_msaa_frag,alias.frag,-DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 -DMBOIT_INPUT_SET=4))
 $(eval $(call SHADER_VARIANT,md5_alphatest_mboit_composite_msaa_frag,alias.frag,-DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 -DMBOIT_INPUT_SET=4))
+$(eval $(call SHADER_VARIANT,md5_8_vert,md5.vert,-DEIGHT_WEIGHT_SKINNING))
 $(eval $(call SHADER_VARIANT,wboit_resolve_msaa_frag,wboit_resolve.frag,-DMSAA=1))
 $(eval $(call SHADER_VARIANT,mboit_resolve_msaa_frag,mboit_resolve.frag,-DMSAA=1))
 $(eval $(call SHADER_VARIANT,screen_effects_8bit_comp,screen_effects.comp,))
@@ -352,6 +355,7 @@ $(eval $(call SHADER_VARIANT,screen_effects_8bit_scale_sops_comp,screen_effects.
 $(eval $(call SHADER_VARIANT,screen_effects_10bit_comp,screen_effects.comp,-DUSE_10BIT=1))
 $(eval $(call SHADER_VARIANT,screen_effects_10bit_scale_comp,screen_effects.comp,-DUSE_10BIT=1 -DSCALING=1))
 $(eval $(call SHADER_VARIANT,screen_effects_10bit_scale_sops_comp,screen_effects.comp,--target-env vulkan1.1 -DUSE_10BIT=1 -DSCALING=1 -DUSE_SUBGROUP_OPS=1))
+$(eval $(call SHADER_VARIANT,skinning_8_comp,skinning.comp,-DEIGHT_WEIGHT_SKINNING))
 $(eval $(call SHADER_VARIANT,update_lightmap_8bit_comp,update_lightmap.comp,))
 $(eval $(call SHADER_VARIANT,update_lightmap_8bit_rt_comp,update_lightmap.comp,-DRAY_QUERIES=1))
 $(eval $(call SHADER_VARIANT,update_lightmap_10bit_comp,update_lightmap.comp,-DUSE_10BIT=1))

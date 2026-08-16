@@ -143,6 +143,7 @@ shader_variants = [
     ['Shaders/alias.frag', 'md5_alphatest_mboit_composite.frag', ['-DALIAS_ALPHA_TEST=1', '-DMBOIT=1', '-DMBOIT_COMPOSITE=1', '-DMBOIT_INPUT_SET=4']],
     ['Shaders/alias.frag', 'md5_mboit_composite_msaa.frag', ['-DMBOIT=1', '-DMBOIT_COMPOSITE=1', '-DMSAA=1', '-DMBOIT_INPUT_SET=4']],
     ['Shaders/alias.frag', 'md5_alphatest_mboit_composite_msaa.frag', ['-DALIAS_ALPHA_TEST=1', '-DMBOIT=1', '-DMBOIT_COMPOSITE=1', '-DMSAA=1', '-DMBOIT_INPUT_SET=4']],
+    ['Shaders/md5.vert', 'md5_8.vert', ['-DEIGHT_WEIGHT_SKINNING']],
     ['Shaders/wboit_resolve.frag', 'wboit_resolve.frag', []],
     ['Shaders/wboit_resolve.frag', 'wboit_resolve_msaa.frag', ['-DMSAA=1']],
     ['Shaders/mboit_resolve.frag', 'mboit_resolve.frag', []],
@@ -157,6 +158,7 @@ shader_variants = [
     ['Shaders/update_lightmap.comp', 'update_lightmap_8bit_rt.comp', ['-DRAY_QUERIES=1']],
     ['Shaders/update_lightmap.comp', 'update_lightmap_10bit.comp', ['-DUSE_10BIT=1']],
     ['Shaders/update_lightmap.comp', 'update_lightmap_10bit_rt.comp', ['-DUSE_10BIT=1', '-DRAY_QUERIES=1']],
+    ['Shaders/skinning.comp', 'skinning_8.comp', ['-DEIGHT_WEIGHT_SKINNING']],
 ]
 
 fs = import('fs')

@@ -29,11 +29,38 @@ layout (std430, set = 3, binding = 0) restrict readonly buffer joints_buffer
 	float joint_mats[];
 };
 
+mat4x3 MD5_LoadJointMatrix (uint joint_offset)
+{
+	uint base = joint_offset * 12;
+	return mat4x3 (
+		joint_mats[base + 0], joint_mats[base + 4], joint_mats[base + 8],
+		joint_mats[base + 1], joint_mats[base + 5], joint_mats[base + 9],
+		joint_mats[base + 2], joint_mats[base + 6], joint_mats[base + 10],
+		joint_mats[base + 3], joint_mats[base + 7], joint_mats[base + 11]);
+}
+
+#include "skinning.inc"
+
 layout (location = 0) in vec3 in_position;
 layout (location = 1) in vec3 in_normal;
 layout (location = 2) in vec2 in_texcoord;
-layout (location = 3) in vec4 in_joint_weights;
-layout (location = 4) in uvec4 in_joint_indices;
+layout (location = 3) in vec4 in_joint_weights0;
+#if defined(EIGHT_WEIGHT_SKINNING)
+layout (location = 4) in vec4 in_joint_weights1;
+layout (location = 5) in uvec4 in_joint_indices0;
+layout (location = 6) in uvec4 in_joint_indices1;
+layout (location = 7) in vec4 in_joint_position_x0;
+layout (location = 8) in vec4 in_joint_position_x1;
+layout (location = 9) in vec4 in_joint_position_y0;
+layout (location = 10) in vec4 in_joint_position_y1;
+layout (location = 11) in vec4 in_joint_position_z0;
+layout (location = 12) in vec4 in_joint_position_z1;
+#else
+layout (location = 4) in uvec4 in_joint_indices0;
+layout (location = 5) in vec4 in_joint_position_x0;
+layout (location = 6) in vec4 in_joint_position_y0;
+layout (location = 7) in vec4 in_joint_position_z0;
+#endif
 
 layout (location = 0) out vec2 out_texcoord;
 layout (location = 1) out vec4 out_color;
@@ -58,32 +85,27 @@ void main ()
 {
 	out_texcoord = in_texcoord;
 
-	const vec3 xyz = in_position.xyz;
-
 	vec3 skinned_positions[2] = {vec3 (0.0f), vec3 (0.0f)};
 	vec3 skinned_normals[2] = {vec3 (0.0f), vec3 (0.0f)};
 	uint joint_offsets[2] = {ubo.joints_offset0, ubo.joints_offset1};
-	for (int j = 0; j < 2; ++j)
-	{
-		const uint joints_offset = joint_offsets[j];
-		for (int i = 0; i < 4; ++i)
-		{
-			const uint	 joint_index = in_joint_indices[i];
-			const float	 joint_weight = in_joint_weights[i];
-			const uint	 mat_offset = (joints_offset + joint_index) * 12;
-			const mat4x3 joint_mat = mat4x3 (
-				joint_mats[mat_offset + 0], joint_mats[mat_offset + 4], joint_mats[mat_offset + 8], joint_mats[mat_offset + 1], joint_mats[mat_offset + 5],
-				joint_mats[mat_offset + 9], joint_mats[mat_offset + 2], joint_mats[mat_offset + 6], joint_mats[mat_offset + 10], joint_mats[mat_offset + 3],
-				joint_mats[mat_offset + 7], joint_mats[mat_offset + 11]);
-			const vec3 skinned_pos = (joint_mat * vec4 (xyz, 1.0f)).xyz;
-			skinned_positions[j] += joint_weight * skinned_pos;
-			if ((ubo.flags & 0x2) == 0)
-			{
-				const vec3 skinned_normal = (mat3x3 (joint_mat) * in_normal).xyz;
-				skinned_normals[j] += joint_weight * skinned_normal;
-			}
-		}
-	}
+#if defined(EIGHT_WEIGHT_SKINNING)
+	vec4 joint_weights[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_weights0, in_joint_weights1};
+	uvec4 joint_indices[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_indices0, in_joint_indices1};
+	vec4 joint_position_x[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_x0, in_joint_position_x1};
+	vec4 joint_position_y[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_y0, in_joint_position_y1};
+	vec4 joint_position_z[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_z0, in_joint_position_z1};
+#else
+	vec4 joint_weights[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_weights0};
+	uvec4 joint_indices[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_indices0};
+	vec4 joint_position_x[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_x0};
+	vec4 joint_position_y[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_y0};
+	vec4 joint_position_z[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_z0};
+#endif
+	MD5_NormalizeJointWeights (joint_weights);
+	vec4 joint_positions[MD5_INFLUENCE_COUNT];
+	MD5_LoadJointPositions (joint_position_x, joint_position_y, joint_position_z, joint_weights, joint_positions);
+	MD5_SkinFrames (
+		joint_offsets, joint_indices, joint_weights, joint_positions, in_normal, (ubo.flags & 0x2) == 0, skinned_positions, skinned_normals);
 
 	const vec4 lerped_position = vec4 (mix (skinned_positions[0], skinned_positions[1], ubo.blend_factor), 1.0f);
 	const vec4 model_space_position = ubo.model_matrix * lerped_position;

@@ -110,11 +110,20 @@ static void GL_DrawAliasFrame (
 	if (oit_pass && (showtris != 0 || !has_alpha))
 		return;
 
-	if (paliashdr->poseverttype == PV_MD5)
+	if (paliashdr->poseverttype == PV_MD5 || paliashdr->poseverttype == PV_MD5_8)
+	{
+		vulkan_pipeline_t (*pipelines)[MODEL_PIPELINE_COUNT] =
+			(paliashdr->poseverttype == PV_MD5_8) ? vulkan_globals.md5_8_pipelines : vulkan_globals.md5_pipelines;
+		vulkan_pipeline_t *wboit_pipelines = (paliashdr->poseverttype == PV_MD5_8) ? vulkan_globals.md5_8_wboit_pipelines : vulkan_globals.md5_wboit_pipelines;
+		vulkan_pipeline_t *mboit_moment_pipelines =
+			(paliashdr->poseverttype == PV_MD5_8) ? vulkan_globals.md5_8_mboit_moment_pipelines : vulkan_globals.md5_mboit_moment_pipelines;
+		vulkan_pipeline_t *mboit_composite_pipelines =
+			(paliashdr->poseverttype == PV_MD5_8) ? vulkan_globals.md5_8_mboit_composite_pipelines : vulkan_globals.md5_mboit_composite_pipelines;
+
 		pipeline = R_PipelineForRenderPass (
-			cbx->render_pass_index, vulkan_globals.md5_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
-			vulkan_globals.md5_wboit_pipelines[pipeline_index], vulkan_globals.md5_mboit_moment_pipelines[pipeline_index],
-			vulkan_globals.md5_mboit_composite_pipelines[pipeline_index]);
+			cbx->render_pass_index, pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index], wboit_pipelines[pipeline_index],
+			mboit_moment_pipelines[pipeline_index], mboit_composite_pipelines[pipeline_index]);
+	}
 	else
 		pipeline = R_PipelineForRenderPass (
 			cbx->render_pass_index, vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
@@ -168,6 +177,7 @@ static void GL_DrawAliasFrame (
 		break;
 	}
 	case PV_MD5:
+	case PV_MD5_8:
 	{
 		VkBuffer		uniform_buffer;
 		uint32_t		uniform_offset;
@@ -290,7 +300,7 @@ void R_SetupAliasFrame (const entity_t *e, aliashdr_t *paliashdr, lerpdata_t *le
 				lerpdata->pose1 = lerpdata->pose2;
 			}
 		}
-		else if (paliashdr->poseverttype == PV_MD5)
+		else if (paliashdr->poseverttype == PV_MD5 || paliashdr->poseverttype == PV_MD5_8)
 		{
 			// MD5 uses numframes for joint matrices
 			if (lerpdata->pose1 >= paliashdr->numframes || lerpdata->pose1 < 0)

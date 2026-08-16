@@ -141,5 +141,8 @@
     <None Include="..\..\Shaders\mboit.inc">
       <Filter>Shaders\MBOIT</Filter>
     </None>
+    <None Include="..\..\Shaders\skinning.inc">
+      <Filter>Shaders\Alias</Filter>
+    </None>
   </ItemGroup>
 </Project>

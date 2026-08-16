@@ -365,6 +365,14 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		numindexes = hdr->numindexes;
 	}
 	break;
+	case PV_MD5_8:
+	{
+		assert (hdr->numposes == 1);
+		totalvbosize += hdr->numverts_vbo * (int)sizeof (md5vert8_t);
+		numverts = hdr->numverts_vbo;
+		numindexes = hdr->numindexes;
+	}
+	break;
 	default:
 		assert (false);
 	}
@@ -487,6 +495,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		}
 		break;
 	case PV_MD5:
+	case PV_MD5_8:
 		memcpy (vbodata, vertexes, totalvbosize);
 		// vertexes is already the concat of the hdr surface vertices, triangles, ST, and normals
 		// already baked in.
@@ -944,7 +953,7 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			VkDeviceAddress scratch_address = as_scratch_buffer.device_address + as_scratch_offset;
 
 			// Dispatch compute shader with push constants containing buffer addresses
-			if (hdr->poseverttype == PV_MD5)
+			if (hdr->poseverttype == PV_MD5 || hdr->poseverttype == PV_MD5_8)
 			{
 				// MD5 skinning
 				skinning_push_constants_t pc = {
@@ -957,7 +966,9 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 					.num_verts = hdr->numverts_vbo,
 					.blend_factor = blend,
 				};
-				R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.skinning_pipeline);
+				R_BindPipeline (
+					cbx, VK_PIPELINE_BIND_POINT_COMPUTE,
+					(hdr->poseverttype == PV_MD5_8) ? vulkan_globals.skinning_8_pipeline : vulkan_globals.skinning_pipeline);
 				R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (pc), &pc);
 			}
 			else

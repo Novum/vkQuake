@@ -299,6 +299,20 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\md5.vert">
       <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\skinning.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\skinning.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.spv" md5.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DEIGHT_WEIGHT_SKINNING "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.spv" md5_8.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.spv" md5.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DEIGHT_WEIGHT_SKINNING "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.spv" md5_8.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.c</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\mesh_interpolate.comp">
       <FileType>Document</FileType>
@@ -307,9 +321,24 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     <None Include="..\..\Shaders\basic_common.inc" />
     <None Include="..\..\Shaders\wboit.inc" />
     <None Include="..\..\Shaders\mboit.inc" />
+    <None Include="..\..\Shaders\skinning.inc" />
     <None Include="..\..\Shaders\screen_effects.inc" />
     <CustomBuild Include="..\..\Shaders\skinning.comp">
       <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\skinning.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\skinning.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\skinning.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\skinning.comp.spv" skinning.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\skinning.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DEIGHT_WEIGHT_SKINNING "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\skinning_8.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\skinning_8.comp.spv" skinning_8.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\skinning_8.comp.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning.comp.spv" skinning.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DEIGHT_WEIGHT_SKINNING "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning_8.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning_8.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning_8.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning_8.comp.spv" skinning_8.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\skinning_8.comp.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\skinning.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\skinning_8.comp.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\skinning.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\skinning_8.comp.c</Outputs>
     </CustomBuild>
     <None Include="..\..\Shaders\update_lightmap.inc" />
     <None Include="..\..\Shaders\globals.inc" />

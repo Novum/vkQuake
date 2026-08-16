@@ -45,42 +45,66 @@ void  Mem_Free (const void *ptr);
 extern THREAD_LOCAL size_t thread_stack_alloc_size;
 extern size_t			   max_thread_stack_alloc_size;
 
-#define TEMP_ALLOC_TEMPLATE(type, var, size, zeroed, cond)                                     \
-	type		*var;                                                                          \
-	qboolean	 temp_alloc_##var##_on_heap = false;                                           \
-	const size_t temp_alloc_##var##_size = sizeof (type) * (size);                             \
-	if (cond)                                                                                  \
-		if ((thread_stack_alloc_size + temp_alloc_##var##_size) > max_thread_stack_alloc_size) \
-		{                                                                                      \
-			if (zeroed)                                                                        \
-				var = (type *)Mem_Alloc (temp_alloc_##var##_size);                             \
-			else                                                                               \
-				var = (type *)Mem_AllocNonZero (temp_alloc_##var##_size);                      \
-			temp_alloc_##var##_on_heap = true;                                                 \
-		}                                                                                      \
-		else                                                                                   \
-		{                                                                                      \
-			var = (type *)alloca (temp_alloc_##var##_size);                                    \
-			if (zeroed)                                                                        \
-				memset (var, 0, temp_alloc_##var##_size);                                      \
-			thread_stack_alloc_size += temp_alloc_##var##_size;                                \
-		}                                                                                      \
-	else                                                                                       \
-		var = (type *)NULL;
+#define TEMP_ALLOC_DECL(type, var)               \
+	type	*var = NULL;                         \
+	qboolean temp_alloc_##var##_on_heap = false; \
+	size_t	 temp_alloc_##var##_size = 0;
 
-#define TEMP_ALLOC(type, var, size)					  TEMP_ALLOC_TEMPLATE (type, var, size, false, true)
-#define TEMP_ALLOC_ZEROED(type, var, size)			  TEMP_ALLOC_TEMPLATE (type, var, size, true, true)
-#define TEMP_ALLOC_COND(type, var, size, cond)		  TEMP_ALLOC_TEMPLATE (type, var, size, false, cond)
-#define TEMP_ALLOC_ZEROED_COND(type, var, size, cond) TEMP_ALLOC_TEMPLATE (type, var, size, true, cond)
+#define TEMP_ALLOC_ASSIGN_IMPL(var, size, zeroed, cond)                 \
+	do                                                                  \
+	{                                                                   \
+		temp_alloc_##var##_size = sizeof (*var) * (size);               \
+		temp_alloc_##var##_on_heap = false;                             \
+		if (cond)                                                       \
+		{                                                               \
+			if ((thread_stack_alloc_size + temp_alloc_##var##_size) >   \
+				max_thread_stack_alloc_size)                            \
+			{                                                           \
+				if (zeroed)                                             \
+					var = Mem_Alloc (temp_alloc_##var##_size);          \
+				else                                                    \
+					var = Mem_AllocNonZero (temp_alloc_##var##_size);   \
+				temp_alloc_##var##_on_heap = true;                      \
+			}                                                           \
+			else                                                        \
+			{                                                           \
+				var = alloca (temp_alloc_##var##_size);                 \
+				if (zeroed)                                             \
+					memset (var, 0, temp_alloc_##var##_size);           \
+				thread_stack_alloc_size += temp_alloc_##var##_size;     \
+			}                                                           \
+		}                                                               \
+		else                                                            \
+			var = NULL;                                                 \
+	} while (false)
 
-#define TEMP_FREE(var)                                      \
-	if (temp_alloc_##var##_on_heap)                         \
-	{                                                       \
-		Mem_Free (var);                                     \
-	}                                                       \
-	else                                                    \
-	{                                                       \
-		thread_stack_alloc_size -= temp_alloc_##var##_size; \
-	}
+#define TEMP_ALLOC_TEMPLATE(type, var, size, zeroed, cond) \
+	TEMP_ALLOC_DECL (type, var)                            \
+	TEMP_ALLOC_ASSIGN_IMPL (var, size, zeroed, cond)
+
+#define TEMP_ALLOC(type, var, size)                        TEMP_ALLOC_TEMPLATE (type, var, size, false, true)
+#define TEMP_ALLOC_ZEROED(type, var, size)                 TEMP_ALLOC_TEMPLATE (type, var, size, true, true)
+#define TEMP_ALLOC_COND(type, var, size, cond)             TEMP_ALLOC_TEMPLATE (type, var, size, false, cond)
+#define TEMP_ALLOC_ZEROED_COND(type, var, size, cond)      TEMP_ALLOC_TEMPLATE (type, var, size, true, cond)
+
+#define TEMP_ALLOC_ASSIGN(var, size)                       TEMP_ALLOC_ASSIGN_IMPL (var, size, false, true)
+#define TEMP_ALLOC_ASSIGN_ZEROED(var, size)                TEMP_ALLOC_ASSIGN_IMPL (var, size, true, true)
+#define TEMP_ALLOC_ASSIGN_COND(var, size, cond)            TEMP_ALLOC_ASSIGN_IMPL (var, size, false, cond)
+#define TEMP_ALLOC_ASSIGN_ZEROED_COND(var, size, cond)     TEMP_ALLOC_ASSIGN_IMPL (var, size, true, cond)
+
+#define TEMP_FREE(var)                                              \
+	do                                                              \
+	{                                                               \
+		if (var)                                                    \
+		{                                                           \
+			if (temp_alloc_##var##_on_heap)                         \
+				Mem_Free (var);                                     \
+			else                                                    \
+				thread_stack_alloc_size -= temp_alloc_##var##_size; \
+			var = NULL;                                             \
+			temp_alloc_##var##_on_heap = false;                     \
+			temp_alloc_##var##_size = 0;                            \
+		}                                                           \
+	} while (false)
 
 // clang-format on

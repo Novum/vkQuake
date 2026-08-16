@@ -577,7 +577,13 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\skinning.comp.c">
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\skinning_8.comp.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\skinning.comp.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\skinning_8.comp.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_8bit_rt.comp.c">
@@ -592,7 +598,13 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\md5.vert.c">
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5_8.vert.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\md5.vert.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_8.vert.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_mboit_moment.frag.c">

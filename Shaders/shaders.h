@@ -55,6 +55,7 @@ DECLARE_SHADER_SPV (md5_alphatest_mboit_composite_frag);
 DECLARE_SHADER_SPV (md5_mboit_composite_msaa_frag);
 DECLARE_SHADER_SPV (md5_alphatest_mboit_composite_msaa_frag);
 DECLARE_SHADER_SPV (md5_vert);
+DECLARE_SHADER_SPV (md5_8_vert);
 DECLARE_SHADER_SPV (sky_layer_vert);
 DECLARE_SHADER_SPV (sky_layer_frag);
 DECLARE_SHADER_SPV (sky_box_frag);
@@ -84,6 +85,7 @@ DECLARE_SHADER_SPV (update_lightmap_10bit_rt_comp);
 DECLARE_SHADER_SPV (ray_debug_comp);
 DECLARE_SHADER_SPV (mesh_interpolate_comp);
 DECLARE_SHADER_SPV (skinning_comp);
+DECLARE_SHADER_SPV (skinning_8_comp);
 
 #undef DECLARE_SHADER_SPV
 

@@ -2099,6 +2099,12 @@ void R_CreatePipelineLayouts ()
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.skinning_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "skinning_pipeline_layout");
 		vulkan_globals.skinning_pipeline.layout.push_constant_range = push_constant_range;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.skinning_8_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.skinning_8_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "skinning_8_pipeline_layout");
+		vulkan_globals.skinning_8_pipeline.layout.push_constant_range = push_constant_range;
 	}
 
 #if defined(_DEBUG)
@@ -2334,8 +2340,10 @@ static VkVertexInputAttributeDescription world_vertex_input_attribute_descriptio
 static VkVertexInputBindingDescription	 world_vertex_binding_description;
 static VkVertexInputAttributeDescription alias_vertex_input_attribute_descriptions[5];
 static VkVertexInputBindingDescription	 alias_vertex_binding_descriptions[3];
-static VkVertexInputAttributeDescription md5_vertex_input_attribute_descriptions[5];
+static VkVertexInputAttributeDescription md5_vertex_input_attribute_descriptions[8];
 static VkVertexInputBindingDescription	 md5_vertex_binding_description;
+static VkVertexInputAttributeDescription md5_8_vertex_input_attribute_descriptions[13];
+static VkVertexInputBindingDescription	 md5_8_vertex_binding_description;
 
 #define DECLARE_SHADER_MODULE(name) static VkShaderModule name##_module
 #define CREATE_SHADER_MODULE(name)                                                 \
@@ -2386,6 +2394,7 @@ DECLARE_SHADER_MODULE (md5_mboit_composite_msaa_frag);
 DECLARE_SHADER_MODULE (md5_alphatest_mboit_composite_frag);
 DECLARE_SHADER_MODULE (md5_alphatest_mboit_composite_msaa_frag);
 DECLARE_SHADER_MODULE (md5_vert);
+DECLARE_SHADER_MODULE (md5_8_vert);
 DECLARE_SHADER_MODULE (sky_layer_vert);
 DECLARE_SHADER_MODULE (sky_layer_frag);
 DECLARE_SHADER_MODULE (sky_box_frag);
@@ -2415,6 +2424,7 @@ DECLARE_SHADER_MODULE (update_lightmap_10bit_rt_comp);
 DECLARE_SHADER_MODULE (ray_debug_comp);
 DECLARE_SHADER_MODULE (mesh_interpolate_comp);
 DECLARE_SHADER_MODULE (skinning_comp);
+DECLARE_SHADER_MODULE (skinning_8_comp);
 
 enum
 {
@@ -2581,10 +2591,83 @@ static void R_InitVertexAttributes ()
 		md5_vertex_input_attribute_descriptions[4].format = VK_FORMAT_R8G8B8A8_UINT;
 		md5_vertex_input_attribute_descriptions[4].location = 4;
 		md5_vertex_input_attribute_descriptions[4].offset = 36;
+		md5_vertex_input_attribute_descriptions[5].binding = 0;
+		md5_vertex_input_attribute_descriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		md5_vertex_input_attribute_descriptions[5].location = 5;
+		md5_vertex_input_attribute_descriptions[5].offset = (uint32_t)offsetof (md5vert_t, joint_position_x);
+		md5_vertex_input_attribute_descriptions[6].binding = 0;
+		md5_vertex_input_attribute_descriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		md5_vertex_input_attribute_descriptions[6].location = 6;
+		md5_vertex_input_attribute_descriptions[6].offset = (uint32_t)offsetof (md5vert_t, joint_position_y);
+		md5_vertex_input_attribute_descriptions[7].binding = 0;
+		md5_vertex_input_attribute_descriptions[7].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		md5_vertex_input_attribute_descriptions[7].location = 7;
+		md5_vertex_input_attribute_descriptions[7].offset = (uint32_t)offsetof (md5vert_t, joint_position_z);
 
 		md5_vertex_binding_description.binding = 0;
 		md5_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-		md5_vertex_binding_description.stride = 40;
+		md5_vertex_binding_description.stride = sizeof (md5vert_t);
+	}
+
+	{
+		// Matches md5vert8_t
+		md5_8_vertex_input_attribute_descriptions[0].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+		md5_8_vertex_input_attribute_descriptions[0].location = 0;
+		md5_8_vertex_input_attribute_descriptions[0].offset = 0;
+		md5_8_vertex_input_attribute_descriptions[1].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+		md5_8_vertex_input_attribute_descriptions[1].location = 1;
+		md5_8_vertex_input_attribute_descriptions[1].offset = 12;
+		md5_8_vertex_input_attribute_descriptions[2].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+		md5_8_vertex_input_attribute_descriptions[2].location = 2;
+		md5_8_vertex_input_attribute_descriptions[2].offset = 24;
+		md5_8_vertex_input_attribute_descriptions[3].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_UNORM;
+		md5_8_vertex_input_attribute_descriptions[3].location = 3;
+		md5_8_vertex_input_attribute_descriptions[3].offset = 32;
+		md5_8_vertex_input_attribute_descriptions[4].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[4].format = VK_FORMAT_R8G8B8A8_UNORM;
+		md5_8_vertex_input_attribute_descriptions[4].location = 4;
+		md5_8_vertex_input_attribute_descriptions[4].offset = 36;
+		md5_8_vertex_input_attribute_descriptions[5].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[5].format = VK_FORMAT_R8G8B8A8_UINT;
+		md5_8_vertex_input_attribute_descriptions[5].location = 5;
+		md5_8_vertex_input_attribute_descriptions[5].offset = 40;
+		md5_8_vertex_input_attribute_descriptions[6].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[6].format = VK_FORMAT_R8G8B8A8_UINT;
+		md5_8_vertex_input_attribute_descriptions[6].location = 6;
+		md5_8_vertex_input_attribute_descriptions[6].offset = 44;
+		const uint32_t influence_group_bytes = NUM_JOINT_INFLUENCES_4_WEIGHT * sizeof (float);
+		md5_8_vertex_input_attribute_descriptions[7].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[7].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		md5_8_vertex_input_attribute_descriptions[7].location = 7;
+		md5_8_vertex_input_attribute_descriptions[7].offset = (uint32_t)offsetof (md5vert8_t, joint_position_x);
+		md5_8_vertex_input_attribute_descriptions[8].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[8].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		md5_8_vertex_input_attribute_descriptions[8].location = 8;
+		md5_8_vertex_input_attribute_descriptions[8].offset = (uint32_t)offsetof (md5vert8_t, joint_position_x) + influence_group_bytes;
+		md5_8_vertex_input_attribute_descriptions[9].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[9].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		md5_8_vertex_input_attribute_descriptions[9].location = 9;
+		md5_8_vertex_input_attribute_descriptions[9].offset = (uint32_t)offsetof (md5vert8_t, joint_position_y);
+		md5_8_vertex_input_attribute_descriptions[10].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[10].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		md5_8_vertex_input_attribute_descriptions[10].location = 10;
+		md5_8_vertex_input_attribute_descriptions[10].offset = (uint32_t)offsetof (md5vert8_t, joint_position_y) + influence_group_bytes;
+		md5_8_vertex_input_attribute_descriptions[11].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[11].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		md5_8_vertex_input_attribute_descriptions[11].location = 11;
+		md5_8_vertex_input_attribute_descriptions[11].offset = (uint32_t)offsetof (md5vert8_t, joint_position_z);
+		md5_8_vertex_input_attribute_descriptions[12].binding = 0;
+		md5_8_vertex_input_attribute_descriptions[12].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		md5_8_vertex_input_attribute_descriptions[12].location = 12;
+		md5_8_vertex_input_attribute_descriptions[12].offset = (uint32_t)offsetof (md5vert8_t, joint_position_z) + influence_group_bytes;
+
+		md5_8_vertex_binding_description.binding = 0;
+		md5_8_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		md5_8_vertex_binding_description.stride = sizeof (md5vert8_t);
 	}
 }
 
@@ -2942,6 +3025,7 @@ static void R_CreateAnimComputePipelines ()
 
 	R_CreateComputePipeline (&vulkan_globals.mesh_interpolate_pipeline, mesh_interpolate_comp_module, 0, NULL, "mesh_interpolate_pipeline");
 	R_CreateComputePipeline (&vulkan_globals.skinning_pipeline, skinning_comp_module, 0, NULL, "skinning_pipeline");
+	R_CreateComputePipeline (&vulkan_globals.skinning_8_pipeline, skinning_8_comp_module, 0, NULL, "skinning_8_pipeline");
 }
 
 /*
@@ -3516,7 +3600,11 @@ static void R_CreateAliasPipelines ()
 R_CreateMD5Pipelines
 ===============
 */
-static void R_CreateMD5Pipelines ()
+static void R_CreateMD5PipelineSet (
+	vulkan_pipeline_t pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT], vulkan_pipeline_t wboit_pipelines[MODEL_PIPELINE_COUNT],
+	vulkan_pipeline_t mboit_moment_pipelines[MODEL_PIPELINE_COUNT], vulkan_pipeline_t mboit_composite_pipelines[MODEL_PIPELINE_COUNT],
+	VkVertexInputAttributeDescription *vertex_attributes, uint32_t vertex_attribute_count, VkVertexInputBindingDescription *vertex_binding,
+	VkShaderModule vertex_module, const char *name)
 {
 	pipeline_create_infos_t base;
 	R_InitDefaultStates (&base);
@@ -3524,12 +3612,12 @@ static void R_CreateMD5Pipelines ()
 	base.depth_stencil_state.depthTestEnable = VK_TRUE;
 	base.depth_stencil_state.depthWriteEnable = VK_TRUE;
 
-	base.vertex_input_state.vertexAttributeDescriptionCount = 5;
-	base.vertex_input_state.pVertexAttributeDescriptions = md5_vertex_input_attribute_descriptions;
+	base.vertex_input_state.vertexAttributeDescriptionCount = vertex_attribute_count;
+	base.vertex_input_state.pVertexAttributeDescriptions = vertex_attributes;
 	base.vertex_input_state.vertexBindingDescriptionCount = 1;
-	base.vertex_input_state.pVertexBindingDescriptions = &md5_vertex_binding_description;
+	base.vertex_input_state.pVertexBindingDescriptions = vertex_binding;
 
-	base.shader_stages[0].module = md5_vert_module;
+	base.shader_stages[0].module = vertex_module;
 
 	const vulkan_pipeline_layout_t layout = vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout;
 
@@ -3546,8 +3634,7 @@ static void R_CreateMD5Pipelines ()
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_frag_module : alias_frag_module;
 			infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
 			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
-			R_CreateGraphicsPipeline (
-				&vulkan_globals.md5_pipelines[variant][pipeline_index], &infos, layout, va (variant ? "md5_main_oit %d" : "md5 %d", pipeline_index));
+			R_CreateGraphicsPipeline (&pipelines[variant][pipeline_index], &infos, layout, va (variant ? "%s_main_oit %d" : "%s %d", name, pipeline_index));
 		}
 
 		if (alpha_blend)
@@ -3559,7 +3646,7 @@ static void R_CreateMD5Pipelines ()
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_oit_frag_module : alias_oit_frag_module;
 			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 			R_SetWBOITBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (&vulkan_globals.md5_wboit_pipelines[pipeline_index], &infos, layout, va ("md5_wboit %d", pipeline_index));
+			R_CreateGraphicsPipeline (&wboit_pipelines[pipeline_index], &infos, layout, va ("%s_wboit %d", name, pipeline_index));
 
 			R_CopyPipelineCreateInfos (&infos, &base);
 			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
@@ -3568,7 +3655,7 @@ static void R_CreateMD5Pipelines ()
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_mboit_moment_frag_module : alias_mboit_moment_frag_module;
 			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 			R_SetMBOITMomentBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (&vulkan_globals.md5_mboit_moment_pipelines[pipeline_index], &infos, layout, va ("md5_mboit_moment %d", pipeline_index));
+			R_CreateGraphicsPipeline (&mboit_moment_pipelines[pipeline_index], &infos, layout, va ("%s_mboit_moment %d", name, pipeline_index));
 
 			R_CopyPipelineCreateInfos (&infos, &base);
 			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
@@ -3581,8 +3668,7 @@ static void R_CreateMD5Pipelines ()
 												: (alpha_test ? md5_alphatest_mboit_composite_msaa_frag_module : md5_mboit_composite_msaa_frag_module);
 			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 			R_SetMBOITCompositeBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (
-				&vulkan_globals.md5_mboit_composite_pipelines[pipeline_index], &infos, layout, va ("md5_mboit_composite %d", pipeline_index));
+			R_CreateGraphicsPipeline (&mboit_composite_pipelines[pipeline_index], &infos, layout, va ("%s_mboit_composite %d", name, pipeline_index));
 		}
 	}
 
@@ -3604,11 +3690,22 @@ static void R_CreateMD5Pipelines ()
 				infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
 				infos.shader_stages[1].module = showtris_frag_module;
 				R_CreateGraphicsPipeline (
-					&vulkan_globals.md5_pipelines[variant][pipeline_index], &infos, layout,
-					va (variant ? "md5_showtris_main_oit %d" : "md5_showtris %d", pipeline_index));
+					&pipelines[variant][pipeline_index], &infos, layout, va (variant ? "%s_showtris_main_oit %d" : "%s_showtris %d", name, pipeline_index));
 			}
 		}
 	}
+}
+
+static void R_CreateMD5Pipelines ()
+{
+	R_CreateMD5PipelineSet (
+		vulkan_globals.md5_pipelines, vulkan_globals.md5_wboit_pipelines, vulkan_globals.md5_mboit_moment_pipelines,
+		vulkan_globals.md5_mboit_composite_pipelines, md5_vertex_input_attribute_descriptions, countof (md5_vertex_input_attribute_descriptions),
+		&md5_vertex_binding_description, md5_vert_module, "md5");
+	R_CreateMD5PipelineSet (
+		vulkan_globals.md5_8_pipelines, vulkan_globals.md5_8_wboit_pipelines, vulkan_globals.md5_8_mboit_moment_pipelines,
+		vulkan_globals.md5_8_mboit_composite_pipelines, md5_8_vertex_input_attribute_descriptions, countof (md5_8_vertex_input_attribute_descriptions),
+		&md5_8_vertex_binding_description, md5_8_vert_module, "md5_8");
 }
 
 /*
@@ -3764,6 +3861,7 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (md5_alphatest_mboit_composite_frag);
 	CREATE_SHADER_MODULE_COND (md5_alphatest_mboit_composite_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE (md5_vert);
+	CREATE_SHADER_MODULE (md5_8_vert);
 	CREATE_SHADER_MODULE (sky_layer_vert);
 	CREATE_SHADER_MODULE (sky_layer_frag);
 	CREATE_SHADER_MODULE (sky_box_frag);
@@ -3795,6 +3893,7 @@ static void R_CreateShaderModules ()
 #endif
 	CREATE_SHADER_MODULE_COND (mesh_interpolate_comp, vulkan_globals.ray_query);
 	CREATE_SHADER_MODULE_COND (skinning_comp, vulkan_globals.ray_query);
+	CREATE_SHADER_MODULE_COND (skinning_8_comp, vulkan_globals.ray_query);
 }
 
 /*
@@ -3834,6 +3933,7 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (md5_alphatest_mboit_composite_frag);
 	DESTROY_SHADER_MODULE (md5_alphatest_mboit_composite_msaa_frag);
 	DESTROY_SHADER_MODULE (md5_vert);
+	DESTROY_SHADER_MODULE (md5_8_vert);
 	DESTROY_SHADER_MODULE (sky_layer_vert);
 	DESTROY_SHADER_MODULE (sky_layer_frag);
 	DESTROY_SHADER_MODULE (sky_box_frag);
@@ -3863,6 +3963,7 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (ray_debug_comp);
 	DESTROY_SHADER_MODULE (mesh_interpolate_comp);
 	DESTROY_SHADER_MODULE (skinning_comp);
+	DESTROY_SHADER_MODULE (skinning_8_comp);
 }
 
 /*
@@ -4014,6 +4115,8 @@ void R_DestroyPipelines (void)
 			vulkan_globals.alias_pipelines[variant][i].handle = VK_NULL_HANDLE;
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_pipelines[variant][i].handle, NULL);
 			vulkan_globals.md5_pipelines[variant][i].handle = VK_NULL_HANDLE;
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_8_pipelines[variant][i].handle, NULL);
+			vulkan_globals.md5_8_pipelines[variant][i].handle = VK_NULL_HANDLE;
 		}
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_wboit_pipelines[i].handle, NULL);
 		vulkan_globals.alias_wboit_pipelines[i].handle = VK_NULL_HANDLE;
@@ -4027,6 +4130,12 @@ void R_DestroyPipelines (void)
 		vulkan_globals.md5_mboit_moment_pipelines[i].handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_mboit_composite_pipelines[i].handle, NULL);
 		vulkan_globals.md5_mboit_composite_pipelines[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_8_wboit_pipelines[i].handle, NULL);
+		vulkan_globals.md5_8_wboit_pipelines[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_8_mboit_moment_pipelines[i].handle, NULL);
+		vulkan_globals.md5_8_mboit_moment_pipelines[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_8_mboit_composite_pipelines[i].handle, NULL);
+		vulkan_globals.md5_8_mboit_composite_pipelines[i].handle = VK_NULL_HANDLE;
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.postprocess_pipeline.handle, NULL);
 	vulkan_globals.postprocess_pipeline.handle = VK_NULL_HANDLE;
@@ -4088,6 +4197,11 @@ void R_DestroyPipelines (void)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.skinning_pipeline.handle, NULL);
 		vulkan_globals.skinning_pipeline.handle = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.skinning_8_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.skinning_8_pipeline.handle, NULL);
+		vulkan_globals.skinning_8_pipeline.handle = VK_NULL_HANDLE;
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.indirect_draw_pipeline.handle, NULL);
 	vulkan_globals.indirect_draw_pipeline.handle = VK_NULL_HANDLE;
