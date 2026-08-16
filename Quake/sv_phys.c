@@ -795,6 +795,24 @@ static qboolean SV_TouchingPusherAtOrigin (edict_t *ent, edict_t *pusher, const 
 	return SV_TracePusherFloorAtOrigin (ent, pusher, pusher_origin, PUSH_CONTACT_EPSILON, &trace);
 }
 
+static float SV_PusherMoveTimeThisFrame (edict_t *pusher)
+{
+	float thinktime;
+	float movetime;
+
+	thinktime = pusher->v.nextthink;
+	if (thinktime < pusher->v.ltime + host_frametime)
+	{
+		movetime = thinktime - pusher->v.ltime;
+		if (movetime < 0)
+			movetime = 0;
+	}
+	else
+		movetime = host_frametime;
+
+	return movetime;
+}
+
 static qboolean SV_IsClientMoveFramePusher (edict_t *pusher)
 {
 	if (!pusher || pusher->free)
@@ -802,6 +820,13 @@ static qboolean SV_IsClientMoveFramePusher (edict_t *pusher)
 	if (pusher->v.movetype != MOVETYPE_PUSH || pusher->v.solid != SOLID_BSP)
 		return false;
 	return true;
+}
+
+static qboolean SV_PusherWillMoveThisFrame (edict_t *pusher)
+{
+	if (!pusher->v.velocity[0] && !pusher->v.velocity[1] && !pusher->v.velocity[2])
+		return false;
+	return SV_PusherMoveTimeThisFrame (pusher) > 0;
 }
 
 static edict_t *SV_GetGroundPusher (edict_t *ent)
@@ -975,7 +1000,7 @@ static void SV_CaptureClientMoveFrameBeforeQC (edict_t *ent, sv_client_move_fram
 	}
 
 	pusher = SV_GetGroundPusher (ent);
-	if (pusher && SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
+	if (pusher && SV_PusherWillMoveThisFrame (pusher) && SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
 		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_GROUND, pusher->v.velocity, trace.plane.normal);
 }
 
@@ -1258,24 +1283,6 @@ static trace_t SV_PushEntityToIgnoringPusher (edict_t *ent, edict_t *pusher, vec
 	trace = SV_PushEntityTo (ent, end);
 	pusher->v.solid = solid_backup;
 	return trace;
-}
-
-static float SV_PusherMoveTimeThisFrame (edict_t *pusher)
-{
-	float thinktime;
-	float movetime;
-
-	thinktime = pusher->v.nextthink;
-	if (thinktime < pusher->v.ltime + host_frametime)
-	{
-		movetime = thinktime - pusher->v.ltime;
-		if (movetime < 0)
-			movetime = 0;
-	}
-	else
-		movetime = host_frametime;
-
-	return movetime;
 }
 
 static void SV_EndClientMoveFrame (edict_t *ent, const sv_client_move_frame_t *move_frame)
