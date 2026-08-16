@@ -407,21 +407,17 @@ void Host_InitLocal (void)
 ===============
 Host_WriteConfiguration
 
-Writes key bindings and archived cvars to config.cfg
+Writes key bindings and archived cvars to the user config
 ===============
 */
 void Host_WriteConfiguration (void)
 {
 	FILE *f = NULL;
 
-	// dedicated servers initialize the host but don't parse and set the
-	// config.cfg cvars
+	// dedicated servers initialize the host but don't parse and set the config cvars
 	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
-		if (multiuser)
-			f = COM_FOpenPrefFile ("config.cfg", "w");
-		else
-			f = Sys_fopen (va ("%s/" CONFIG_NAME, com_gamedir), "w");
+		f = COM_FOpenPrefFile (CONFIG_NAME, "w");
 		if (!f)
 		{
 			Con_Printf ("Couldn't write " CONFIG_NAME ".\n");

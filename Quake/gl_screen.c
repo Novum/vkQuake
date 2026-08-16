@@ -584,7 +584,7 @@ void SCR_Init (void)
 	Cvar_SetCallback (&scr_relconscale, &SCR_UpdateRelativeScale_f);
 	SCR_UpdateRelativeScale ();
 
-	if (CFG_OpenConfig ("config.cfg") == 0)
+	if (CFG_OpenConfig (CONFIG_NAME) == 0)
 	{
 		const char *early_read[] = {"scr_relativescale"};
 		CFG_ReadCvars (early_read, 1);

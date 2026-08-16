@@ -270,8 +270,10 @@ Cmd_Exec_f
 */
 void Cmd_Exec_f (void)
 {
-	char *buf = NULL;
-	FILE *f = NULL;
+	char	   *buf = NULL;
+	const char *display_path;
+	const char *path;
+	qboolean	legacy_config_alias;
 
 	if (Cmd_Argc () != 2)
 	{
@@ -279,35 +281,46 @@ void Cmd_Exec_f (void)
 		return;
 	}
 
-	if (multiuser)
-		f = COM_FOpenPrefFile (Cmd_Argv (1), "rb");
-	qboolean read_from_pref_path = false;
-	if (f)
-	{
-		qfilesize_t length = Sys_filelength (f);
+	path = Cmd_Argv (1);
+	display_path = path;
+	legacy_config_alias = !q_strcasecmp (path, "config.cfg") || !q_strcasecmp (path, CONFIG_NAME);
 
-		buf = Mem_Alloc (length + 1);
-		if (fread (buf, 1, length, f) != length)
-			Mem_Free (buf);
-		else
-		{
-			buf[length] = 0;
-			read_from_pref_path = true;
-		}
-		fclose (f);
-	}
-	if (!read_from_pref_path)
+	if (legacy_config_alias)
 	{
-		buf = (char *)COM_LoadFile (Cmd_Argv (1), NULL);
-		if (!buf)
+		FILE	   *f;
+		qfilesize_t length;
+
+		// "exec config.cfg" executes vkQuake.cfg from the user config directory.
+		f = COM_FOpenPrefFile (CONFIG_NAME, "rb");
+		if (f)
 		{
-			if (cmd_warncmd.value)
-				Con_Printf ("couldn't exec %s\n", Cmd_Argv (1));
-			return;
+			length = Sys_filelength (f);
+			buf = Mem_Alloc (length + 1);
+			if (fread (buf, 1, length, f) != length)
+			{
+				Mem_Free (buf);
+				buf = NULL;
+			}
+			else
+			{
+				buf[length] = 0;
+				display_path = CONFIG_NAME;
+			}
+			fclose (f);
 		}
 	}
+	else
+		buf = (char *)COM_LoadFile (path, NULL);
+
+	if (!buf)
+	{
+		if (cmd_warncmd.value)
+			Con_Printf ("couldn't exec %s\n", path);
+		return;
+	}
+
 	if (cmd_warncmd.value)
-		Con_Printf ("execing %s\n", Cmd_Argv (1));
+		Con_Printf ("execing %s\n", display_path);
 
 	Cbuf_InsertText ("\n"); // just in case there was no trailing \n.
 	Cbuf_InsertText (buf);

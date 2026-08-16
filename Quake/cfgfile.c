@@ -27,7 +27,7 @@ static fshandle_t *cfg_file;
 ===================
 CFG_ReadCvars
 
-used for doing early reads from config.cfg searching the list
+used for doing early reads from the config file searching the list
 of given cvar names for the user-set values. a temporary
 solution until we merge a better cvar system.
 the num_vars argument must be the exact number of strings in the
@@ -158,8 +158,13 @@ int CFG_OpenConfig (const char *cfg_name)
 
 	CFG_CloseConfig ();
 
-	if (multiuser)
-		f = COM_FOpenPrefFile ("config.cfg", "rb");
+	if (!q_strcasecmp (cfg_name, CONFIG_NAME))
+	{
+		f = COM_FOpenPrefFile (CONFIG_NAME, "rb");
+		if (!f)
+			return -1;
+	}
+
 	if (f)
 	{
 		length = Sys_filelength (f);
