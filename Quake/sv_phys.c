@@ -1281,7 +1281,7 @@ static float SV_PusherMoveTimeThisFrame (edict_t *pusher)
 static void SV_EndClientMoveFrame (edict_t *ent, const sv_client_move_frame_t *move_frame)
 {
 	float  movetime;
-	vec3_t move, neworigin, dest;
+	vec3_t move, dest;
 
 	if (!SV_ClientMoveFrameIsAirbornePusher (move_frame))
 		return;
@@ -1292,7 +1292,6 @@ static void SV_EndClientMoveFrame (edict_t *ent, const sv_client_move_frame_t *m
 	if (movetime > 0)
 	{
 		VectorScale (move_frame->pusher->v.velocity, movetime, move);
-		VectorAdd (move_frame->pusher->v.origin, move, neworigin);
 		if (move[0] || move[1] || move[2])
 		{
 			VectorAdd (ent->v.origin, move, dest);
