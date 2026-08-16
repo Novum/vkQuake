@@ -200,6 +200,31 @@ void R_AddEfrags (entity_t *ent)
 	R_CheckEfrags (); // johnfitz
 }
 
+void R_RebuildAllEfrags (void)
+{
+	if (!cl.worldmodel || !cl.static_entities)
+		return;
+
+	for (int i = 0; i < cl.worldmodel->numleafs; i++)
+		cl.worldmodel->leafs[i].efrags = NULL;
+
+	for (int i = 0; i < cl.num_efragallocs; i++)
+		Mem_Free (cl.efrag_allocs[i]);
+	Mem_Free (cl.efrag_allocs);
+	cl.efrag_allocs = NULL;
+	cl.num_efragallocs = 0;
+	cl.free_efrags = NULL;
+	cl.num_efrags = 0;
+
+	for (int i = 0; i < cl.num_statics; i++)
+	{
+		entity_t *ent = cl.static_entities[i];
+		ent->visframe = -1;
+		if (ent->model)
+			R_AddEfrags (ent);
+	}
+}
+
 /*
 ================
 R_StoreEfrags -- johnfitz -- pointless switch statement removed.
@@ -250,6 +275,7 @@ void R_StoreEfrags (efrag_t **ppefrag)
 					continue;
 			}
 #endif
+			R_AllocateEntityBLAS (pent);
 			cl_visedicts[cl_numvisedicts++] = pent;
 			pent->visframe = r_framecount;
 		}

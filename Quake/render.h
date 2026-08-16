@@ -206,6 +206,7 @@ void R_ViewChanged (vrect_t *pvrect, int lineadj, float aspect);
 
 void R_CheckEfrags (void); // johnfitz
 void R_AddEfrags (entity_t *ent);
+void R_RebuildAllEfrags (void);
 
 void R_NewMap (void);
 

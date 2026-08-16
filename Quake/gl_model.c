@@ -120,6 +120,8 @@ static void Mod_EnhancedModels_f (cvar_t *var)
 	int		  i;
 	qmodel_t *mod;
 
+	R_FreeAllEntityBLASes ();
+
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
 		if (mod->type != mod_alias)
@@ -138,6 +140,7 @@ static void Mod_EnhancedModels_f (cvar_t *var)
 	}
 
 	Mod_RefreshSkins_f (var);
+	R_RebuildAllEfrags ();
 	InvalidateTraceLineCache ();
 }
 

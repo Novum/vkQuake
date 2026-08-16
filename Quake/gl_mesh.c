@@ -650,7 +650,7 @@ void GLMesh_DeleteAllMeshBuffers (void)
 ================
 R_AllocateEntityBLAS
 
-Allocate acceleration structure for an entity with an alias model.
+Allocate acceleration structure for an animated entity model.
 Handles MDL (PV_QUAKE1), MD3 (PV_QUAKE3), and MD5 (PV_MD5) models.
 ================
 */
@@ -672,7 +672,7 @@ void R_AllocateEntityBLAS (entity_t *e)
 	if (num_triangles == 0)
 		return;
 
-	// Check if model or geometry changed - need to reallocate BLAS
+	// Check if the entity switched models; enhanced model reloads free all entity BLASes explicitly.
 	if (e->blas_data && (e->blas_data->model != e->model))
 		R_FreeEntityBLAS (e);
 
