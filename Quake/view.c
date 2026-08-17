@@ -37,18 +37,18 @@ cvar_t scr_ofsy = {"scr_ofsy", "0", CVAR_NONE};
 cvar_t scr_ofsz = {"scr_ofsz", "0", CVAR_NONE};
 
 cvar_t cl_rollspeed = {"cl_rollspeed", "200", CVAR_NONE};
-cvar_t cl_rollangle = {"cl_rollangle", "2.0", CVAR_ARCHIVE};
+cvar_t cl_rollangle = {"cl_rollangle", "2.0", CVAR_ARCHIVE_GAME};
 
-cvar_t cl_bob = {"cl_bob", "0.02", CVAR_ARCHIVE};
+cvar_t cl_bob = {"cl_bob", "0.02", CVAR_ARCHIVE_GAME};
 cvar_t cl_bobcycle = {"cl_bobcycle", "0.6", CVAR_NONE};
 cvar_t cl_bobup = {"cl_bobup", "0.5", CVAR_NONE};
 
 cvar_t v_kicktime = {"v_kicktime", "0.5", CVAR_NONE};
 cvar_t v_kickroll = {"v_kickroll", "0.6", CVAR_NONE};
 cvar_t v_kickpitch = {"v_kickpitch", "0.6", CVAR_NONE};
-cvar_t v_gunkick = {"v_gunkick", "1", CVAR_ARCHIVE}; // johnfitz
+cvar_t v_gunkick = {"v_gunkick", "1", CVAR_ARCHIVE_GAME}; // johnfitz
 
-cvar_t v_autopitch = {"v_autopitch", "0", CVAR_ARCHIVE};
+cvar_t v_autopitch = {"v_autopitch", "0", CVAR_ARCHIVE_GAME};
 
 cvar_t v_iyaw_cycle = {"v_iyaw_cycle", "2", CVAR_NONE};
 cvar_t v_iroll_cycle = {"v_iroll_cycle", "0.5", CVAR_NONE};
@@ -59,8 +59,8 @@ cvar_t v_ipitch_level = {"v_ipitch_level", "0.3", CVAR_NONE};
 
 cvar_t v_idlescale = {"v_idlescale", "0", CVAR_NONE};
 
-cvar_t crosshair = {"crosshair", "1", CVAR_ARCHIVE};
-cvar_t crosshair_def = {"crosshair_def", "0", CVAR_ARCHIVE};
+cvar_t crosshair = {"crosshair", "1", CVAR_ARCHIVE_GAME};
+cvar_t crosshair_def = {"crosshair_def", "0", CVAR_ARCHIVE_GAME};
 
 cvar_t gl_cshiftpercent = {"gl_cshiftpercent", "100", CVAR_NONE};
 cvar_t gl_cshiftpercent_contents = {"gl_cshiftpercent_contents", "100", CVAR_NONE}; // QuakeSpasm
@@ -68,7 +68,7 @@ cvar_t gl_cshiftpercent_damage = {"gl_cshiftpercent_damage", "100", CVAR_NONE};	
 cvar_t gl_cshiftpercent_bonus = {"gl_cshiftpercent_bonus", "100", CVAR_NONE};		// QuakeSpasm
 cvar_t gl_cshiftpercent_powerup = {"gl_cshiftpercent_powerup", "100", CVAR_NONE};	// QuakeSpasm
 
-cvar_t r_viewmodel_quake = {"r_viewmodel_quake", "0", CVAR_ARCHIVE};
+cvar_t r_viewmodel_quake = {"r_viewmodel_quake", "0", CVAR_ARCHIVE_GAME};
 
 extern int in_forward, in_forward2, in_back;
 

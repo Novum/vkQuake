@@ -41,7 +41,7 @@ static qboolean onground;
 static usercmd_t cmd;
 
 cvar_t sv_idealpitchscale = {"sv_idealpitchscale", "0.8", CVAR_NONE};
-cvar_t sv_altnoclip = {"sv_altnoclip", "1", CVAR_ARCHIVE}; // johnfitz
+cvar_t sv_altnoclip = {"sv_altnoclip", "1", CVAR_ARCHIVE_GAME}; // johnfitz
 
 /*
 ===============

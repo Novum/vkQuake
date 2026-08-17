@@ -87,8 +87,8 @@ cvar_t coop = {"coop", "0", CVAR_NONE};				// 0 or 1
 
 cvar_t pausable = {"pausable", "1", CVAR_NONE};
 
-cvar_t autoload = {"autoload", "1", CVAR_ARCHIVE};
-cvar_t autofastload = {"autofastload", "0", CVAR_ARCHIVE};
+cvar_t autoload = {"autoload", "1", CVAR_ARCHIVE_GAME};
+cvar_t autofastload = {"autofastload", "0", CVAR_ARCHIVE_GAME};
 
 cvar_t developer = {"developer", "0", CVAR_NONE};
 cvar_t map_checks = {"map_checks", "0", CVAR_NONE};
@@ -409,12 +409,13 @@ void Host_InitLocal (void)
 ===============
 Host_WriteConfiguration
 
-Writes key bindings and archived cvars to the user config
+Writes archived cvars to the global config and game-local state to the
+current game config
 ===============
 */
 void Host_WriteConfiguration (void)
 {
-	FILE *f = NULL;
+	FILE *f;
 
 	// dedicated servers initialize the host but don't parse and set the config cvars
 	if (host_initialized && !isDedicated && !host_parms->errstate)
@@ -422,20 +423,26 @@ void Host_WriteConfiguration (void)
 		f = COM_FOpenPrefFile (CONFIG_NAME, "w");
 		if (!f)
 		{
-			Con_Printf ("Couldn't write " CONFIG_NAME ".\n");
+			Con_Printf ("Couldn't write global " CONFIG_NAME ".\n");
 			return;
 		}
 
 		// VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
 
-		Key_WriteBindings (f);
-		Cvar_WriteVariables (f);
-
-		// johnfitz -- extra commands to preserve state
+		Cvar_WriteVariables (f, CVAR_ARCHIVE);
 		fprintf (f, "vid_restart\n");
-		fprintf (f, "+mlook\n"); // always enable mouse look on config, can be overriden by -mlook in autoexec.cfg
-		// johnfitz
+		fclose (f);
 
+		f = Sys_fopen (va ("%s/" CONFIG_NAME, com_gamedir), "w");
+		if (!f)
+		{
+			Con_Printf ("Couldn't write game " CONFIG_NAME ".\n");
+			return;
+		}
+
+		Key_WriteBindings (f);
+		Cvar_WriteVariables (f, CVAR_ARCHIVE_GAME);
+		fprintf (f, "+mlook\n"); // always enable mouse look on config, can be overriden by -mlook in autoexec.cfg
 		fclose (f);
 	}
 }

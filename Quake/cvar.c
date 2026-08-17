@@ -63,7 +63,9 @@ void Cvar_List_f (void)
 		{
 			continue;
 		}
-		Con_SafePrintf ("%s%s %s \"%s\"\n", (cvar->flags & CVAR_ARCHIVE) ? "*" : " ", (cvar->flags & CVAR_NOTIFY) ? "s" : " ", cvar->name, cvar->string);
+		Con_SafePrintf (
+			"%s%s %s \"%s\"\n", (cvar->flags & (CVAR_ARCHIVE | CVAR_ARCHIVE_GAME)) ? "*" : " ", (cvar->flags & CVAR_NOTIFY) ? "s" : " ", cvar->name,
+			cvar->string);
 		count++;
 	}
 
@@ -283,7 +285,7 @@ void Cvar_ResetCfg_f (void)
 	cvar_t *var;
 
 	for (var = cvar_vars; var; var = var->next)
-		if (var->flags & CVAR_ARCHIVE)
+		if (var->flags & (CVAR_ARCHIVE | CVAR_ARCHIVE_GAME))
 			Cvar_Reset (var->name);
 }
 
@@ -788,13 +790,13 @@ Writes lines containing "set variable value" for all variables
 with the archive flag set to true.
 ============
 */
-void Cvar_WriteVariables (FILE *f)
+void Cvar_WriteVariables (FILE *f, cvarflags_t archive_flag)
 {
 	cvar_t *var;
 
 	for (var = cvar_vars; var; var = var->next)
 	{
-		if (var->flags & CVAR_ARCHIVE)
+		if (var->flags & archive_flag)
 		{
 			if (var->flags & (CVAR_USERDEFINED | CVAR_SETA))
 				fprintf (f, "seta ");

@@ -29,7 +29,7 @@
 #define MUSIC_DIRNAME "music"
 
 static qboolean bgmloop;
-cvar_t			bgm_extmusic = {"bgm_extmusic", "1", CVAR_ARCHIVE};
+cvar_t			bgm_extmusic = {"bgm_extmusic", "1", CVAR_ARCHIVE_GAME};
 
 static qboolean no_extmusic = false;
 static float	old_volume = -1.0f;

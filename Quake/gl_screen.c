@@ -92,14 +92,14 @@ cvar_t scr_showfps = {"scr_showfps", "0", CVAR_ARCHIVE};
 cvar_t scr_clock = {"scr_clock", "0", CVAR_NONE};
 cvar_t scr_autoclock = {"scr_autoclock", "1", CVAR_ARCHIVE};
 cvar_t scr_usekfont = {"scr_usekfont", "0", CVAR_NONE}; // 2021 re-release
-cvar_t scr_style = {"scr_style", "0", CVAR_ARCHIVE};
+cvar_t scr_style = {"scr_style", "0", CVAR_ARCHIVE_GAME};
 
-cvar_t scr_viewsize = {"viewsize", "100", CVAR_ARCHIVE};
-cvar_t scr_viewsize_allow_shrinking = {"viewsize_allow_shrinking", "0", CVAR_ARCHIVE};
-cvar_t scr_fov = {"fov", "90", CVAR_ARCHIVE}; // 10 - 170
-cvar_t scr_fov_adapt = {"fov_adapt", "1", CVAR_ARCHIVE};
-cvar_t scr_zoomfov = {"zoom_fov", "30", CVAR_ARCHIVE}; // 10 - 170
-cvar_t scr_zoomspeed = {"zoom_speed", "8", CVAR_ARCHIVE};
+cvar_t scr_viewsize = {"viewsize", "100", CVAR_ARCHIVE_GAME};
+cvar_t scr_viewsize_allow_shrinking = {"viewsize_allow_shrinking", "0", CVAR_ARCHIVE_GAME};
+cvar_t scr_fov = {"fov", "90", CVAR_ARCHIVE_GAME}; // 10 - 170
+cvar_t scr_fov_adapt = {"fov_adapt", "1", CVAR_ARCHIVE_GAME};
+cvar_t scr_zoomfov = {"zoom_fov", "30", CVAR_ARCHIVE_GAME}; // 10 - 170
+cvar_t scr_zoomspeed = {"zoom_speed", "8", CVAR_ARCHIVE_GAME};
 cvar_t scr_conspeed = {"scr_conspeed", "500", CVAR_ARCHIVE};
 cvar_t scr_conanim = {"scr_conanim", "0", CVAR_ARCHIVE};
 cvar_t scr_centertime = {"scr_centertime", "2", CVAR_NONE};
@@ -107,7 +107,7 @@ cvar_t scr_showturtle = {"showturtle", "0", CVAR_NONE};
 cvar_t scr_showpause = {"showpause", "1", CVAR_NONE};
 cvar_t scr_printspeed = {"scr_printspeed", "8", CVAR_NONE};
 
-cvar_t cl_gun_fovscale = {"cl_gun_fovscale", "1", CVAR_ARCHIVE}; // Qrack
+cvar_t cl_gun_fovscale = {"cl_gun_fovscale", "1", CVAR_ARCHIVE_GAME}; // Qrack
 
 // All scaling is done relative to resolution with scr_relativescale
 cvar_t scr_relativescale = {"scr_relativescale", "2", CVAR_ARCHIVE};

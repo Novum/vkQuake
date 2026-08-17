@@ -28,7 +28,7 @@ The engine has a few builtins.
 
 #include "quakedef.h"
 
-cvar_t r_fteparticles = {"r_fteparticles", "1", CVAR_ARCHIVE};
+cvar_t r_fteparticles = {"r_fteparticles", "1", CVAR_ARCHIVE_GAME};
 
 #ifdef PSET_SCRIPT
 #define USE_DECALS

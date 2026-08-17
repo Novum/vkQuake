@@ -34,8 +34,8 @@ static void		 Mod_LoadMD3Model (qmodel_t *mod, const void *buffer);
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 static void		 Mod_FreeModelMemory (qmodel_t *mod);
 
-cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
-cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
+cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE_GAME};
+cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE_GAME};
 
 // wad_external_textures = 1 enable loading of external WAD textures, 0 to forbid it for debug purposes.
 cvar_t wad_external_textures = {"wad_external_textures", "1", CVAR_NONE};
@@ -49,7 +49,7 @@ cvar_t r_allow_replacement_md5models = {"r_allow_replacement_md5models", "1", CV
 // r_allow_replacement_md3models = 1 allow loading of MD3 replacement models if available, 0 to forbid it for debug purposes.
 cvar_t r_allow_replacement_md3models = {"r_allow_replacement_md3models", "1", CVAR_NONE};
 
-cvar_t r_enhancedmodels = {"r_enhancedmodels", "1", CVAR_ARCHIVE}; // controlled in Menu with Models: enhanced (1) / classic (0)
+cvar_t r_enhancedmodels = {"r_enhancedmodels", "1", CVAR_ARCHIVE_GAME}; // controlled in Menu with Models: enhanced (1) / classic (0)
 
 static byte *mod_novis;
 static int	 mod_novis_capacity;

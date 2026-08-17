@@ -263,11 +263,6 @@ void Cmd_StuffCmds_f (void)
 	Cbuf_InsertText (cmds);
 }
 
-/*
-===============
-Cmd_Exec_f
-===============
-*/
 void Cmd_Exec_f (void)
 {
 	char	   *buf = NULL;
@@ -288,9 +283,9 @@ void Cmd_Exec_f (void)
 	if (legacy_config_alias)
 	{
 		FILE	   *f;
+		char	   *game_buf;
 		qfilesize_t length;
 
-		// "exec config.cfg" executes vkQuake.cfg from the user config directory.
 		f = COM_FOpenPrefFile (CONFIG_NAME, "rb");
 		if (f)
 		{
@@ -302,12 +297,34 @@ void Cmd_Exec_f (void)
 				buf = NULL;
 			}
 			else
-			{
 				buf[length] = 0;
-				display_path = CONFIG_NAME;
-			}
 			fclose (f);
 		}
+		game_buf = (char *)COM_LoadFile (path, NULL);
+		if (!buf && !game_buf)
+		{
+			if (cmd_warncmd.value)
+				Con_Printf ("couldn't exec %s\n", path);
+			return;
+		}
+
+		if (cmd_warncmd.value)
+		{
+			if (buf)
+				Con_Printf ("execing %s\n", CONFIG_NAME);
+			if (game_buf)
+				Con_Printf ("execing %s\n", path);
+		}
+
+		Cbuf_InsertText ("\n"); // just in case there was no trailing \n.
+		if (game_buf)
+			Cbuf_InsertText (game_buf);
+		if (buf)
+			Cbuf_InsertText (buf);
+
+		Mem_Free (game_buf);
+		Mem_Free (buf);
+		return;
 	}
 	else
 		buf = (char *)COM_LoadFile (path, NULL);

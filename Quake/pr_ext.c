@@ -2499,7 +2499,7 @@ static void PF_cvar_type (void)
 	if (v)
 	{
 		ret |= 1; // CVAR_EXISTS
-		if (v->flags & CVAR_ARCHIVE)
+		if (v->flags & (CVAR_ARCHIVE | CVAR_ARCHIVE_GAME))
 			ret |= 2; // CVAR_TYPE_SAVED
 					  //		if(v->flags & CVAR_NOTFROMSERVER)
 					  //			ret |= 4; // CVAR_TYPE_PRIVATE

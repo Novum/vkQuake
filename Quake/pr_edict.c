@@ -43,11 +43,11 @@ cvar_t scratch1 = {"scratch1", "0", CVAR_NONE};
 cvar_t scratch2 = {"scratch2", "0", CVAR_NONE};
 cvar_t scratch3 = {"scratch3", "0", CVAR_NONE};
 cvar_t scratch4 = {"scratch4", "0", CVAR_NONE};
-cvar_t savedgamecfg = {"savedgamecfg", "0", CVAR_ARCHIVE};
-cvar_t saved1 = {"saved1", "0", CVAR_ARCHIVE};
-cvar_t saved2 = {"saved2", "0", CVAR_ARCHIVE};
-cvar_t saved3 = {"saved3", "0", CVAR_ARCHIVE};
-cvar_t saved4 = {"saved4", "0", CVAR_ARCHIVE};
+cvar_t savedgamecfg = {"savedgamecfg", "0", CVAR_ARCHIVE_GAME};
+cvar_t saved1 = {"saved1", "0", CVAR_ARCHIVE_GAME};
+cvar_t saved2 = {"saved2", "0", CVAR_ARCHIVE_GAME};
+cvar_t saved3 = {"saved3", "0", CVAR_ARCHIVE_GAME};
+cvar_t saved4 = {"saved4", "0", CVAR_ARCHIVE_GAME};
 
 // The one and only Hook instance : no need to either lock or multiple instances,
 // because ED_* functions are only called from the main thread.
