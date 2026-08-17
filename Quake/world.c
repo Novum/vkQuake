@@ -54,6 +54,20 @@ typedef struct
 	edict_t		*passedict;
 } moveclip_t;
 
+static qboolean SV_MoveIgnoresEdict (const byte *ignore_edicts, edict_t *ent)
+{
+	int entnum;
+
+	if (!ignore_edicts)
+		return false;
+
+	entnum = NUM_FOR_EDICT (ent);
+	if (entnum <= 0 || entnum >= MAX_EDICTS)
+		return false;
+
+	return ignore_edicts[entnum] != 0;
+}
+
 static qboolean SV_BoxNodeInPVS (vec3_t mins, vec3_t maxs, byte *pvs, qmodel_t *worldmodel, mnode_t *node)
 {
 	mplane_t *splitplane;
@@ -1024,7 +1038,7 @@ SV_ClipToLinks
 Mins and maxs enclose the entire area swept by the move
 ====================
 */
-static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip)
+static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip, const byte *ignore_edicts)
 {
 	link_t	*l, *next;
 	edict_t *touch;
@@ -1038,6 +1052,8 @@ static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip)
 		if (touch->v.solid == SOLID_NOT)
 			continue;
 		if (touch == clip->passedict)
+			continue;
+		if (SV_MoveIgnoresEdict (ignore_edicts, touch))
 			continue;
 		if (touch->v.solid == SOLID_TRIGGER)
 			Sys_Error ("Trigger in clipping list");
@@ -1102,9 +1118,9 @@ static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip)
 		return;
 
 	if (clip->boxmaxs[node->axis] > node->dist)
-		SV_ClipToLinks (node->children[0], clip);
+		SV_ClipToLinks (node->children[0], clip, ignore_edicts);
 	if (clip->boxmins[node->axis] < node->dist)
-		SV_ClipToLinks (node->children[1], clip);
+		SV_ClipToLinks (node->children[1], clip, ignore_edicts);
 }
 
 static void World_ClipToNetwork (moveclip_t *clip)
@@ -1290,7 +1306,7 @@ boxmaxs[0] = boxmaxs[1] = boxmaxs[2] = 9999;
 SV_Move
 ==================
 */
-trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
+trace_t SV_MoveWithEdictIgnoreMask (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const byte *ignore_edicts)
 {
 	moveclip_t clip;
 	int		   i;
@@ -1330,7 +1346,7 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 	SV_MoveBounds (start, clip.mins2, clip.maxs2, end, clip.boxmins, clip.boxmaxs);
 
 	// clip to entities
-	SV_ClipToLinks (qcvm->areanodes, &clip);
+	SV_ClipToLinks (qcvm->areanodes, &clip, ignore_edicts);
 
 	if (qcvm == &cl.qcvm)
 		World_ClipToNetwork (&clip);
@@ -1339,4 +1355,9 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 		assert_always (!clip.trace.ent->free);
 
 	return clip.trace;
+}
+
+trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
+{
+	return SV_MoveWithEdictIgnoreMask (start, mins, maxs, end, type, passedict, NULL);
 }

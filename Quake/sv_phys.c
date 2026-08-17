@@ -902,18 +902,34 @@ static qboolean SV_WritePusherSupportRecord (edict_t *ent, edict_t *pusher, sv_c
 	return true;
 }
 
+static qboolean SV_EntityGroundEntityIsPusher (edict_t *ent, edict_t *pusher)
+{
+	if (ent->v.groundentity <= 0 || ent->v.groundentity > (qcvm->num_edicts - 1) * qcvm->edict_size)
+		return false;
+
+	return PROG_TO_EDICT (ent->v.groundentity) == pusher;
+}
+
+static qboolean SV_MovetypeUsesGroundFlag (edict_t *ent)
+{
+	return ent->v.movetype == MOVETYPE_WALK || ent->v.movetype == MOVETYPE_STEP || ent->v.movetype == MOVETYPE_TOSS || ent->v.movetype == MOVETYPE_GIB;
+}
+
 static void SV_RecordPusherSupport (edict_t *ent, edict_t *pusher, const vec3_t pusher_move)
 {
-	trace_t trace;
+	trace_t	 trace;
+	qboolean supported;
 
 	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
 		return;
-	if (!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
+
+	supported = SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace) || SV_EntityGroundEntityIsPusher (ent, pusher);
+	if (!supported)
 		return;
 	if (!SV_WritePusherSupportRecord (ent, pusher, SV_MOVE_FRAME_GROUND, pusher_move))
 		return;
 
-	if (ent->v.movetype == MOVETYPE_WALK)
+	if (SV_MovetypeUsesGroundFlag (ent))
 	{
 		ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
 		ent->v.groundentity = EDICT_TO_PROG (pusher);
@@ -1095,7 +1111,21 @@ static qboolean SV_EntityPositionBlockedIgnoringPusher (edict_t *ent, edict_t *p
 
 static qboolean SV_EntityRidingPusher (edict_t *ent, edict_t *pusher)
 {
-	return ((int)ent->v.flags & FL_ONGROUND) && PROG_TO_EDICT (ent->v.groundentity) == pusher;
+	return ((int)ent->v.flags & FL_ONGROUND) && SV_EntityGroundEntityIsPusher (ent, pusher);
+}
+
+static qboolean SV_EntitySupportedByPusher (edict_t *ent, edict_t *pusher, const vec3_t pushorig)
+{
+	if (SV_EntityRidingPusher (ent, pusher))
+		return SV_TouchingPusherAtOrigin (ent, pusher, pushorig);
+
+	if (ent->v.movetype != MOVETYPE_WALK && SV_EntityGroundEntityIsPusher (ent, pusher))
+		return true;
+
+	if (SV_TouchingPusherAtOrigin (ent, pusher, pushorig))
+		return ent->v.movetype != MOVETYPE_WALK || ((int)ent->v.flags & FL_ONGROUND);
+
+	return false;
 }
 
 static qboolean SV_PusherBoundsOverlapEntity (edict_t *ent, const vec3_t mins, const vec3_t maxs)
@@ -1110,22 +1140,16 @@ SV_PusherAffectsEntity (edict_t *ent, edict_t *pusher, const vec3_t pushorig, co
 {
 	*riding = false;
 
-	if (SV_EntityRidingPusher (ent, pusher))
+	if (robust_push && SV_EntitySupportedByPusher (ent, pusher, pushorig))
 	{
-		if (!robust_push || SV_TouchingPusherAtOrigin (ent, pusher, pushorig))
-		{
-			*riding = true;
-			return true;
-		}
+		*riding = true;
+		return true;
 	}
 
-	if (robust_push && SV_TouchingPusherAtOrigin (ent, pusher, pushorig))
+	if (SV_EntityRidingPusher (ent, pusher))
 	{
-		if (ent->v.movetype != MOVETYPE_WALK || ((int)ent->v.flags & FL_ONGROUND))
-		{
-			*riding = true;
-			return true;
-		}
+		*riding = true;
+		return true;
 	}
 
 	if (!SV_PusherBoundsOverlapEntity (ent, mins, maxs))
@@ -1164,6 +1188,32 @@ static trace_t SV_PushEntityMove (edict_t *ent, vec3_t start, vec3_t end)
 		return SV_Move (start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
 }
 
+static trace_t SV_PushEntityMoveWithIgnoreMask (edict_t *ent, vec3_t start, vec3_t end, const byte *ignore_mask)
+{
+	if (!ignore_mask)
+		return SV_PushEntityMove (ent, start, end);
+	if (ent->v.movetype == MOVETYPE_FLYMISSILE)
+		return SV_MoveWithEdictIgnoreMask (start, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE, ent, ignore_mask);
+	else if (ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT)
+		return SV_MoveWithEdictIgnoreMask (start, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent, ignore_mask);
+	else
+		return SV_MoveWithEdictIgnoreMask (start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent, ignore_mask);
+}
+
+static edict_t *SV_TestEntityPositionWithIgnoreMask (edict_t *ent, const byte *ignore_mask)
+{
+	trace_t trace;
+
+	if (!ignore_mask)
+		return SV_TestEntityPosition (ent);
+
+	trace = SV_MoveWithEdictIgnoreMask (ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, 0, ent, ignore_mask);
+	if (trace.startsolid)
+		return trace.ent ? trace.ent : qcvm->edicts;
+
+	return NULL;
+}
+
 /*
 ============
 SV_PushEntityTo
@@ -1171,11 +1221,11 @@ SV_PushEntityTo
 Does not change the entities velocity at all
 ============
 */
-static trace_t SV_PushEntityTo (edict_t *ent, vec3_t end)
+static trace_t SV_PushEntityToWithIgnoreMask (edict_t *ent, vec3_t end, const byte *ignore_mask)
 {
 	trace_t trace;
 
-	trace = SV_PushEntityMove (ent, ent->v.origin, end);
+	trace = SV_PushEntityMoveWithIgnoreMask (ent, ent->v.origin, end, ignore_mask);
 
 	// a move that starts solid registers no impact, so an entity marginally inside the
 	// pusher it rests on would glide through it and fall out the far side. un-embed
@@ -1196,7 +1246,7 @@ static trace_t SV_PushEntityTo (edict_t *ent, vec3_t end)
 			{
 				Con_DPrintf2 ("SV_PushEntityTo: un-embedded entity %i from pusher %i\n", NUM_FOR_EDICT (ent), NUM_FOR_EDICT (ground));
 				VectorCopy (exit.endpos, ent->v.origin);
-				trace = SV_PushEntityMove (ent, ent->v.origin, end);
+				trace = SV_PushEntityMoveWithIgnoreMask (ent, ent->v.origin, end, ignore_mask);
 			}
 		}
 	}
@@ -1216,6 +1266,11 @@ static trace_t SV_PushEntityTo (edict_t *ent, vec3_t end)
 	return trace;
 }
 
+static trace_t SV_PushEntityTo (edict_t *ent, vec3_t end)
+{
+	return SV_PushEntityToWithIgnoreMask (ent, end, NULL);
+}
+
 /*
 ============
 SV_PushMove
@@ -1230,13 +1285,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	vec3_t	 entorig, pushorig;
 	vec3_t	 querymins, querymaxs;
 	int		 num_moved;
-	float	 solid_backup;
-
-	// fine to be a static temporary because SV_PushMove is only called from the main thread,
-	// without consuming stack space.
-	static edict_t					 *moved_edict[MAX_EDICTS];
-	static vec3_t					  moved_from[MAX_EDICTS];
-	static sv_pusher_support_record_t moved_support[MAX_EDICTS];
+	float	 pusher_solid;
 
 	if (!pusher->v.velocity[0] && !pusher->v.velocity[1] && !pusher->v.velocity[2])
 	{
@@ -1247,6 +1296,24 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	const qboolean robust_push = (sv_gameplayfix_elevators.value >= 3.f);
 	const float	   newltime = pusher->v.ltime + movetime;
 	vec3_t		   neworigin;
+
+	TEMP_ALLOC (edict_t *, moved_edict, MAX_EDICTS);
+	TEMP_ALLOC (vec3_t, moved_from, MAX_EDICTS);
+	TEMP_ALLOC (sv_pusher_support_record_t, moved_support, MAX_EDICTS);
+	TEMP_ALLOC_COND (edict_t *, push_edict, MAX_EDICTS, robust_push);
+	TEMP_ALLOC_COND (qboolean, push_riding, MAX_EDICTS, robust_push);
+	TEMP_ALLOC_ZEROED (byte, pusher_ignore_mask, MAX_EDICTS);
+	TEMP_ALLOC_ZEROED_COND (byte, rider_ignore_mask, MAX_EDICTS, robust_push);
+	TEMP_ALLOC_ZEROED_COND (byte, pusher_rider_ignore_mask, MAX_EDICTS, robust_push);
+	TEMP_ALLOC_COND (edict_t *, push_candidates, MAX_EDICTS, push_grid_active);
+
+	const int pushernum = NUM_FOR_EDICT (pusher);
+	if (pushernum > 0 && pushernum < MAX_EDICTS)
+	{
+		pusher_ignore_mask[pushernum] = true;
+		if (robust_push)
+			pusher_rider_ignore_mask[pushernum] = true;
+	}
 
 	VectorScale (pusher->v.velocity, movetime, move);
 	VectorAdd (pusher->v.origin, move, neworigin);
@@ -1271,9 +1338,8 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	// see if any solid entities are inside the final position
 	num_moved = 0;
 
-	static edict_t *push_candidates[MAX_EDICTS];
-	edict_t		  **fast_list = NULL;
-	int				fast_count = 0;
+	edict_t **fast_list = NULL;
+	int		  fast_count = 0;
 
 	if (push_grid_active)
 	{
@@ -1292,6 +1358,57 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		fast_count = num_pushable_ent_cache;
 	}
 
+	int num_push = 0;
+
+	if (robust_push)
+	{
+		int		 scan_e = -1;
+		edict_t *scan_check = NEXT_EDICT (qcvm->edicts);
+
+		while (true)
+		{
+			qboolean riding;
+
+			if (scan_e >= (fast_list ? fast_count - 1 : qcvm->num_edicts - 1 - 1))
+				break;
+
+			scan_e++;
+
+			if (fast_list)
+			{
+				scan_check = fast_list[scan_e];
+			}
+			else if (scan_e > 0)
+			{
+				scan_check = NEXT_EDICT (scan_check);
+			}
+
+			if (scan_check->free)
+				continue;
+
+			if (!SV_IsPushable (scan_check))
+				continue;
+
+			if (!SV_PusherAffectsEntity (scan_check, pusher, pushorig, mins, maxs, true, &riding))
+				continue;
+
+			push_edict[num_push] = scan_check;
+			push_riding[num_push] = riding;
+			num_push++;
+
+			if (riding)
+			{
+				const int ridernum = NUM_FOR_EDICT (scan_check);
+
+				if (ridernum > 0 && ridernum < MAX_EDICTS)
+				{
+					rider_ignore_mask[ridernum] = true;
+					pusher_rider_ignore_mask[ridernum] = true;
+				}
+			}
+		}
+	}
+
 	int e = -1;
 
 	// beware, we skip entity 0:
@@ -1299,29 +1416,43 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 	while (true)
 	{
-		if (e >= (fast_list ? fast_count - 1 : qcvm->num_edicts - 1 - 1))
+		if (e >= (robust_push ? num_push - 1 : (fast_list ? fast_count - 1 : qcvm->num_edicts - 1 - 1)))
 			break;
 
 		e++;
 
-		if (fast_list)
+		qboolean riding = false;
+
+		if (robust_push)
 		{
-			check = fast_list[e];
+			check = push_edict[e];
+			riding = push_riding[e];
 		}
-		else if (e > 0)
+		else
 		{
-			check = NEXT_EDICT (check);
+			if (fast_list)
+			{
+				check = fast_list[e];
+			}
+			else if (e > 0)
+			{
+				check = NEXT_EDICT (check);
+			}
+
+			if (check->free)
+				continue;
+
+			if (!SV_IsPushable (check))
+				continue;
+
+			if (!SV_PusherAffectsEntity (check, pusher, pushorig, mins, maxs, false, &riding))
+				continue;
 		}
 
 		if (check->free)
 			continue;
 
 		if (!SV_IsPushable (check))
-			continue;
-
-		qboolean riding = false;
-
-		if (!SV_PusherAffectsEntity (check, pusher, pushorig, mins, maxs, robust_push, &riding))
 			continue;
 
 		// remove the onground flag for non-players
@@ -1335,12 +1466,15 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		num_moved++;
 
 		// QIP fix for end.bsp
-		solid_backup = pusher->v.solid;
-		if (solid_backup == SOLID_BSP		   // everything that blocks: bsp models = map brushes = doors, plats, etc.
-			|| solid_backup == SOLID_BBOX	   // normally boxes
-			|| solid_backup == SOLID_SLIDEBOX) // normally monsters
+		pusher_solid = pusher->v.solid;
+		if (pusher_solid == SOLID_BSP		   // everything that blocks: bsp models = map brushes = doors, plats, etc.
+			|| pusher_solid == SOLID_BBOX	   // normally boxes
+			|| pusher_solid == SOLID_SLIDEBOX) // normally monsters
 		{
-			vec3_t dest;
+			const byte *move_ignore_mask = (robust_push && riding) ? pusher_rider_ignore_mask : pusher_ignore_mask;
+			const byte *block_ignore_mask = (robust_push && riding) ? rider_ignore_mask : NULL;
+			vec3_t		dest;
+
 			if (robust_push)
 			{
 				vec3_t applied_move;
@@ -1360,20 +1494,15 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 				VectorAdd (entorig, move, dest);
 
 			// try moving the contacted entity
-			pusher->v.solid = SOLID_NOT;
-			SV_PushEntityTo (check, dest);
+			SV_PushEntityToWithIgnoreMask (check, dest, move_ignore_mask);
 
 			// if it is still inside the pusher, block
 			if (pusher->v.skin < 0)
 			{ // if it has forced contents then do things in a slightly different order, so water can push properly.
-				block = SV_TestEntityPosition (check);
-				pusher->v.solid = solid_backup;
+				block = SV_TestEntityPositionWithIgnoreMask (check, move_ignore_mask);
 			}
 			else
-			{
-				pusher->v.solid = solid_backup;
-				block = SV_TestEntityPosition (check);
-			}
+				block = SV_TestEntityPositionWithIgnoreMask (check, block_ignore_mask);
 		}
 		else
 			block = NULL;
@@ -1405,7 +1534,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 				if (!settle.startsolid)
 				{
 					VectorCopy (settle.endpos, check->v.origin);
-					if (!SV_TestEntityPosition (check))
+					if (!SV_TestEntityPositionWithIgnoreMask (check, rider_ignore_mask))
 					{
 						SV_LinkEdict (check, false);
 						SV_RecordPusherSupport (check, pusher, move);
@@ -1460,6 +1589,16 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		if (riding)
 			SV_RecordPusherSupport (check, pusher, move);
 	}
+
+	TEMP_FREE (push_candidates);
+	TEMP_FREE (pusher_rider_ignore_mask);
+	TEMP_FREE (rider_ignore_mask);
+	TEMP_FREE (pusher_ignore_mask);
+	TEMP_FREE (push_riding);
+	TEMP_FREE (push_edict);
+	TEMP_FREE (moved_support);
+	TEMP_FREE (moved_from);
+	TEMP_FREE (moved_edict);
 }
 
 /*
