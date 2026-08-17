@@ -194,6 +194,7 @@ SHADER_OBJS = \
 	world_vert.o \
 	showtris_frag.o \
 	showtris_vert.o \
+	md5_debug_vert.o \
 	update_lightmap_8bit_comp.o \
 	update_lightmap_8bit_rt_comp.o \
 	update_lightmap_10bit_comp.o \

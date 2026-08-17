@@ -390,6 +390,9 @@ typedef struct aliashdr_s
 	glheapallocation_t *joints_allocation;
 	VkDeviceAddress		joints_buffer_address;
 	VkDescriptorSet		joints_set;
+	int					num_skeleton_indexes;
+	VkBuffer			skeleton_index_buffer;
+	glheapallocation_t *skeleton_index_allocation;
 	maliasframedesc_t	frames[1]; // variable sized
 } aliashdr_t;
 

@@ -5401,6 +5401,7 @@ static qboolean Mod_LoadMD5MeshModelData (qmodel_t *mod, const void *buffer, siz
 	TEMP_ALLOC_DECL (md5vertinfo_t, vinfo);
 	TEMP_ALLOC_DECL (byte, poutvertexes);
 	TEMP_ALLOC_DECL (unsigned short, poutindexes);
+	TEMP_ALLOC_DECL (unsigned short, skeleton_indexes);
 	TEMP_ALLOC_DECL (md5weightinfo_t, weight);
 
 	if (!MD5Anim_Begin (&anim, fname))
@@ -5462,6 +5463,21 @@ static qboolean Mod_LoadMD5MeshModelData (qmodel_t *mod, const void *buffer, siz
 	if (!MD5Anim_Load (&anim, joint_infos, joint_poses, numjoints))
 		goto error;
 	buffer = COM_Parse (buffer);
+
+	int num_skeleton_indexes = 0;
+	if (numjoints > (size_t)UINT16_MAX + 1)
+		MD5ERROR ("%s has too many joints for skeleton debug\n", fname);
+	for (size_t j = 0; j < numjoints; j++)
+		if (joint_infos[j].parent >= 0)
+			num_skeleton_indexes += 2;
+	TEMP_ALLOC_ASSIGN_COND (skeleton_indexes, num_skeleton_indexes, num_skeleton_indexes > 0);
+	for (size_t j = 0, out_index = 0; j < numjoints; j++)
+	{
+		if (joint_infos[j].parent < 0)
+			continue;
+		skeleton_indexes[out_index++] = (unsigned short)joint_infos[j].parent;
+		skeleton_indexes[out_index++] = (unsigned short)j;
+	}
 
 	// 2. Compute absolute animation joints:
 	for (size_t pose_index = 0; pose_index < anim.numposes; ++pose_index)
@@ -5629,7 +5645,8 @@ static qboolean Mod_LoadMD5MeshModelData (qmodel_t *mod, const void *buffer, siz
 		TEMP_FREE (vinfo);
 
 		// Upload to GPU that surface/mesh m:
-		GLMesh_UploadBuffers (mod, surf, poutindexes, (byte *)poutvertexes, NULL, skinning_joints);
+		GLMesh_UploadBuffers (
+			mod, surf, poutindexes, (byte *)poutvertexes, NULL, skinning_joints, m == 0 ? skeleton_indexes : NULL, m == 0 ? num_skeleton_indexes : 0);
 
 		TEMP_FREE (poutvertexes);
 		TEMP_FREE (poutindexes);
@@ -5655,6 +5672,7 @@ static qboolean Mod_LoadMD5MeshModelData (qmodel_t *mod, const void *buffer, siz
 
 	TEMP_FREE (concat_joints);
 	TEMP_FREE (skinning_joints);
+	TEMP_FREE (skeleton_indexes);
 
 	TEMP_FREE (joint_poses);
 	TEMP_FREE (joint_infos);
@@ -5668,6 +5686,7 @@ error:
 	TEMP_FREE (vinfo);
 	TEMP_FREE (poutvertexes);
 	TEMP_FREE (poutindexes);
+	TEMP_FREE (skeleton_indexes);
 	SAFE_FREE (anim.posedata);
 	if (outhdr)
 	{
@@ -6150,7 +6169,7 @@ static void Mod_LoadMD3Model (qmodel_t *mod, const void *buffer)
 		}
 
 		// Upload to GPU that surface/mesh m:
-		GLMesh_UploadBuffers (mod, surf, poutindexes_start, (byte *)poutvertexes_start, poutst, NULL);
+		GLMesh_UploadBuffers (mod, surf, poutindexes_start, (byte *)poutvertexes_start, poutst, NULL, NULL, 0);
 
 		// concat surface vertices to total_vertexes
 		total_vertexes = (md3XyzNormal_t *)Mem_Realloc (total_vertexes, sizeof (*poutvertexes) * (total_numverts + surf->numverts));

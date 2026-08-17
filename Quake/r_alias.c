@@ -663,3 +663,74 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 		GL_DrawAliasFrame (cbx, e, hdr, lerpdata, nulltexture, nulltexture, model_matrix, 0.0f, false, shadevector, lightcolor, r_showtris.value);
 	}
 }
+
+/*
+=================
+R_DrawAliasModel_ShowSkel
+=================
+*/
+void R_DrawAliasModel_ShowSkel (cb_context_t *cbx, entity_t *e)
+{
+	aliashdr_t *paliashdr;
+	lerpdata_t	lerpdata;
+
+	paliashdr = (aliashdr_t *)Mod_Extradata_CheckSkin (e->model, e->skinnum);
+	if ((paliashdr->poseverttype != PV_MD5 && paliashdr->poseverttype != PV_MD5_8) || paliashdr->skeleton_index_buffer == VK_NULL_HANDLE ||
+		paliashdr->num_skeleton_indexes <= 0 || paliashdr->joints_set == VK_NULL_HANDLE)
+		return;
+
+	R_SetupAliasFrame (e, paliashdr, &lerpdata);
+	R_GetEntityLerpedTransform (e, lerpdata.origin, lerpdata.angles);
+
+	if (R_CullModelForEntity (e))
+		return;
+
+	float model_matrix[16];
+	IdentityMatrix (model_matrix);
+	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles, e->netstate.scale);
+
+	float fovscale = 1.0f;
+	if (e == &cl.viewent && r_refdef.basefov > 90.f)
+	{
+		fovscale = tan (r_refdef.basefov * (0.5f * M_PI / 180.f));
+		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+	}
+
+	float translation_matrix[16];
+	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
+	MatrixMultiply (model_matrix, translation_matrix);
+
+	float scale_matrix[16];
+	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
+	MatrixMultiply (model_matrix, scale_matrix);
+
+	float blend = 0.0f;
+	if (lerpdata.pose1 != lerpdata.pose2)
+		blend = lerpdata.blend;
+
+	VkBuffer		uniform_buffer;
+	uint32_t		uniform_offset;
+	VkDescriptorSet ubo_set;
+	md5ubo_t	   *ubo = (md5ubo_t *)R_UniformAllocate (sizeof (md5ubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
+
+	memcpy (ubo->model_matrix, model_matrix, 16 * sizeof (float));
+	ubo->shade_vector[0] = 0.0f;
+	ubo->shade_vector[1] = 0.0f;
+	ubo->shade_vector[2] = 0.0f;
+	ubo->blend_factor = blend;
+	ubo->light_color[0] = 1.0f;
+	ubo->light_color[1] = 1.0f;
+	ubo->light_color[2] = 0.0f;
+	ubo->entalpha = 1.0f;
+	ubo->flags = 0;
+	ubo->joints_offsets[0] = lerpdata.pose1 * paliashdr->numjoints;
+	ubo->joints_offsets[1] = lerpdata.pose2 * paliashdr->numjoints;
+
+	vulkan_pipeline_t pipeline = vulkan_globals.md5_debug_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)];
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+
+	VkDescriptorSet descriptor_sets[2] = {ubo_set, paliashdr->joints_set};
+	vulkan_globals.vk_cmd_bind_descriptor_sets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 2, 2, descriptor_sets, 1, &uniform_offset);
+	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, paliashdr->skeleton_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->num_skeleton_indexes, 1, 0, 0, 0);
+}

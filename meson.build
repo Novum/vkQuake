@@ -41,6 +41,7 @@ shaders = [
     'Shaders/postprocess.vert',
     'Shaders/showtris.frag',
     'Shaders/showtris.vert',
+    'Shaders/md5_debug.vert',
     'Shaders/sky_box.frag',
     'Shaders/sky_cube.frag',
     'Shaders/sky_cube.vert',

@@ -314,6 +314,16 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.c</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.c</Outputs>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\md5_debug.vert">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.spv" md5_debug.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.spv" md5_debug.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.c</Outputs>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\mesh_interpolate.comp">
       <FileType>Document</FileType>
     </CustomBuild>

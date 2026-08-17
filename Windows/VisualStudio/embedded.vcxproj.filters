@@ -67,6 +67,9 @@
     <CustomBuild Include="..\..\Shaders\md5.vert">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\md5_debug.vert">
+      <Filter>Shaders\Alias</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\skinning.comp">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>

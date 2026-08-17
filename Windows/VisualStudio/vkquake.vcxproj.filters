@@ -601,10 +601,16 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\md5_8.vert.c">
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5_debug.vert.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\md5.vert.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_8.vert.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_debug.vert.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_mboit_moment.frag.c">

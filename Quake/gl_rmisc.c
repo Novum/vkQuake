@@ -44,6 +44,7 @@ extern cvar_t r_waterwarpcompute;
 extern cvar_t r_oldskyleaf;
 extern cvar_t r_drawworld;
 extern cvar_t r_showtris;
+extern cvar_t r_showskel;
 extern cvar_t r_showbboxes;
 extern cvar_t r_showbboxes_think;
 extern cvar_t r_showbboxes_health;
@@ -2417,6 +2418,7 @@ DECLARE_SHADER_MODULE (md5_alphatest_mboit_composite_frag);
 DECLARE_SHADER_MODULE (md5_alphatest_mboit_composite_msaa_frag);
 DECLARE_SHADER_MODULE (md5_vert);
 DECLARE_SHADER_MODULE (md5_8_vert);
+DECLARE_SHADER_MODULE (md5_debug_vert);
 DECLARE_SHADER_MODULE (sky_layer_vert);
 DECLARE_SHADER_MODULE (sky_layer_frag);
 DECLARE_SHADER_MODULE (sky_box_frag);
@@ -3338,6 +3340,18 @@ static void R_CreateShowTrisPipelines ()
 		infos.blend_attachment_states[0].blendEnable = VK_TRUE;
 		R_CreateGraphicsPipeline (
 			&vulkan_globals.debug_lines_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va ("debug_lines%s", pass_suffix));
+
+		R_CopyPipelineCreateInfos (&infos, &base);
+		infos.graphics_pipeline.renderPass = render_pass;
+		infos.vertex_input_state.vertexAttributeDescriptionCount = 0;
+		infos.vertex_input_state.pVertexAttributeDescriptions = NULL;
+		infos.vertex_input_state.vertexBindingDescriptionCount = 0;
+		infos.vertex_input_state.pVertexBindingDescriptions = NULL;
+		infos.shader_stages[0].module = md5_debug_vert_module;
+		infos.blend_attachment_states[0].blendEnable = VK_TRUE;
+		R_CreateGraphicsPipeline (
+			&vulkan_globals.md5_debug_pipeline[variant], &infos, vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout,
+			va ("md5_debug%s", pass_suffix));
 	}
 
 	if (!vulkan_globals.non_solid_fill)
@@ -3900,6 +3914,7 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE_COND (md5_alphatest_mboit_composite_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE (md5_vert);
 	CREATE_SHADER_MODULE (md5_8_vert);
+	CREATE_SHADER_MODULE (md5_debug_vert);
 	CREATE_SHADER_MODULE (sky_layer_vert);
 	CREATE_SHADER_MODULE (sky_layer_frag);
 	CREATE_SHADER_MODULE (sky_box_frag);
@@ -3972,6 +3987,7 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (md5_alphatest_mboit_composite_msaa_frag);
 	DESTROY_SHADER_MODULE (md5_vert);
 	DESTROY_SHADER_MODULE (md5_8_vert);
+	DESTROY_SHADER_MODULE (md5_debug_vert);
 	DESTROY_SHADER_MODULE (sky_layer_vert);
 	DESTROY_SHADER_MODULE (sky_layer_frag);
 	DESTROY_SHADER_MODULE (sky_box_frag);
@@ -4216,6 +4232,8 @@ void R_DestroyPipelines (void)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.debug_lines_pipeline[variant].handle, NULL);
 		vulkan_globals.debug_lines_pipeline[variant].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_debug_pipeline[variant].handle, NULL);
+		vulkan_globals.md5_debug_pipeline[variant].handle = VK_NULL_HANDLE;
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.update_lightmap_pipeline.handle, NULL);
 	vulkan_globals.update_lightmap_pipeline.handle = VK_NULL_HANDLE;
@@ -4315,6 +4333,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_oldskyleaf);
 	Cvar_RegisterVariable (&r_drawworld);
 	Cvar_RegisterVariable (&r_showtris);
+	Cvar_RegisterVariable (&r_showskel);
 	Cvar_RegisterVariable (&r_showbboxes);
 	Cvar_RegisterVariable (&r_showbboxes_think);
 	Cvar_RegisterVariable (&r_showbboxes_health);

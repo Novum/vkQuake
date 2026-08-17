@@ -452,6 +452,7 @@ typedef struct
 	vulkan_pipeline_t		 showtris_depth_test_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 showtris_indirect_depth_test_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 debug_lines_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
+	vulkan_pipeline_t		 md5_debug_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 update_lightmap_pipeline;
 	vulkan_pipeline_t		 update_lightmap_rt_pipeline;
 	vulkan_pipeline_t		 indirect_draw_pipeline;
@@ -774,7 +775,9 @@ void GL_DeleteBModelAccelerationStructures (void);
 void GL_BuildBModelVertexBuffer (void);
 void GL_BuildBModelAccelerationStructures (void);
 void GL_PrepareSIMDAndParallelData (void);
-void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints);
+void GLMesh_UploadBuffers (
+	qmodel_t *mod, aliashdr_t *hdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints, unsigned short *skeleton_indexes,
+	int num_skeleton_indexes);
 void GLMesh_DeleteAllMeshBuffers (void);
 void R_AllocateEntityBLAS (entity_t *e);
 void R_FreeEntityBLAS (entity_t *e);
@@ -795,6 +798,7 @@ void R_UploadLightmaps (void);
 void R_DrawWorld_ShowTris (cb_context_t *cbx);
 void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e);
 void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e);
+void R_DrawAliasModel_ShowSkel (cb_context_t *cbx, entity_t *e);
 void R_DrawParticles_ShowTris (cb_context_t *cbx);
 void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e);
 

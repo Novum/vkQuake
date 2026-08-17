@@ -90,6 +90,7 @@ cvar_t gl_farclip = {"gl_farclip", "16384", CVAR_ARCHIVE};
 cvar_t r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t r_showtris = {"r_showtris", "0", CVAR_NONE};
+cvar_t r_showskel = {"r_showskel", "0", CVAR_NONE};
 cvar_t r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
 cvar_t r_showbboxes_think = {"r_showbboxes_think", "0", CVAR_NONE};	  // 0=show all; 1=thinkers only; -1=non-thinkers only
 cvar_t r_showbboxes_health = {"r_showbboxes_health", "0", CVAR_NONE}; // 0=show all; 1=healthy only; -1=non-healthy only
@@ -1220,6 +1221,26 @@ void R_ShowTris (cb_context_t *cbx)
 
 /*
 ================
+R_ShowSkeletons
+================
+*/
+static void R_ShowSkeletons (cb_context_t *cbx)
+{
+	if (!r_showskel.value || cl.maxclients > 1 || !r_drawentities.value)
+		return;
+
+	R_BeginDebugUtilsLabel (cbx, "show skeletons");
+	for (int i = 0; i < cl_numvisedicts; i++)
+	{
+		entity_t *currententity = cl_visedicts[i];
+		if (currententity->model->type == mod_alias)
+			R_DrawAliasModel_ShowSkel (cbx, currententity);
+	}
+	R_EndDebugUtilsLabel (cbx);
+}
+
+/*
+================
 R_DrawWorldTask
 ================
 */
@@ -1448,8 +1469,9 @@ static void R_DrawViewModelTask (void *unused)
 {
 	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_VIEW_MODEL];
 	R_SetupContext (cbx);
-	R_DrawViewModel (cbx);	   // johnfitz -- moved here from R_RenderView
-	R_ShowTris (cbx);		   // johnfitz
+	R_DrawViewModel (cbx); // johnfitz -- moved here from R_RenderView
+	R_ShowTris (cbx);	   // johnfitz
+	R_ShowSkeletons (cbx);
 	R_ShowBoundingBoxes (cbx); // johnfitz
 	R_ShowPointFile (cbx);
 }
