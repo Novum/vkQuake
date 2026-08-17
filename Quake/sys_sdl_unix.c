@@ -523,6 +523,53 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 }
 #endif
 
+/*
+=================
+Sys_GetParentProcessName
+=================
+*/
+static qboolean Sys_GetParentProcessName (char *dst, size_t dstsize)
+{
+#ifdef __linux__
+	char	link[MAX_OSPATH];
+	ssize_t len;
+
+	if (dstsize == 0)
+		return false;
+
+	q_snprintf (link, sizeof (link), "/proc/%d/exe", getppid ());
+	len = readlink (link, dst, dstsize - 1);
+	if (len < 0)
+		return false;
+	dst[len] = '\0';
+	return true;
+#else
+	return false;
+#endif
+}
+
+/*
+=================
+Sys_IsStartedFromMapEditor
+
+Returns true if the process was started from a supported map editor.
+=================
+*/
+qboolean Sys_IsStartedFromMapEditor (void)
+{
+	char		path[MAX_OSPATH];
+	const char *slash, *exe;
+
+	if (!Sys_GetParentProcessName (path, sizeof (path)))
+		return false;
+
+	slash = strrchr (path, '/');
+	exe = slash ? slash + 1 : path;
+
+	return q_strcasestr (exe, "trenchbroom") != NULL || q_strcasestr (exe, "nextbroom") != NULL || q_strcasestr (exe, "jack") != NULL ||
+		   q_strcasestr (exe, "qrucible") != NULL;
+}
+
 void Sys_Init (void)
 {
 	Sys_FileInit ();

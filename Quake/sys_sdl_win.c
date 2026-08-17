@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <mmsystem.h>
 #include <shlobj.h>
 #include <objbase.h>
+#include <tlhelp32.h>
 
 #include <sys/types.h>
 #include <errno.h>
@@ -560,6 +561,99 @@ static void Sys_SetTimerResolution (void)
 	   stability.
 	*/
 	timeBeginPeriod (1);
+}
+
+typedef struct
+{
+	WCHAR name[MAX_PATH];
+	DWORD id;
+	DWORD parent_id;
+} procinfo_t;
+
+/*
+=================
+Sys_GetProcList
+=================
+*/
+static procinfo_t *Sys_GetProcList (void)
+{
+	HANDLE			snapshot;
+	PROCESSENTRY32W proc_entry;
+	procinfo_t	   *result = NULL;
+
+	snapshot = CreateToolhelp32Snapshot (TH32CS_SNAPPROCESS, 0);
+	if (snapshot == INVALID_HANDLE_VALUE)
+		return NULL;
+
+	proc_entry.dwSize = sizeof (proc_entry);
+
+	if (Process32FirstW (snapshot, &proc_entry))
+	{
+		do
+		{
+			procinfo_t info;
+			wcscpy_s (info.name, countof (info.name), proc_entry.szExeFile);
+			info.id = proc_entry.th32ProcessID;
+			info.parent_id = proc_entry.th32ParentProcessID;
+			VEC_PUSH (result, info);
+		} while (Process32NextW (snapshot, &proc_entry));
+	}
+
+	CloseHandle (snapshot);
+
+	return result;
+}
+
+/*
+=================
+Sys_FindProc
+=================
+*/
+static procinfo_t *Sys_FindProc (DWORD id, procinfo_t *procs)
+{
+	size_t i;
+
+	if (id == 0)
+		return NULL;
+	for (i = 0; i < VEC_SIZE (procs); i++)
+		if (procs[i].id == id)
+			return &procs[i];
+	return NULL;
+}
+
+/*
+=================
+Sys_IsStartedFromMapEditor
+
+Returns true if the process was started from a supported map editor.
+=================
+*/
+qboolean Sys_IsStartedFromMapEditor (void)
+{
+	qboolean	from_editor = false;
+	procinfo_t *proclist = Sys_GetProcList ();
+
+	if (proclist)
+	{
+		procinfo_t *current = Sys_FindProc (GetCurrentProcessId (), proclist);
+		procinfo_t *parent = current ? Sys_FindProc (current->parent_id, proclist) : NULL;
+
+		while (parent && _wcsicmp (parent->name, L"cmd.exe") == 0)
+			parent = Sys_FindProc (parent->parent_id, proclist);
+
+		if (parent)
+		{
+#define PARENT_STARTS_WITH(prefix) (_wcsnicmp (parent->name, L##prefix, wcslen (L##prefix)) == 0)
+			if (PARENT_STARTS_WITH ("TrenchBroom") || PARENT_STARTS_WITH ("NextBroom") || PARENT_STARTS_WITH ("jack") ||
+				PARENT_STARTS_WITH ("ne_q1spCompilingGui") || PARENT_STARTS_WITH ("q1compile") || PARENT_STARTS_WITH ("qrucible"))
+				from_editor = true;
+#undef PARENT_STARTS_WITH
+		}
+
+		VEC_FREE (proclist);
+	}
+
+	return from_editor;
 }
 
 void Sys_Init (void)

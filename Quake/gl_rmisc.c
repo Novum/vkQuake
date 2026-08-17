@@ -45,6 +45,12 @@ extern cvar_t r_oldskyleaf;
 extern cvar_t r_drawworld;
 extern cvar_t r_showtris;
 extern cvar_t r_showbboxes;
+extern cvar_t r_showbboxes_think;
+extern cvar_t r_showbboxes_health;
+extern cvar_t r_showbboxes_links;
+extern cvar_t r_showbboxes_targets;
+extern cvar_t r_showfields;
+extern cvar_t r_showfields_align;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_lerpturn;
@@ -258,9 +264,10 @@ R_ShowbboxesFilter_Completion_f -- tab completion for r_showbboxes_filter
 */
 static void R_ShowbboxesFilter_Completion_f (const char *partial)
 {
-	extern edict_t *sv_player;
-	edict_t		   *ed;
-	int				i;
+	extern edict_t	*sv_player;
+	extern edict_t **bbox_linked;
+	edict_t			*ed;
+	int				 i;
 
 	if (!sv.active)
 		return;
@@ -268,14 +275,29 @@ static void R_ShowbboxesFilter_Completion_f (const char *partial)
 	SDL_LockMutex (draw_qcvm_mutex);
 	PR_SwitchQCVM (&sv.qcvm);
 
-	for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+	if (*partial == '#')
 	{
-		const char *name;
-		if (ed == sv_player || ed->free || !ed->v.classname)
-			continue;
-		name = PR_GetString (ed->v.classname);
-		if (*name)
-			Con_AddToTabList (name, partial, "#");
+		for (i = 0; i < (int)VEC_SIZE (bbox_linked); i++)
+		{
+			const char *name;
+			ed = bbox_linked[i];
+			if (ed->free || !ed->v.classname)
+				continue;
+			name = PR_GetString (ed->v.classname);
+			Con_AddToTabList (va ("#%d", NUM_FOR_EDICT (ed)), partial, name);
+		}
+	}
+	else
+	{
+		for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+		{
+			const char *name;
+			if (ed == sv_player || ed->free || !ed->v.classname)
+				continue;
+			name = PR_GetString (ed->v.classname);
+			if (*name)
+				Con_AddToTabList (name, partial, "#");
+		}
 	}
 
 	PR_SwitchQCVM (NULL);
@@ -3294,14 +3316,36 @@ R_CreateShowTrisPipelines
 */
 static void R_CreateShowTrisPipelines ()
 {
-	if (!vulkan_globals.non_solid_fill)
-		return;
-
 	pipeline_create_infos_t base;
 	R_InitDefaultStates (&base);
 
+	base.vertex_input_state.vertexAttributeDescriptionCount = countof (basic_vertex_input_attribute_descriptions);
+	base.vertex_input_state.pVertexAttributeDescriptions = basic_vertex_input_attribute_descriptions;
+	base.vertex_input_state.vertexBindingDescriptionCount = 1;
+	base.vertex_input_state.pVertexBindingDescriptions = &basic_vertex_binding_description;
+	base.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+	base.shader_stages[0].module = basic_vert_module;
+	base.shader_stages[1].module = basic_notex_frag_module;
+
+	pipeline_create_infos_t infos;
+	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+	{
+		const VkRenderPass render_pass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		const char		  *pass_suffix = (variant == MAIN_RENDER_PASS_MBOIT) ? "_main_mboit" : ((variant == MAIN_RENDER_PASS_OIT) ? "_main_oit" : "");
+
+		R_CopyPipelineCreateInfos (&infos, &base);
+		infos.graphics_pipeline.renderPass = render_pass;
+		infos.blend_attachment_states[0].blendEnable = VK_TRUE;
+		R_CreateGraphicsPipeline (
+			&vulkan_globals.debug_lines_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va ("debug_lines%s", pass_suffix));
+	}
+
+	if (!vulkan_globals.non_solid_fill)
+		return;
+
 	base.rasterization_state.cullMode = VK_CULL_MODE_NONE;
 	base.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
+	base.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
 	VkVertexInputAttributeDescription showtris_vertex_input_attribute_descriptions;
 	showtris_vertex_input_attribute_descriptions.binding = 0;
@@ -3322,7 +3366,6 @@ static void R_CreateShowTrisPipelines ()
 	base.shader_stages[0].module = showtris_vert_module;
 	base.shader_stages[1].module = showtris_frag_module;
 
-	pipeline_create_infos_t infos;
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 	{
 		const VkRenderPass render_pass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
@@ -3340,11 +3383,6 @@ static void R_CreateShowTrisPipelines ()
 		infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
 		R_CreateGraphicsPipeline (
 			&vulkan_globals.showtris_depth_test_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va ("showtris_depth_test%s", pass_suffix));
-
-		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass;
-		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-		R_CreateGraphicsPipeline (&vulkan_globals.showbboxes_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va ("showbboxes%s", pass_suffix));
 
 		// indirect showtris uses the world vertex shader so moved submodels get their instance transform applied
 		R_CopyPipelineCreateInfos (&infos, &base);
@@ -4172,9 +4210,12 @@ void R_DestroyPipelines (void)
 			vulkan_globals.showtris_depth_test_pipeline[variant].handle = VK_NULL_HANDLE;
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showtris_indirect_depth_test_pipeline[variant].handle, NULL);
 			vulkan_globals.showtris_indirect_depth_test_pipeline[variant].handle = VK_NULL_HANDLE;
-			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showbboxes_pipeline[variant].handle, NULL);
-			vulkan_globals.showbboxes_pipeline[variant].handle = VK_NULL_HANDLE;
 		}
+	}
+	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.debug_lines_pipeline[variant].handle, NULL);
+		vulkan_globals.debug_lines_pipeline[variant].handle = VK_NULL_HANDLE;
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.update_lightmap_pipeline.handle, NULL);
 	vulkan_globals.update_lightmap_pipeline.handle = VK_NULL_HANDLE;
@@ -4275,6 +4316,12 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_drawworld);
 	Cvar_RegisterVariable (&r_showtris);
 	Cvar_RegisterVariable (&r_showbboxes);
+	Cvar_RegisterVariable (&r_showbboxes_think);
+	Cvar_RegisterVariable (&r_showbboxes_health);
+	Cvar_RegisterVariable (&r_showbboxes_links);
+	Cvar_RegisterVariable (&r_showbboxes_targets);
+	Cvar_RegisterVariable (&r_showfields);
+	Cvar_RegisterVariable (&r_showfields_align);
 	Cvar_RegisterVariable (&gl_farclip);
 	Cvar_RegisterVariable (&gl_fullbrights);
 	Cvar_SetCallback (&gl_fullbrights, GL_Fullbrights_f);
@@ -4546,6 +4593,12 @@ void R_NewMap (void)
 	R_ParseWorldspawn ();	 // ericw -- wateralpha, lavaalpha, telealpha, slimealpha in worldspawn
 	R_ParseEntityDlights (); // 2021 rerelease shadow casting light entities
 
+	VEC_CLEAR (r_pointfile);
+
+	if (developer.value || map_checks.value)
+		if (!cl.worldmodel->visdata && COM_FileExists (va ("maps/%s.pts", cl.mapname), NULL))
+			Cbuf_AddText ("pointfile leak\n");
+
 	GL_UpdateDescriptorSets ();
 }
 
@@ -4574,7 +4627,7 @@ void R_TimeRefresh_f (void)
 	{
 		GL_BeginRendering (false, NULL, &glwidth, &glheight);
 		r_refdef.viewangles[1] = i / 128.0 * 360.0;
-		R_RenderView (false, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
+		R_RenderView (false, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
 		GL_EndRendering (false, false);
 	}
 

@@ -34,7 +34,8 @@ const int type_size[NUM_TYPE_SIZES] = {
 	1  // sizeof(void *) / 4		// ev_pointer
 };
 
-static ddef_t *ED_FieldAtOfs (int ofs);
+static ddef_t	*ED_FieldAtOfs (int ofs);
+extern edict_t **bbox_linked;
 
 cvar_t nomonsters = {"nomonsters", "0", CVAR_NONE};
 cvar_t gamecfg = {"gamecfg", "0", CVAR_NONE};
@@ -659,7 +660,7 @@ Returns true if the field should be printed by the edict command:
 - non-zero contents
 =============
 */
-static qboolean ED_IsRelevantField (edict_t *ed, ddef_t *d)
+qboolean ED_IsRelevantField (edict_t *ed, ddef_t *d)
 {
 	const char *name;
 	size_t		l;
@@ -702,7 +703,7 @@ static void ED_AppendFlagString (char *dst, size_t dstsize, const char *desc)
 ED_FieldValueString
 =============
 */
-static const char *ED_FieldValueString (edict_t *ed, ddef_t *d)
+const char *ED_FieldValueString (edict_t *ed, ddef_t *d)
 {
 	static char str[1024];
 	int			ofs = d->ofs * 4;
@@ -1056,6 +1057,28 @@ static void ED_PrintEdict_f (void)
 			else
 				ED_ParseEpair ((void *)&EDICT_NUM (i)->v, def, Cmd_Argv (3), false);
 		}
+	}
+	PR_SwitchQCVM (NULL);
+}
+
+/*
+=============
+ED_PrintEdict_Completion_f -- tab completion for the edict command
+=============
+*/
+static void ED_PrintEdict_Completion_f (const char *partial)
+{
+	int i;
+
+	if (!sv.active || Cmd_Argc () > 2 || VEC_SIZE (bbox_linked) == 0)
+		return;
+
+	PR_SwitchQCVM (&sv.qcvm);
+	for (i = 0; i < (int)VEC_SIZE (bbox_linked); i++)
+	{
+		edict_t	   *ed = bbox_linked[i];
+		const char *classname = ed->v.classname ? PR_GetString (ed->v.classname) : "";
+		Con_AddToTabList (va ("%d", NUM_FOR_EDICT (ed)), partial, classname);
 	}
 	PR_SwitchQCVM (NULL);
 }
@@ -1550,6 +1573,24 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 
 /*
 ================
+ED_IsSkillSelector
+================
+*/
+static qboolean ED_IsSkillSelector (const edict_t *ent)
+{
+	int			skillvalue;
+	const char *classname = PR_GetString (ent->v.classname);
+
+	if (strcmp (classname, "trigger_setskill") == 0 || strcmp (classname, "target_setskill") == 0)
+		return true;
+	if (strcmp (classname, "info_command") == 0 && (int)ent->v.message != 0 && sscanf (PR_GetString (ent->v.message), "skill %d", &skillvalue) == 1)
+		return true;
+
+	return false;
+}
+
+/*
+================
 ED_LoadFromFile
 Creates a server's entity / program execution context by
 parsing textual entity definitions out of an ent file.
@@ -1564,6 +1605,7 @@ void ED_LoadFromFile (const char *data)
 	edict_t		*ent = NULL;
 	int			 inhibit = 0;
 	int			 usingspawnfunc = 0;
+	const char	*classname;
 
 	pr_global_struct->time = qcvm->time;
 
@@ -1582,6 +1624,52 @@ void ED_LoadFromFile (const char *data)
 		else
 			ent = ED_Alloc ();
 		data = ED_ParseEdict (data, ent);
+
+		if (!ent->v.classname)
+		{
+			Con_SafePrintf ("No classname for:\n"); // johnfitz -- was Con_Printf
+			ED_Print (ent);
+			ED_Free (ent);
+			continue;
+		}
+
+		classname = PR_GetString (ent->v.classname);
+
+		if (sv.mapchecks.active)
+		{
+			int skillflags = (int)ent->v.spawnflags & (SPAWNFLAG_NOT_EASY | SPAWNFLAG_NOT_MEDIUM | SPAWNFLAG_NOT_HARD);
+
+			if (!(skillflags & SPAWNFLAG_NOT_EASY))
+				sv.mapchecks.skill_ents[0]++;
+			if (!(skillflags & SPAWNFLAG_NOT_MEDIUM))
+				sv.mapchecks.skill_ents[1]++;
+			if (!(skillflags & SPAWNFLAG_NOT_HARD))
+				sv.mapchecks.skill_ents[2]++;
+
+			if (strcmp (classname, "trigger_changelevel") == 0)
+			{
+				ddef_t *mapfield = ED_FindField ("map");
+				sv.mapchecks.trigger_changelevel++;
+				if (mapfield && (mapfield->type & ~DEF_SAVEGLOBAL) == ev_string)
+				{
+					eval_t	   *val = GetEdictFieldValue (ent, mapfield->ofs);
+					const char *map = COM_SkipSpace (PR_GetString (val->string));
+					if (*map)
+					{
+						sv.mapchecks.changelevel = map;
+						sv.mapchecks.valid_changelevel++;
+					}
+				}
+			}
+			else if (ED_IsSkillSelector (ent))
+				sv.mapchecks.skill_triggers++;
+			else if (strcmp (classname, "info_intermission") == 0)
+				sv.mapchecks.intermission++;
+			else if (strcmp (classname, "info_player_coop") == 0)
+				sv.mapchecks.coop_spawns++;
+			else if (strcmp (classname, "info_player_deathmatch") == 0)
+				sv.mapchecks.dm_spawns++;
+		}
 
 		// remove things from different skill levels or deathmatch
 		if (deathmatch.value)
@@ -1605,16 +1693,6 @@ void ED_LoadFromFile (const char *data)
 		//
 		// immediately call spawn function
 		//
-		if (!ent->v.classname)
-		{
-			Con_SafePrintf ("No classname for:\n"); // johnfitz -- was Con_Printf
-			ED_Print (ent);
-			ED_Free (ent);
-			continue;
-		}
-
-		const char *classname = PR_GetString (ent->v.classname);
-
 		if (sv.nomonsters && !strncmp (classname, "monster_", 8))
 		{
 			ED_Free (ent);
@@ -1688,6 +1766,7 @@ void PR_ClearProgs (qcvm_t *vm)
 	Mem_Free (qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
 	if (qcvm->fielddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
 		Mem_Free (qcvm->fielddefs);
+	Mem_Free (qcvm->entityfieldofs);
 	Mem_Free (qcvm->progs); // spike -- pr_progs switched to use malloc (so menuqc doesn't end up stuck on the early hunk nor wiped on every map change)
 	HashMap_Destroy (qcvm->function_map);
 	HashMap_Destroy (qcvm->fielddefs_map);
@@ -1814,6 +1893,40 @@ static void PR_FindSupportedEffects (void)
 		qboolean isqex = PR_HasGlobal ("EF_QUADLIGHT", EF_QEX_QUADLIGHT) &&
 						 (PR_HasGlobal ("EF_PENTLIGHT", EF_QEX_PENTALIGHT) || PR_HasGlobal ("EF_PENTALIGHT", EF_QEX_PENTALIGHT));
 		sv.effectsmask = isqex ? -1 : -1 & ~(EF_QEX_QUADLIGHT | EF_QEX_PENTALIGHT | EF_QEX_CANDLELIGHT);
+	}
+}
+
+/*
+===============
+PR_FindEntityFields
+
+Finds all the .entity fields used by r_showbboxes to identify entity links.
+===============
+*/
+static void PR_FindEntityFields (void)
+{
+	int i, count;
+
+	count = 0;
+	for (i = 1; i < qcvm->progs->numfielddefs; i++)
+	{
+		ddef_t *field = &qcvm->fielddefs[i];
+		if ((field->type & ~DEF_SAVEGLOBAL) == ev_entity)
+			count++;
+	}
+
+	qcvm->numentityfields = count;
+	if (!qcvm->numentityfields)
+		return;
+
+	qcvm->entityfieldofs = (int *)Mem_Alloc (qcvm->numentityfields * sizeof (*qcvm->entityfieldofs));
+
+	count = 0;
+	for (i = 1; i < qcvm->progs->numfielddefs; i++)
+	{
+		ddef_t *field = &qcvm->fielddefs[i];
+		if ((field->type & ~DEF_SAVEGLOBAL) == ev_entity)
+			qcvm->entityfieldofs[count++] = field->ofs * 4;
 	}
 }
 
@@ -2018,6 +2131,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 	QCEXTFIELDS_GAME
 	QCEXTFIELDS_SS
 #undef QCEXTFIELD
+	PR_FindEntityFields ();
 
 	qcvm->edict_size = qcvm->progs->entityfields * 4 + sizeof (edict_t) - sizeof (entvars_t);
 	// round off to next highest whole word address (esp for Alpha)
@@ -2053,7 +2167,11 @@ PR_Init
 */
 void PR_Init (void)
 {
-	Cmd_AddCommand ("edict", ED_PrintEdict_f);
+	cmd_function_t *cmd;
+
+	cmd = Cmd_AddCommand ("edict", ED_PrintEdict_f);
+	if (cmd)
+		cmd->completion = ED_PrintEdict_Completion_f;
 	Cmd_AddCommand ("edicts", ED_PrintEdicts);
 	Cmd_AddCommand ("edictcount", ED_Count);
 	Cmd_AddCommand ("profile", PR_Profile_f);

@@ -72,9 +72,10 @@ typedef struct
 
 #define LIGHTMAP_BYTES 4
 
-void	   R_TimeRefresh_f (void);
-void	   R_ReadPointFile_f (void);
-texture_t *R_TextureAnimation (texture_t *base, int frame);
+void		   R_TimeRefresh_f (void);
+void		   R_ReadPointFile_f (void);
+texture_t	  *R_TextureAnimation (texture_t *base, int frame);
+extern vec3_t *r_pointfile;
 
 typedef enum
 {
@@ -450,7 +451,7 @@ typedef struct
 	vulkan_pipeline_t		 showtris_indirect_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 showtris_depth_test_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 showtris_indirect_depth_test_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
-	vulkan_pipeline_t		 showbboxes_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
+	vulkan_pipeline_t		 debug_lines_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 update_lightmap_pipeline;
 	vulkan_pipeline_t		 update_lightmap_rt_pipeline;
 	vulkan_pipeline_t		 indirect_draw_pipeline;

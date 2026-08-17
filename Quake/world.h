@@ -93,6 +93,9 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 int SV_HullPointContents (hull_t *hull, int num, vec3_t p);
 
 qboolean SV_RecursiveHullCheck (hull_t *hull, vec3_t p1, vec3_t p2, trace_t *trace, unsigned int hitcontents);
+byte	*SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
+qboolean SV_EdictInPVS (edict_t *test, byte *pvs);
+qboolean SV_BoxInPVS (vec3_t mins, vec3_t maxs, byte *pvs, qmodel_t *worldmodel);
 
 enum
 {

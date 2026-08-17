@@ -110,6 +110,21 @@ typedef struct
 	size_t numcustomstats;
 
 	int effectsmask; // only enable colored quad/penta dlights in 2021 release
+
+	struct
+	{
+		qboolean active;
+		int		 numwarnings;
+
+		const char *changelevel;
+		int			trigger_changelevel;
+		int			valid_changelevel;
+		int			intermission;
+		int			skill_triggers;
+		int			coop_spawns;
+		int			dm_spawns;
+		int			skill_ents[3];
+	} mapchecks; // additional map checks for level designers
 } server_t;
 
 #define NUM_PING_TIMES		  16

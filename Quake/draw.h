@@ -52,6 +52,7 @@ void	Draw_TileClear (cb_context_t *cbx, float x, float y, float w, float h);
 void	Draw_Fill (cb_context_t *cbx, float x, float y, float w, float h, int c, float alpha); // johnfitz -- added alpha
 void	Draw_FadeScreen (cb_context_t *cbx);
 void	Draw_String (cb_context_t *cbx, float x, float y, const char *str);
+void	Draw_String_Scaled (cb_context_t *cbx, float x, float y, const char *str, float scale);
 void	Draw_String_3D (cb_context_t *cbx, vec3_t coords, float size, const char *str);
 qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags, int picflags);
 qpic_t *Draw_PicFromWad (const char *name);

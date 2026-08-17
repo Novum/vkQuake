@@ -91,6 +91,7 @@ cvar_t autoload = {"autoload", "1", CVAR_ARCHIVE};
 cvar_t autofastload = {"autofastload", "0", CVAR_ARCHIVE};
 
 cvar_t developer = {"developer", "0", CVAR_NONE};
+cvar_t map_checks = {"map_checks", "0", CVAR_NONE};
 
 static cvar_t pr_engine = {"pr_engine", ENGINE_NAME_AND_VER, CVAR_NONE};
 cvar_t		  temp1 = {"temp1", "0", CVAR_NONE};
@@ -386,6 +387,7 @@ void Host_InitLocal (void)
 	Cvar_SetCallback (&noexit, Host_Callback_Notify);
 	Cvar_RegisterVariable (&skill);
 	Cvar_RegisterVariable (&developer);
+	Cvar_RegisterVariable (&map_checks);
 	Cvar_RegisterVariable (&coop);
 	Cvar_RegisterVariable (&deathmatch);
 
@@ -1281,6 +1283,13 @@ void Host_Init (void)
 
 	host_initialized = true;
 	Con_Printf ("\n========= Quake Initialized =========\n\n");
+
+	if (!COM_CheckParm ("-nomapchecks") && Sys_IsStartedFromMapEditor ())
+	{
+		Con_Printf ("Level editing environment detected, enabling map_checks\n"
+					"(pass -nomapchecks or set map_checks to 0 to disable)\n");
+		Cvar_SetValueQuick (&map_checks, 1.f);
+	}
 
 	// the folder from the selection dialog is only remembered now,
 	// with the game data proven to actually work

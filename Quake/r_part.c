@@ -35,6 +35,8 @@ static const int ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
 static const int ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
 static const int ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
 
+vec3_t *r_pointfile = NULL;
+
 static particle_t *active_particles, *free_particles, *particles;
 
 // beware: different from the r_part_fte.c r_numparticles one, this is for classic particles,
@@ -344,19 +346,31 @@ void R_ClearParticles (void)
 R_ReadPointFile_f
 ===============
 */
+static qboolean R_PointfileCollinear (const vec3_t a, const vec3_t b, const vec3_t c)
+{
+	vec3_t ab, bc, ac;
+
+	VectorSubtract (a, b, ab);
+	VectorSubtract (b, c, bc);
+	VectorSubtract (a, c, ac);
+
+	return VectorLength (ab) + VectorLength (bc) < VectorLength (ac) * 1.00001f;
+}
+
 void R_ReadPointFile_f (void)
 {
-	FILE	   *f;
-	vec3_t		org;
-	int			r;
-	int			c;
-	particle_t *p;
-	char		name[MAX_QPATH];
+	FILE	*f;
+	vec3_t	 org;
+	int		 r, n;
+	qboolean leakmode;
+	char	 name[MAX_QPATH];
 
+	VEC_CLEAR (r_pointfile);
 	if (cls.state != ca_connected)
 		return; // need an active map.
 
 	q_snprintf (name, sizeof (name), "maps/%s.pts", cl.mapname);
+	leakmode = Cmd_Argc () >= 2 && !strcmp (Cmd_Argv (1), "leak");
 
 	COM_FOpenFile (name, &f, NULL);
 	if (!f)
@@ -365,35 +379,25 @@ void R_ReadPointFile_f (void)
 		return;
 	}
 
-	Con_Printf ("Reading %s...\n", name);
-	c = 0;
+	if (!leakmode)
+		Con_Printf ("Reading %s...\n", name);
 	org[0] = org[1] = org[2] = 0; // silence pesky compiler warnings
-	for (;;)
+	for (r = 0; fscanf (f, "%f %f %f\n", &org[0], &org[1], &org[2]) == 3; r++)
 	{
-		r = fscanf (f, "%f %f %f\n", &org[0], &org[1], &org[2]);
-		if (r != 3)
-			break;
-		c++;
-
-		if (!free_particles)
+		Vec_Append ((void **)&r_pointfile, sizeof (r_pointfile[0]), &org, 1);
+		n = (int)VEC_SIZE (r_pointfile);
+		if (n >= 3 && R_PointfileCollinear (r_pointfile[n - 3], r_pointfile[n - 2], r_pointfile[n - 1]))
 		{
-			Con_Printf ("Not enough free particles\n");
-			break;
+			VectorCopy (r_pointfile[n - 1], r_pointfile[n - 2]);
+			VEC_HEADER (r_pointfile).size--;
 		}
-		p = free_particles;
-		free_particles = p->next;
-		p->next = active_particles;
-		active_particles = p;
-
-		p->die = 99999;
-		p->color = (-c) & 15;
-		p->type = pt_static;
-		VectorCopy (vec3_origin, p->vel);
-		VectorCopy (org, p->org);
 	}
 
 	fclose (f);
-	Con_Printf ("%i points read\n", c);
+	if (leakmode)
+		Con_Warning ("map appears to have leaks!\n");
+	else
+		Con_Printf ("%i points read (%i significant)\n", r, (int)VEC_SIZE (r_pointfile));
 }
 
 /*

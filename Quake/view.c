@@ -907,10 +907,12 @@ the entity origin, so any view position inside that will be valid
 */
 extern vrect_t scr_vrect;
 
-void V_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task)
+void V_RenderView (
+	qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task, task_handle_t draw_gui_task)
 {
 	if (con_forcedup)
 	{
+		R_ClearDebugEntityInfo ();
 		render_warp = false;
 		render_scale = 1;
 		return;
@@ -923,7 +925,7 @@ void V_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		CL_RelinkEntities ();
 	}
 
-	R_RenderView (use_tasks, begin_rendering_task, setup_frame_task, draw_done_task);
+	R_RenderView (use_tasks, begin_rendering_task, setup_frame_task, draw_done_task, draw_gui_task);
 	return;
 }
 

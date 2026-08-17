@@ -577,7 +577,7 @@ void GL_SetCanvasColor (float r, float g, float b, float a)
 Draw_FillCharacterQuad
 ================
 */
-static void Draw_FillCharacterQuad (float x, float y, char num, basicvertex_t *output, int rotation)
+static void Draw_FillCharacterQuadScaled (float x, float y, float scale, char num, basicvertex_t *output, int rotation)
 {
 	const int	row = num >> 4;
 	const int	col = num & 15;
@@ -590,12 +590,13 @@ static void Draw_FillCharacterQuad (float x, float y, char num, basicvertex_t *o
 	basicvertex_t corner_verts[4];
 	memset (&corner_verts, 255, sizeof (corner_verts));
 
-	float texcoords[4][2] = {
-		{x, y},
-		{x + CHARACTER_SIZE, y},
-		{x + CHARACTER_SIZE, y + CHARACTER_SIZE},
-		{x, y + CHARACTER_SIZE},
-	};
+	const float size = CHARACTER_SIZE * scale;
+	float		texcoords[4][2] = {
+		  {x, y},
+		  {x + size, y},
+		  {x + size, y + size},
+		  {x, y + size},
+	  };
 
 	for (int i = 0; i < 4; ++i)
 		for (int j = 0; j < 4; ++j)
@@ -631,6 +632,11 @@ static void Draw_FillCharacterQuad (float x, float y, char num, basicvertex_t *o
 	output[3] = corner_verts[2];
 	output[4] = corner_verts[3];
 	output[5] = corner_verts[0];
+}
+
+static void Draw_FillCharacterQuad (float x, float y, char num, basicvertex_t *output, int rotation)
+{
+	Draw_FillCharacterQuadScaled (x, y, 1.0f, num, output, rotation);
 }
 
 /*
@@ -708,10 +714,53 @@ void Draw_String (cb_context_t *cbx, float x, float y, const char *str)
 }
 
 /*
+================
+Draw_String_Scaled
+================
+*/
+void Draw_String_Scaled (cb_context_t *cbx, float x, float y, const char *str, float scale)
+{
+	int			num_verts = 0;
+	int			i;
+	const char *tmp;
+	const float size = CHARACTER_SIZE * scale;
+
+	if (y <= -size)
+		return;
+
+	for (tmp = str; *tmp != 0; ++tmp)
+		if (*tmp != 32)
+			num_verts += 6;
+
+	VkBuffer	   buffer;
+	VkDeviceSize   buffer_offset;
+	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (num_verts * sizeof (basicvertex_t), &buffer, &buffer_offset);
+
+	for (i = 0; *str != 0; ++str)
+	{
+		if (*str != 32)
+		{
+			Draw_FillCharacterQuadScaled (x, y, scale, *str, vertices + i * 6, 0);
+			i++;
+		}
+		x += size;
+	}
+
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	if (canvas_color[3] < 1.0f)
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+	else
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
+	vulkan_globals.vk_cmd_bind_descriptor_sets (
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
+}
+
+/*
 =============
 Draw_Pic -- johnfitz -- modified
 =============
-*/
+ */
 void Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qboolean alpha_blend)
 {
 	glpic_t gl;

@@ -23,8 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define _QUAKE_SYS_H
 
 // sys.h -- non-portable functions
-void Sys_FileInit (void);
-void Sys_Init (void);
+void	 Sys_FileInit (void);
+void	 Sys_Init (void);
+qboolean Sys_IsStartedFromMapEditor (void);
 
 //
 // file IO : support huge files > 2GB (qfilesize_t), and huge file seeks > 2**31 bytes (qfileofs_t)

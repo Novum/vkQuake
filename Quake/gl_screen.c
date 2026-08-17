@@ -87,6 +87,7 @@ cvar_t scr_sbaralpha = {"scr_sbaralpha", "0.75", CVAR_ARCHIVE};
 cvar_t scr_conwidth = {"scr_conwidth", "0", CVAR_ARCHIVE};
 cvar_t scr_conscale = {"scr_conscale", "1", CVAR_ARCHIVE};
 cvar_t scr_crosshairscale = {"scr_crosshairscale", "1", CVAR_ARCHIVE};
+cvar_t scr_infoscale = {"scr_infoscale", "2.0", CVAR_ARCHIVE};
 cvar_t scr_showfps = {"scr_showfps", "0", CVAR_ARCHIVE};
 cvar_t scr_clock = {"scr_clock", "0", CVAR_NONE};
 cvar_t scr_autoclock = {"scr_autoclock", "1", CVAR_ARCHIVE};
@@ -115,11 +116,16 @@ cvar_t scr_relsbarscale = {"scr_relsbarscale", "1", CVAR_ARCHIVE};
 cvar_t scr_relcrosshairscale = {"scr_relcrosshairscale", "1", CVAR_ARCHIVE};
 cvar_t scr_relconscale = {"scr_relconscale", "1", CVAR_ARCHIVE};
 
-extern cvar_t crosshair;
-extern cvar_t crosshair_def;
-extern cvar_t r_tasks;
-extern cvar_t r_gpulightmapupdate;
-extern cvar_t r_showbboxes;
+extern cvar_t	 crosshair;
+extern cvar_t	 crosshair_def;
+extern cvar_t	 r_tasks;
+extern cvar_t	 r_gpulightmapupdate;
+extern cvar_t	 r_showbboxes;
+extern cvar_t	 r_showfields;
+extern cvar_t	 r_showfields_align;
+extern edict_t **bbox_linked;
+extern float	 r_fovx;
+extern float	 r_fovy;
 
 qboolean scr_initialized; // ready to draw
 
@@ -547,6 +553,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_conwidth);
 	Cvar_RegisterVariable (&scr_conscale);
 	Cvar_RegisterVariable (&scr_crosshairscale);
+	Cvar_RegisterVariable (&scr_infoscale);
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_clock);
 	Cvar_RegisterVariable (&scr_autoclock);
@@ -727,11 +734,222 @@ static void SCR_DrawClock (cb_context_t *cbx)
 	}
 }
 
+typedef struct scr_info_line_s
+{
+	char key[64];
+	char value[256];
+} scr_info_line_t;
+
+static qboolean SCR_ProjectWorldToScreen (const vec3_t point, float *x, float *y)
+{
+	vec3_t delta;
+	float  z, px, py;
+
+	VectorSubtract (point, r_origin, delta);
+	z = DotProduct (delta, vpn);
+	if (z <= 1.0f)
+		return false;
+
+	px = DotProduct (delta, vright) / (z * tanf (DEG2RAD (r_fovx) * 0.5f));
+	py = DotProduct (delta, vup) / (z * tanf (DEG2RAD (r_fovy) * 0.5f));
+
+	*x = r_refdef.vrect.x + (0.5f + 0.5f * px) * r_refdef.vrect.width;
+	*y = r_refdef.vrect.y + (0.5f - 0.5f * py) * r_refdef.vrect.height;
+	*x = CLAMP (0.0f, *x, (float)glwidth);
+	*y = CLAMP (0.0f, *y, (float)glheight);
+	return true;
+}
+
+static void SCR_GetEdictCenter (const edict_t *ed, vec3_t center)
+{
+	VectorCopy (ed->v.origin, center);
+	if (!VectorCompare (ed->v.mins, ed->v.maxs))
+	{
+		VectorMA (center, 0.5f, ed->v.mins, center);
+		VectorMA (center, 0.5f, ed->v.maxs, center);
+	}
+}
+
+static void SCR_GetEdictBottom (const edict_t *ed, vec3_t bottom)
+{
+	SCR_GetEdictCenter (ed, bottom);
+	if (!VectorCompare (ed->v.mins, ed->v.maxs))
+		bottom[2] = ed->v.origin[2] + ed->v.mins[2];
+}
+
+static void SCR_SetInfoColor (vec3_t color, float r, float g, float b)
+{
+	color[0] = r;
+	color[1] = g;
+	color[2] = b;
+}
+
+static void SCR_InfoLine (scr_info_line_t *lines, int *numlines, const char *key, const char *value)
+{
+	if (*numlines >= 96)
+		return;
+
+	q_strlcpy (lines[*numlines].key, key ? key : "", sizeof (lines[*numlines].key));
+	q_strlcpy (lines[*numlines].value, value ? value : "", sizeof (lines[*numlines].value));
+	(*numlines)++;
+}
+
+static void SCR_InfoFieldLines (scr_info_line_t *lines, int *numlines, const char *key, const char *value)
+{
+	const char *start = value;
+	char		line[256];
+
+	if (!start || !*start)
+	{
+		SCR_InfoLine (lines, numlines, key, "");
+		return;
+	}
+
+	while (*start)
+	{
+		const char *end = strchr (start, '\n');
+		size_t		len = end ? (size_t)(end - start) : strlen (start);
+		len = q_min (len, sizeof (line) - 1);
+		memcpy (line, start, len);
+		line[len] = 0;
+		SCR_InfoLine (lines, numlines, key, line);
+		key = "";
+		if (!end)
+			break;
+		start = end + 1;
+	}
+}
+
+static void SCR_DrawInfoPanel (cb_context_t *cbx, float x, float y, const scr_info_line_t *lines, int numlines, const vec3_t bgcolor)
+{
+	float scale, charw, charh, keyw, valuew, width, height;
+
+	if (numlines <= 0)
+		return;
+
+	scale = CLAMP (1.0f, scr_infoscale.value, 8.0f);
+	charw = CHARACTER_SIZE * scale;
+	charh = CHARACTER_SIZE * scale;
+	keyw = valuew = 0.0f;
+
+	for (int i = 0; i < numlines; i++)
+	{
+		keyw = q_max (keyw, strlen (lines[i].key) * charw);
+		valuew = q_max (valuew, strlen (lines[i].value) * charw);
+	}
+
+	width = keyw + valuew + 3.0f * charw;
+	height = (numlines + 1) * charh;
+	x = CLAMP (0.0f, x, q_max (0.0f, glwidth - width));
+	y = CLAMP (0.0f, y, q_max (0.0f, glheight - height));
+
+	GL_SetCanvas (cbx, CANVAS_DEFAULT);
+	Draw_Fill (cbx, x, y, width, height, 0, 0.65f);
+
+	for (int i = 0; i < numlines; i++)
+	{
+		const float liney = y + (i + 0.5f) * charh;
+		GL_SetCanvasColor (0.85f + bgcolor[0] * 0.5f, 0.75f + bgcolor[1] * 0.5f, 0.45f + bgcolor[2] * 0.5f, 1.0f);
+		Draw_String_Scaled (cbx, x + 0.5f * charw, liney, lines[i].key, scale);
+		GL_SetCanvasColor (1.0f, 1.0f, 1.0f, 1.0f);
+		Draw_String_Scaled (cbx, x + keyw + 1.5f * charw, liney, lines[i].value, scale);
+	}
+}
+
+static void SCR_DrawEdictInfo (cb_context_t *cbx)
+{
+	scr_info_line_t lines[96];
+	vec3_t			anchor, bgcolor;
+	float			x, y;
+	int				numlines;
+
+	if (VEC_SIZE (bbox_linked) == 0 && VEC_SIZE (r_pointfile) == 0)
+		return;
+
+	if (VEC_SIZE (r_pointfile) != 0 && SCR_ProjectWorldToScreen (r_pointfile[0], &x, &y))
+	{
+		numlines = 0;
+		SCR_InfoLine (lines, &numlines, "", "Leak");
+		SCR_SetInfoColor (bgcolor, 0.25f, 0.0f, 0.0f);
+		SCR_DrawInfoPanel (cbx, x, y, lines, numlines, bgcolor);
+	}
+
+	if (VEC_SIZE (bbox_linked) == 0)
+		return;
+
+	PR_SwitchQCVM (&sv.qcvm);
+
+	for (int i = (int)VEC_SIZE (bbox_linked) - 1; i >= 0; i--)
+	{
+		edict_t *ed = bbox_linked[i];
+
+		if (i == 0 && r_showfields.value && !r_showfields_align.value)
+			continue;
+
+		SCR_GetEdictCenter (ed, anchor);
+		if (!SCR_ProjectWorldToScreen (anchor, &x, &y))
+			continue;
+
+		numlines = 0;
+		SCR_InfoLine (lines, &numlines, "", va ("edict %d", NUM_FOR_EDICT (ed)));
+		if (ed->v.classname)
+			SCR_InfoLine (lines, &numlines, "", PR_GetString (ed->v.classname));
+
+		switch (ed->showbboxflags)
+		{
+		default:
+		case SHOWBBOX_LINK_NONE:
+			SCR_SetInfoColor (bgcolor, 0.0f, 0.0f, 0.0f);
+			break;
+		case SHOWBBOX_LINK_INCOMING:
+			SCR_SetInfoColor (bgcolor, 0.25f, 0.125f, 0.125f);
+			break;
+		case SHOWBBOX_LINK_OUTGOING:
+			SCR_SetInfoColor (bgcolor, 0.125f, 0.125f, 0.25f);
+			break;
+		case SHOWBBOX_LINK_BOTH:
+			SCR_SetInfoColor (bgcolor, 0.25f, 0.125f, 0.25f);
+			break;
+		}
+
+		SCR_DrawInfoPanel (cbx, x, y, lines, numlines, bgcolor);
+	}
+
+	if (r_showfields.value)
+	{
+		edict_t *ed = bbox_linked[0];
+
+		SCR_GetEdictBottom (ed, anchor);
+		if (!SCR_ProjectWorldToScreen (anchor, &x, &y) || r_showfields_align.value)
+		{
+			x = glwidth;
+			y = glheight;
+		}
+
+		numlines = 0;
+		SCR_InfoLine (lines, &numlines, "Edict", va ("%d", NUM_FOR_EDICT (ed)));
+		SCR_InfoLine (lines, &numlines, "classname", ed->v.classname ? PR_GetString (ed->v.classname) : "");
+
+		for (int i = 1; i < qcvm->progs->numfielddefs; i++)
+		{
+			ddef_t *d = &qcvm->fielddefs[i];
+			if (d->ofs * 4 == offsetof (entvars_t, classname) || !ED_IsRelevantField (ed, d))
+				continue;
+			SCR_InfoFieldLines (lines, &numlines, PR_GetString (d->s_name), ED_FieldValueString (ed, d));
+		}
+
+		SCR_SetInfoColor (bgcolor, 0.0f, 0.0f, 0.0f);
+		SCR_DrawInfoPanel (cbx, x, y, lines, numlines, bgcolor);
+	}
+
+	PR_SwitchQCVM (NULL);
+}
+
 /*
 ==============
 SCR_DrawDevStats
 ==============
-*/
+ */
 static void SCR_DrawDevStats (cb_context_t *cbx)
 {
 	char str[40];
@@ -1176,6 +1394,7 @@ static void SCR_DrawGUI (void *unused)
 		SCR_DrawFPS (cbx);		// johnfitz
 		SCR_DrawSpeeds (cbx);
 		SCR_DrawClock (cbx); // johnfitz
+		SCR_DrawEdictInfo (cbx);
 		SCR_DrawConsole (cbx);
 		M_Draw (cbx);
 	}
@@ -1269,8 +1488,8 @@ void SCR_UpdateScreen (qboolean use_tasks)
 
 		task_handle_t draw_done_task = Task_AllocateAndAssignFunc (SCR_DrawDone, NULL, 0);
 		task_handle_t setup_frame_task = Task_AllocateAndAssignFunc (SCR_SetupFrame, NULL, 0);
-		V_RenderView (use_tasks, begin_rendering_task, setup_frame_task, draw_done_task);
 		task_handle_t draw_gui_task = Task_AllocateAndAssignFunc (SCR_DrawGUI, NULL, 0);
+		V_RenderView (use_tasks, begin_rendering_task, setup_frame_task, draw_done_task, draw_gui_task);
 		task_handle_t end_rendering_task = GL_EndRendering (use_tasks, true);
 
 		Task_AddDependency (begin_rendering_task, draw_gui_task);
@@ -1289,7 +1508,7 @@ void SCR_UpdateScreen (qboolean use_tasks)
 	{
 		GL_SynchronizeEndRenderingTask ();
 		SCR_SetupFrame (NULL);
-		V_RenderView (use_tasks, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
+		V_RenderView (use_tasks, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
 		S_ExtraUpdate ();
 		SCR_DrawGUI (NULL);
 		SCR_DrawDone (NULL);
