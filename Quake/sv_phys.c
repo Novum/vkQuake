@@ -709,16 +709,13 @@ cvar_t sv_gameplayfix_elevators = {"sv_gameplayfix_elevators", "3", CVAR_NONE};
 typedef enum
 {
 	SV_MOVE_FRAME_NONE,
-	SV_MOVE_FRAME_GROUND,
-	SV_MOVE_FRAME_AIRBORNE,
-	SV_MOVE_FRAME_AIRBORNE_WORLD_VELOCITY
+	SV_MOVE_FRAME_GROUND
 } sv_client_move_frame_state_t;
 
 typedef struct
 {
 	edict_t						*pusher;
 	sv_client_move_frame_state_t state;
-	vec3_t						 pusher_velocity;
 	vec3_t						 support_normal;
 } sv_client_move_frame_t;
 
@@ -727,7 +724,6 @@ typedef struct
 	unsigned					 frame;
 	int							 pusher_entnum;
 	sv_client_move_frame_state_t state;
-	vec3_t						 pusher_velocity;
 	vec3_t						 pusher_move;
 } sv_pusher_support_record_t;
 
@@ -888,8 +884,7 @@ static void SV_RestorePusherSupport (edict_t *ent, const sv_pusher_support_recor
 		*support = *backup;
 }
 
-static qboolean
-SV_WritePusherSupportRecord (edict_t *ent, edict_t *pusher, sv_client_move_frame_state_t state, const vec3_t pusher_velocity, const vec3_t pusher_move)
+static qboolean SV_WritePusherSupportRecord (edict_t *ent, edict_t *pusher, sv_client_move_frame_state_t state, const vec3_t pusher_move)
 {
 	int							pushernum;
 	sv_pusher_support_record_t *support;
@@ -903,7 +898,6 @@ SV_WritePusherSupportRecord (edict_t *ent, edict_t *pusher, sv_client_move_frame
 	support->frame = sv_pusher_support_frame;
 	support->pusher_entnum = pushernum;
 	support->state = state;
-	VectorCopy (pusher_velocity, support->pusher_velocity);
 	VectorCopy (pusher_move, support->pusher_move);
 	return true;
 }
@@ -916,7 +910,7 @@ static void SV_RecordPusherSupport (edict_t *ent, edict_t *pusher, const vec3_t 
 		return;
 	if (!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
 		return;
-	if (!SV_WritePusherSupportRecord (ent, pusher, SV_MOVE_FRAME_GROUND, pusher->v.velocity, pusher_move))
+	if (!SV_WritePusherSupportRecord (ent, pusher, SV_MOVE_FRAME_GROUND, pusher_move))
 		return;
 
 	if (ent->v.movetype == MOVETYPE_WALK)
@@ -930,16 +924,13 @@ static void SV_ClearClientMoveFrame (sv_client_move_frame_t *frame)
 {
 	frame->pusher = NULL;
 	frame->state = SV_MOVE_FRAME_NONE;
-	VectorCopy (vec3_origin, frame->pusher_velocity);
 	VectorCopy (vec3_origin, frame->support_normal);
 }
 
-static void SV_SetClientPusherMoveFrame (
-	sv_client_move_frame_t *frame, edict_t *pusher, sv_client_move_frame_state_t state, const vec3_t pusher_velocity, const float *support_normal)
+static void SV_SetClientPusherMoveFrame (sv_client_move_frame_t *frame, edict_t *pusher, sv_client_move_frame_state_t state, const float *support_normal)
 {
 	frame->pusher = pusher;
 	frame->state = state;
-	VectorCopy (pusher_velocity, frame->pusher_velocity);
 	if (support_normal)
 		VectorCopy (support_normal, frame->support_normal);
 	else
@@ -952,12 +943,6 @@ static qboolean SV_CaptureRecordedPusherMoveFrame (edict_t *ent, sv_client_move_
 
 	switch (record->state)
 	{
-	case SV_MOVE_FRAME_AIRBORNE:
-		if ((int)ent->v.flags & FL_ONGROUND)
-			return false;
-		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_AIRBORNE_WORLD_VELOCITY, record->pusher_velocity, NULL);
-		return true;
-
 	case SV_MOVE_FRAME_GROUND:
 		if (ent->v.groundentity != EDICT_TO_PROG (pusher))
 			return false;
@@ -965,7 +950,7 @@ static qboolean SV_CaptureRecordedPusherMoveFrame (edict_t *ent, sv_client_move_
 			return false;
 
 		ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
-		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_GROUND, record->pusher_velocity, trace.plane.normal);
+		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_GROUND, trace.plane.normal);
 		return true;
 
 	default:
@@ -1001,7 +986,7 @@ static void SV_CaptureClientMoveFrameBeforeQC (edict_t *ent, sv_client_move_fram
 
 	pusher = SV_GetGroundPusher (ent);
 	if (pusher && SV_PusherWillMoveThisFrame (pusher) && SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
-		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_GROUND, pusher->v.velocity, trace.plane.normal);
+		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_GROUND, trace.plane.normal);
 }
 
 static qboolean SV_ClientMoveFrameHasGroundSupport (const sv_client_move_frame_t *frame)
@@ -1013,27 +998,6 @@ static qboolean SV_ClientMoveFrameHasGroundSupport (const sv_client_move_frame_t
 	if (DotProduct (frame->support_normal, frame->support_normal) <= DIST_EPSILON * DIST_EPSILON)
 		return false;
 	return true;
-}
-
-static qboolean SV_ClientMoveFrameIsAirbornePusher (const sv_client_move_frame_t *frame)
-{
-	if (frame->state != SV_MOVE_FRAME_AIRBORNE)
-		return false;
-	if (!SV_IsClientMoveFramePusher (frame->pusher))
-		return false;
-	return true;
-}
-
-static void SV_RecordAirbornePusherMoveFrame (edict_t *ent, const sv_client_move_frame_t *move_frame)
-{
-	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
-		return;
-	if (!SV_ClientMoveFrameIsAirbornePusher (move_frame))
-		return;
-	if ((int)ent->v.flags & FL_ONGROUND)
-		return;
-
-	SV_WritePusherSupportRecord (ent, move_frame->pusher, SV_MOVE_FRAME_AIRBORNE, move_frame->pusher->v.velocity, vec3_origin);
 }
 
 static void SV_SetWalkMoveFrameClipContext (const sv_client_move_frame_t *move_frame)
@@ -1067,9 +1031,10 @@ static int SV_FlyMoveWithMoveFrameClipContext (edict_t *ent, float time, const s
 
 static void SV_DropClientMoveFramePusherGround (edict_t *ent, sv_client_move_frame_t *move_frame)
 {
-	move_frame->state = SV_MOVE_FRAME_AIRBORNE;
-	VectorCopy (move_frame->pusher->v.velocity, move_frame->pusher_velocity);
-	if (ent->v.groundentity == EDICT_TO_PROG (move_frame->pusher))
+	edict_t *pusher = move_frame->pusher;
+
+	SV_ClearClientMoveFrame (move_frame);
+	if (ent->v.groundentity == EDICT_TO_PROG (pusher))
 		ent->v.groundentity = 0;
 }
 
@@ -1078,33 +1043,11 @@ static void SV_UpdateClientMoveFrameAfterQC (edict_t *ent, sv_client_move_frame_
 	if (!move_frame->pusher)
 		return;
 
-	if (move_frame->state == SV_MOVE_FRAME_AIRBORNE_WORLD_VELOCITY)
-	{
-		if (ent->v.movetype != MOVETYPE_WALK)
-			move_frame->state = SV_MOVE_FRAME_NONE;
-		return;
-	}
-
 	if (move_frame->state != SV_MOVE_FRAME_GROUND)
 		return;
 
 	if (!((int)ent->v.flags & FL_ONGROUND) && ent->v.movetype == MOVETYPE_WALK)
 		SV_DropClientMoveFramePusherGround (ent, move_frame);
-}
-
-static void SV_BeginClientWalkMoveFrame (edict_t *ent, sv_client_move_frame_t *move_frame)
-{
-	if (move_frame->state != SV_MOVE_FRAME_AIRBORNE_WORLD_VELOCITY)
-		return;
-	if (!SV_IsClientMoveFramePusher (move_frame->pusher))
-	{
-		move_frame->state = SV_MOVE_FRAME_NONE;
-		return;
-	}
-
-	VectorSubtract (ent->v.velocity, move_frame->pusher_velocity, ent->v.velocity);
-	VectorCopy (move_frame->pusher->v.velocity, move_frame->pusher_velocity);
-	move_frame->state = SV_MOVE_FRAME_AIRBORNE;
 }
 
 static qboolean SV_GroundClientOnMoveFramePusher (edict_t *ent, const sv_client_move_frame_t *move_frame)
@@ -1271,63 +1214,6 @@ static trace_t SV_PushEntityTo (edict_t *ent, vec3_t end)
 		SV_Impact (ent, trace.ent);
 
 	return trace;
-}
-
-static trace_t SV_PushEntityToIgnoringPusher (edict_t *ent, edict_t *pusher, vec3_t end)
-{
-	float	solid_backup;
-	trace_t trace;
-
-	solid_backup = pusher->v.solid;
-	pusher->v.solid = SOLID_NOT;
-	trace = SV_PushEntityTo (ent, end);
-	pusher->v.solid = solid_backup;
-	return trace;
-}
-
-static void SV_EndClientMoveFrame (edict_t *ent, const sv_client_move_frame_t *move_frame)
-{
-	edict_t *ground;
-	float	 movetime;
-	vec3_t	 move, support_move, dest;
-
-	if (!SV_ClientMoveFrameIsAirbornePusher (move_frame))
-		return;
-	if (ent->free || ent->v.movetype != MOVETYPE_WALK)
-		return;
-
-	VectorCopy (vec3_origin, move);
-	movetime = SV_PusherMoveTimeThisFrame (move_frame->pusher);
-	if (movetime > 0)
-	{
-		VectorScale (move_frame->pusher->v.velocity, movetime, move);
-		if (move[0] || move[1] || move[2])
-		{
-			VectorAdd (ent->v.origin, move, dest);
-			SV_PushEntityToIgnoringPusher (ent, move_frame->pusher, dest);
-		}
-	}
-
-	if (ent->free || ent->v.movetype != MOVETYPE_WALK)
-		return;
-
-	if ((int)ent->v.flags & FL_ONGROUND)
-	{
-		ground = SV_GetGroundPusher (ent);
-		if (ground)
-		{
-			if (ground == move_frame->pusher)
-				VectorCopy (move, support_move);
-			else
-				VectorCopy (vec3_origin, support_move);
-			SV_WritePusherSupportRecord (ent, ground, SV_MOVE_FRAME_GROUND, ground->v.velocity, support_move);
-		}
-		return;
-	}
-
-	SV_RecordAirbornePusherMoveFrame (ent, move_frame);
-	VectorAdd (ent->v.velocity, move_frame->pusher_velocity, ent->v.velocity);
-	SV_CheckVelocity (ent);
 }
 
 /*
@@ -1968,8 +1854,6 @@ static void SV_Physics_ClientWalk (edict_t *ent, sv_client_move_frame_t *move_fr
 	qboolean in_water;
 	qboolean apply_gravity;
 
-	SV_BeginClientWalkMoveFrame (ent, move_frame);
-
 	supported_by_pusher = SV_ClientMoveFrameHasGroundSupport (move_frame);
 	in_water = SV_CheckWater (ent);
 	apply_gravity = !supported_by_pusher && !in_water && !((int)ent->v.flags & FL_WATERJUMP);
@@ -1985,8 +1869,6 @@ static void SV_Physics_ClientWalk (edict_t *ent, sv_client_move_frame_t *move_fr
 
 	if (!ent->free && apply_gravity)
 		SV_FinishGravity (ent);
-	if (!ent->free)
-		SV_EndClientMoveFrame (ent, move_frame);
 }
 
 static void SV_Physics_Client (edict_t *ent, int num)
