@@ -75,8 +75,8 @@ static qboolean sound_started = false;
 
 SDL_Mutex *snd_mutex;
 
-cvar_t bgmvolume = {"bgmvolume", "1", CVAR_ARCHIVE};
-cvar_t sfxvolume = {"volume", "0.7", CVAR_ARCHIVE};
+cvar_t bgmvolume = {"bgmvolume", "1", CVAR_ARCHIVE_GAME};
+cvar_t sfxvolume = {"volume", "0.7", CVAR_ARCHIVE_GAME};
 
 cvar_t precache = {"precache", "1", CVAR_NONE};
 cvar_t loadas8bit = {"loadas8bit", "0", CVAR_NONE};
@@ -84,9 +84,9 @@ cvar_t loadas8bit = {"loadas8bit", "0", CVAR_NONE};
 cvar_t sndspeed = {"sndspeed", "11025", CVAR_NONE};
 cvar_t snd_mixspeed = {"snd_mixspeed", "44100", CVAR_NONE};
 
-cvar_t snd_waterfx = {"snd_waterfx", "1", CVAR_ARCHIVE};
+cvar_t snd_waterfx = {"snd_waterfx", "1", CVAR_ARCHIVE_GAME};
 
-cvar_t snd_pauselooping = {"snd_pauselooping", "1", CVAR_ARCHIVE};
+cvar_t snd_pauselooping = {"snd_pauselooping", "1", CVAR_ARCHIVE_GAME};
 
 #if defined(_WIN32)
 #define SND_FILTERQUALITY_DEFAULT "5"

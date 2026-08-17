@@ -67,7 +67,7 @@ cvar_t scr_speeds = {"scr_speeds", "0", CVAR_NONE};
 cvar_t r_pos = {"r_pos", "0", CVAR_NONE};
 cvar_t r_fullbright = {"r_fullbright", "0", CVAR_NONE};
 cvar_t r_lightmap = {"r_lightmap", "0", CVAR_NONE};
-cvar_t r_wateralpha = {"r_wateralpha", "1", CVAR_ARCHIVE};
+cvar_t r_wateralpha = {"r_wateralpha", "1", CVAR_ARCHIVE_GAME};
 cvar_t r_oit = {"r_oit", "1", CVAR_ARCHIVE};
 cvar_t r_dynamic = {"r_dynamic", "1", CVAR_ARCHIVE};
 cvar_t r_novis = {"r_novis", "0", CVAR_ARCHIVE};
@@ -84,8 +84,8 @@ cvar_t gl_nocolors = {"gl_nocolors", "0", CVAR_NONE};
 cvar_t r_clearcolor = {"r_clearcolor", "2", CVAR_ARCHIVE};
 cvar_t r_fastclear = {"r_fastclear", "1", CVAR_ARCHIVE};
 cvar_t r_flatlightstyles = {"r_flatlightstyles", "0", CVAR_NONE};
-cvar_t r_lerplightstyles = {"r_lerplightstyles", "1", CVAR_ARCHIVE}; // 0=off; 1=skip abrupt transitions; 2=always lerp
-cvar_t gl_fullbrights = {"gl_fullbrights", "1", CVAR_ARCHIVE};
+cvar_t r_lerplightstyles = {"r_lerplightstyles", "1", CVAR_ARCHIVE_GAME}; // 0=off; 1=skip abrupt transitions; 2=always lerp
+cvar_t gl_fullbrights = {"gl_fullbrights", "1", CVAR_ARCHIVE_GAME};
 cvar_t gl_farclip = {"gl_farclip", "16384", CVAR_ARCHIVE};
 cvar_t r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t r_drawworld = {"r_drawworld", "1", CVAR_NONE};
@@ -98,9 +98,9 @@ cvar_t r_showbboxes_links = {"r_showbboxes_links", "3", CVAR_NONE};	  // 0=off; 
 cvar_t r_showbboxes_targets = {"r_showbboxes_targets", "1", CVAR_NONE};
 cvar_t r_showfields = {"r_showfields", "0", CVAR_NONE};
 cvar_t r_showfields_align = {"r_showfields_align", "1", CVAR_ARCHIVE}; // 0=entity pos; 1=bottom-right
-cvar_t r_lerpmodels = {"r_lerpmodels", "1", CVAR_ARCHIVE};
-cvar_t r_lerpmove = {"r_lerpmove", "1", CVAR_ARCHIVE};
-cvar_t r_lerpturn = {"r_lerpturn", "1", CVAR_ARCHIVE};
+cvar_t r_lerpmodels = {"r_lerpmodels", "1", CVAR_ARCHIVE_GAME};
+cvar_t r_lerpmove = {"r_lerpmove", "1", CVAR_ARCHIVE_GAME};
+cvar_t r_lerpturn = {"r_lerpturn", "1", CVAR_ARCHIVE_GAME};
 cvar_t r_nolerp_list = {
 	"r_nolerp_list",
 	"progs/flame.mdl,progs/flame2.mdl,progs/braztall.mdl,progs/brazshrt.mdl,progs/longtrch.mdl,progs/flame_pyre.mdl,progs/v_saw.mdl,progs/"
