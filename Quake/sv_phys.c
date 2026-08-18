@@ -784,13 +784,6 @@ static qboolean SV_TracePusherFloorAtOrigin (edict_t *ent, edict_t *pusher, cons
 	return !trace->startsolid && trace->fraction < 1 && trace->plane.normal[2] > MIN_WALK_NORMAL;
 }
 
-static qboolean SV_TouchingPusherAtOrigin (edict_t *ent, edict_t *pusher, const vec3_t pusher_origin)
-{
-	trace_t trace;
-
-	return SV_TracePusherFloorAtOrigin (ent, pusher, pusher_origin, PUSH_CONTACT_EPSILON, &trace);
-}
-
 static float SV_PusherMoveTimeThisFrame (edict_t *pusher)
 {
 	float thinktime;
@@ -809,7 +802,7 @@ static float SV_PusherMoveTimeThisFrame (edict_t *pusher)
 	return movetime;
 }
 
-static qboolean SV_IsClientMoveFramePusher (edict_t *pusher)
+static qboolean SV_IsSupportPusher (edict_t *pusher)
 {
 	if (!pusher || pusher->free)
 		return false;
@@ -835,7 +828,7 @@ static edict_t *SV_GetGroundPusher (edict_t *ent)
 		return NULL;
 
 	ground = PROG_TO_EDICT (ent->v.groundentity);
-	if (!SV_IsClientMoveFramePusher (ground))
+	if (!SV_IsSupportPusher (ground))
 		return NULL;
 
 	return ground;
@@ -915,16 +908,26 @@ static qboolean SV_MovetypeUsesGroundFlag (edict_t *ent)
 	return ent->v.movetype == MOVETYPE_WALK || ent->v.movetype == MOVETYPE_STEP || ent->v.movetype == MOVETYPE_TOSS || ent->v.movetype == MOVETYPE_GIB;
 }
 
+// groundentity only identifies the pusher to probe; support still requires a floor trace.
+static qboolean SV_EntityHasPusherSupportAtOrigin (edict_t *ent, edict_t *pusher, const vec3_t pusher_origin, trace_t *trace)
+{
+	if (!SV_IsSupportPusher (pusher))
+		return false;
+
+	if (ent->v.movetype == MOVETYPE_WALK && !((int)ent->v.flags & FL_ONGROUND) && !SV_EntityGroundEntityIsPusher (ent, pusher))
+		return false;
+
+	return SV_TracePusherFloorAtOrigin (ent, pusher, pusher_origin, PUSH_CONTACT_EPSILON, trace);
+}
+
 static void SV_RecordPusherSupport (edict_t *ent, edict_t *pusher, const vec3_t pusher_move)
 {
-	trace_t	 trace;
-	qboolean supported;
+	trace_t trace;
 
 	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
 		return;
 
-	supported = SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace) || SV_EntityGroundEntityIsPusher (ent, pusher);
-	if (!supported)
+	if (!SV_EntityHasPusherSupportAtOrigin (ent, pusher, pusher->v.origin, &trace))
 		return;
 	if (!SV_WritePusherSupportRecord (ent, pusher, SV_MOVE_FRAME_GROUND, pusher_move))
 		return;
@@ -962,7 +965,7 @@ static qboolean SV_CaptureRecordedPusherMoveFrame (edict_t *ent, sv_client_move_
 	case SV_MOVE_FRAME_GROUND:
 		if (ent->v.groundentity != EDICT_TO_PROG (pusher))
 			return false;
-		if (!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
+		if (!SV_EntityHasPusherSupportAtOrigin (ent, pusher, pusher->v.origin, &trace))
 			return false;
 
 		ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
@@ -993,7 +996,7 @@ static void SV_CaptureClientMoveFrameBeforeQC (edict_t *ent, sv_client_move_fram
 	if (record->frame && record->frame + 1 == sv_pusher_support_frame && record->pusher_entnum > 0 && record->pusher_entnum < qcvm->num_edicts)
 	{
 		pusher = EDICT_NUM (record->pusher_entnum);
-		if (SV_IsClientMoveFramePusher (pusher))
+		if (SV_IsSupportPusher (pusher))
 		{
 			if (SV_CaptureRecordedPusherMoveFrame (ent, frame, record, pusher))
 				return;
@@ -1001,7 +1004,7 @@ static void SV_CaptureClientMoveFrameBeforeQC (edict_t *ent, sv_client_move_fram
 	}
 
 	pusher = SV_GetGroundPusher (ent);
-	if (pusher && SV_PusherWillMoveThisFrame (pusher) && SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_CONTACT_EPSILON, &trace))
+	if (pusher && SV_PusherWillMoveThisFrame (pusher) && SV_EntityHasPusherSupportAtOrigin (ent, pusher, pusher->v.origin, &trace))
 		SV_SetClientPusherMoveFrame (frame, pusher, SV_MOVE_FRAME_GROUND, trace.plane.normal);
 }
 
@@ -1009,7 +1012,7 @@ static qboolean SV_ClientMoveFrameHasGroundSupport (const sv_client_move_frame_t
 {
 	if (frame->state != SV_MOVE_FRAME_GROUND)
 		return false;
-	if (!SV_IsClientMoveFramePusher (frame->pusher))
+	if (!SV_IsSupportPusher (frame->pusher))
 		return false;
 	if (DotProduct (frame->support_normal, frame->support_normal) <= DIST_EPSILON * DIST_EPSILON)
 		return false;
@@ -1114,18 +1117,20 @@ static qboolean SV_EntityRidingPusher (edict_t *ent, edict_t *pusher)
 	return ((int)ent->v.flags & FL_ONGROUND) && SV_EntityGroundEntityIsPusher (ent, pusher);
 }
 
-static qboolean SV_EntitySupportedByPusher (edict_t *ent, edict_t *pusher, const vec3_t pushorig)
+static void SV_ClearStalePusherGround (edict_t *ent)
 {
-	if (SV_EntityRidingPusher (ent, pusher))
-		return SV_TouchingPusherAtOrigin (ent, pusher, pushorig);
+	edict_t *pusher;
+	trace_t	 trace;
 
-	if (ent->v.movetype != MOVETYPE_WALK && SV_EntityGroundEntityIsPusher (ent, pusher))
-		return true;
+	pusher = SV_GetGroundPusher (ent);
+	if (!pusher)
+		return;
 
-	if (SV_TouchingPusherAtOrigin (ent, pusher, pushorig))
-		return ent->v.movetype != MOVETYPE_WALK || ((int)ent->v.flags & FL_ONGROUND);
+	if (SV_EntityHasPusherSupportAtOrigin (ent, pusher, pusher->v.origin, &trace))
+		return;
 
-	return false;
+	ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+	ent->v.groundentity = 0;
 }
 
 static qboolean SV_PusherBoundsOverlapEntity (edict_t *ent, const vec3_t mins, const vec3_t maxs)
@@ -1138,15 +1143,17 @@ static qboolean SV_PusherBoundsOverlapEntity (edict_t *ent, const vec3_t mins, c
 static qboolean
 SV_PusherAffectsEntity (edict_t *ent, edict_t *pusher, const vec3_t pushorig, const vec3_t mins, const vec3_t maxs, qboolean robust_push, qboolean *riding)
 {
+	trace_t support_trace;
+
 	*riding = false;
 
-	if (robust_push && SV_EntitySupportedByPusher (ent, pusher, pushorig))
+	if (robust_push && SV_EntityHasPusherSupportAtOrigin (ent, pusher, pushorig, &support_trace))
 	{
 		*riding = true;
 		return true;
 	}
 
-	if (SV_EntityRidingPusher (ent, pusher))
+	if (!robust_push && SV_EntityRidingPusher (ent, pusher))
 	{
 		*riding = true;
 		return true;
@@ -2433,6 +2440,9 @@ void SV_Physics (void)
 			if (ent->free)
 				continue;
 		}
+
+		if (qcvm == &sv.qcvm && SV_MovetypeUsesGroundFlag (ent))
+			SV_ClearStalePusherGround (ent);
 
 		if (i > 0 && i <= svs.maxclients && qcvm == &sv.qcvm)
 			SV_Physics_Client (ent, i);
