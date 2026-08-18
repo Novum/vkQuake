@@ -1066,6 +1066,153 @@ static void Host_Notarget_f (void)
 
 qboolean noclip_anglehack;
 
+#define NOCLIP_UNSTICK_FINE_RADIUS	  8
+#define NOCLIP_UNSTICK_SPHERE_RADIUS  512
+#define NOCLIP_UNSTICK_SPHERE_STEP	  8
+#define NOCLIP_UNSTICK_SPHERE_SAMPLES 192
+#define NOCLIP_UNSTICK_LINE_STEPS	  16
+
+static qboolean Host_Noclip_TestOrigin (edict_t *ent, const vec3_t origin)
+{
+	vec3_t	 saved;
+	qboolean valid;
+
+	VectorCopy (ent->v.origin, saved);
+	VectorCopy (origin, ent->v.origin);
+	valid = SV_TestEntityPosition (ent) == NULL;
+	VectorCopy (saved, ent->v.origin);
+
+	return valid;
+}
+
+static float Host_Noclip_DistanceSquared (const vec3_t a, const vec3_t b)
+{
+	vec3_t delta;
+
+	VectorSubtract (a, b, delta);
+	return DotProduct (delta, delta);
+}
+
+static qboolean Host_Noclip_SearchFibonacciSphere (edict_t *ent, const vec3_t base, int radius, vec3_t out)
+{
+	int			i;
+	vec3_t		test;
+	const float golden_angle = (float)(M_PI * (3.0 - sqrt (5.0)));
+	const float inv_samples = 1.0f / NOCLIP_UNSTICK_SPHERE_SAMPLES;
+
+	for (i = 0; i < NOCLIP_UNSTICK_SPHERE_SAMPLES; i++)
+	{
+		const float y = 1.0f - 2.0f * (i + 0.5f) * inv_samples;
+		const float r = sqrt (1.0f - y * y);
+		const float theta = golden_angle * i;
+		const float x = cos (theta) * r;
+		const float z = sin (theta) * r;
+
+		test[0] = base[0] + x * radius;
+		test[1] = base[1] + y * radius;
+		test[2] = base[2] + z * radius;
+		if (Host_Noclip_TestOrigin (ent, test))
+		{
+			VectorCopy (test, out);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static int Host_Noclip_NextSearchRadius (int radius)
+{
+	if (radius < NOCLIP_UNSTICK_FINE_RADIUS)
+		return radius + 1;
+	return radius + NOCLIP_UNSTICK_SPHERE_STEP;
+}
+
+static qboolean Host_Noclip_FindNearbyValidOrigin (edict_t *ent, vec3_t out)
+{
+	int	   radius;
+	vec3_t base;
+
+	VectorCopy (ent->v.origin, base);
+
+	if (Host_Noclip_TestOrigin (ent, base))
+	{
+		VectorCopy (base, out);
+		return true;
+	}
+
+	for (radius = 1; radius <= NOCLIP_UNSTICK_SPHERE_RADIUS; radius = Host_Noclip_NextSearchRadius (radius))
+		if (Host_Noclip_SearchFibonacciSphere (ent, base, radius, out))
+			return true;
+
+	return false;
+}
+
+static qboolean Host_Noclip_FindValidOriginTowardOldOrigin (edict_t *ent, vec3_t out)
+{
+	int	   i;
+	vec3_t current, low, high, mid;
+
+	VectorCopy (ent->v.origin, current);
+	if (!Host_Noclip_TestOrigin (ent, ent->v.oldorigin))
+		return false;
+
+	VectorCopy (ent->v.oldorigin, low);
+	VectorCopy (current, high);
+	for (i = 0; i < NOCLIP_UNSTICK_LINE_STEPS; i++)
+	{
+		mid[0] = (low[0] + high[0]) * 0.5f;
+		mid[1] = (low[1] + high[1]) * 0.5f;
+		mid[2] = (low[2] + high[2]) * 0.5f;
+
+		if (Host_Noclip_TestOrigin (ent, mid))
+			VectorCopy (mid, low);
+		else
+			VectorCopy (mid, high);
+	}
+
+	VectorCopy (low, out);
+	return true;
+}
+
+static void Host_Noclip_Off (void)
+{
+	float	 best_dist, dist;
+	qboolean found;
+	vec3_t	 base, candidate, origin;
+
+	noclip_anglehack = false;
+	VectorCopy (sv_player->v.origin, base);
+
+	best_dist = 0;
+	found = false;
+	if (Host_Noclip_FindNearbyValidOrigin (sv_player, candidate))
+	{
+		VectorCopy (candidate, origin);
+		best_dist = Host_Noclip_DistanceSquared (base, candidate);
+		found = true;
+	}
+
+	if (Host_Noclip_FindValidOriginTowardOldOrigin (sv_player, candidate))
+	{
+		dist = Host_Noclip_DistanceSquared (base, candidate);
+		if (!found || dist < best_dist)
+		{
+			VectorCopy (candidate, origin);
+			found = true;
+		}
+	}
+
+	if (found)
+	{
+		VectorCopy (origin, sv_player->v.origin);
+		VectorCopy (origin, sv_player->v.oldorigin);
+	}
+
+	sv_player->v.movetype = MOVETYPE_WALK;
+	SV_ClientPrintf ("noclip OFF\n");
+}
+
 /*
 ==================
 Host_Noclip_f
@@ -1094,9 +1241,7 @@ static void Host_Noclip_f (void)
 		}
 		else
 		{
-			noclip_anglehack = false;
-			sv_player->v.movetype = MOVETYPE_WALK;
-			SV_ClientPrintf ("noclip OFF\n");
+			Host_Noclip_Off ();
 		}
 		break;
 	case 2:
@@ -1108,9 +1253,7 @@ static void Host_Noclip_f (void)
 		}
 		else
 		{
-			noclip_anglehack = false;
-			sv_player->v.movetype = MOVETYPE_WALK;
-			SV_ClientPrintf ("noclip OFF\n");
+			Host_Noclip_Off ();
 		}
 		break;
 	default:

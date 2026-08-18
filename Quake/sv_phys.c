@@ -2070,6 +2070,8 @@ static void SV_Physics_Client (edict_t *ent, int num)
 		if (!SV_RunThink (ent))
 			return;
 		VectorMA (ent->v.origin, host_frametime, ent->v.velocity, ent->v.origin);
+		if (!SV_TestEntityPosition (ent))
+			VectorCopy (ent->v.origin, ent->v.oldorigin);
 		break;
 
 	default:
