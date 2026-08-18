@@ -469,10 +469,11 @@ static void CL_EntityLerpUpdated (entity_t *ent, int oldframe, qboolean forcelin
 	// the finish hint sent with this update belongs to changes recorded from this
 	// update; the duration is frozen here so later hints can't stretch it
 	double duration = (ent->lerp.frame_finish_time > cl.mtime[0]) ? ent->lerp.frame_finish_time - cl.mtime[0] : 0.1;
+	double change_time = q_min (cl.time, cl.mtime[0]);
 
-	if (ent->frame != oldframe || forcelink || snap_anim)
+	if (ent->frame != oldframe || snap_anim)
 	{
-		if (forcelink || snap_anim)
+		if (snap_anim)
 		{
 			ent->lerp.prev_frame = ent->frame;
 			ent->lerp.frame_change_time = 0;
@@ -483,12 +484,12 @@ static void CL_EntityLerpUpdated (entity_t *ent, int oldframe, qboolean forcelin
 		{
 			ent->lerp.snap_frames--;
 			ent->lerp.prev_frame = ent->frame;
-			ent->lerp.frame_change_time = cl.mtime[0];
+			ent->lerp.frame_change_time = change_time;
 		}
 		else
 		{
 			ent->lerp.prev_frame = oldframe;
-			ent->lerp.frame_change_time = cl.mtime[0];
+			ent->lerp.frame_change_time = change_time;
 		}
 		ent->lerp.frame_duration = duration;
 	}
@@ -510,7 +511,7 @@ static void CL_EntityLerpUpdated (entity_t *ent, int oldframe, qboolean forcelin
 		{
 			VectorCopy (ent->msg_origins[1], ent->lerp.prev_origin);
 			VectorCopy (ent->msg_angles[1], ent->lerp.prev_angles);
-			ent->lerp.move_change_time = cl.mtime[0];
+			ent->lerp.move_change_time = change_time;
 		}
 		ent->lerp.move_duration = duration;
 	}
