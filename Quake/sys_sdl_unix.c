@@ -304,7 +304,7 @@ DIRECTORY ENUMERATION (from Ironwail)
 typedef struct unixfindfile_s
 {
 	findfile_t	   base;
-	const char *dir;
+	const char	  *dir;
 	DIR			  *handle;
 	struct dirent *data;
 	char		   filter[8];
@@ -313,17 +313,18 @@ typedef struct unixfindfile_s
 static void Sys_FillFindData (unixfindfile_t *find)
 {
 	struct stat st;
-	char filepath[PATH_MAX];
+	char		filepath[PATH_MAX];
 
 	q_strlcpy (find->base.name, find->data->d_name, sizeof (find->base.name));
 	find->base.attribs = 0;
-	switch(find->data->d_type) {
+	switch (find->data->d_type)
+	{
 	case DT_DIR:
 		find->base.attribs |= FA_DIRECTORY;
 		break;
 	case DT_LNK:
-		q_snprintf (filepath, sizeof(filepath), "%s/%s", find->dir, find->base.name);
-		if(stat(filepath, &st) == 0 && S_ISDIR(st.st_mode))
+		q_snprintf (filepath, sizeof (filepath), "%s/%s", find->dir, find->base.name);
+		if (stat (filepath, &st) == 0 && S_ISDIR (st.st_mode))
 			find->base.attribs |= FA_DIRECTORY;
 	}
 }
