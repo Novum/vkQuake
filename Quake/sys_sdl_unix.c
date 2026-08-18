@@ -303,18 +303,28 @@ DIRECTORY ENUMERATION (from Ironwail)
 
 typedef struct unixfindfile_s
 {
-	findfile_t	   base;
-	DIR			  *handle;
-	struct dirent *data;
-	char		   filter[8];
+    findfile_t	   base;
+    const char *dir;
+    DIR			  *handle;
+    struct dirent *data;
+    char		   filter[8];
 } unixfindfile_t;
 
 static void Sys_FillFindData (unixfindfile_t *find)
 {
-	q_strlcpy (find->base.name, find->data->d_name, sizeof (find->base.name));
-	find->base.attribs = 0;
-	if (find->data->d_type & DT_DIR)
-		find->base.attribs |= FA_DIRECTORY;
+    q_strlcpy (find->base.name, find->data->d_name, sizeof (find->base.name));
+    find->base.attribs = 0;
+    switch(find->data->d_type) {
+    case DT_DIR:
+        find->base.attribs |= FA_DIRECTORY;
+        break;
+    case DT_LNK:
+        struct stat st;
+        char filename[PATH_MAX];
+        q_snprintf (filename, sizeof(filename), "%s/%s", find->dir, find->base.name);
+        if(stat(filename, &st) == 0 && S_ISDIR(st.st_mode))
+            find->base.attribs |= FA_DIRECTORY;
+    }
 }
 
 static struct dirent *readdir_filtered (DIR *handle, const char *ext)
@@ -356,7 +366,8 @@ findfile_t *Sys_FindFirst (const char *dir, const char *ext)
 	ret = (unixfindfile_t *)Mem_Alloc (sizeof (unixfindfile_t));
 	if (!ret)
 		Sys_Error ("Sys_FindFirst: out of memory");
-	ret->handle = handle;
+        ret->dir = dir;
+        ret->handle = handle;
 	ret->data = data;
 	q_strlcpy (ret->filter, ext, sizeof (ret->filter));
 	Sys_FillFindData (ret);
