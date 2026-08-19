@@ -621,6 +621,8 @@ void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_h
 
 void M_Menu_Main_f (void)
 {
+	SCR_EndStartupLoadingPlaque ();
+
 	M_MenuChanged ();
 	if (key_dest != key_menu)
 	{

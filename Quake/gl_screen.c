@@ -136,9 +136,10 @@ int clearconsole;
 
 vrect_t scr_vrect;
 
-qboolean scr_disabled_for_loading;
-qboolean scr_drawloading;
-float	 scr_disabled_time;
+qboolean		scr_disabled_for_loading;
+qboolean		scr_drawloading;
+static qboolean scr_drawstartuploading = true;
+float			scr_disabled_time;
 
 qboolean	   in_update_screen;
 extern jmp_buf screen_error;
@@ -1076,10 +1077,30 @@ static void SCR_DrawLoadingPic (cb_context_t *cbx)
 
 /*
 =============
+SCR_DrawStartupSplashPic
+=============
+*/
+static void SCR_DrawStartupSplashPic (cb_context_t *cbx)
+{
+	const float startup_logo_scale = 1.5f;
+	qpic_t	   *pic;
+	float		logo_size, source_size, logo_t;
+
+	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
+
+	pic = Draw_CachePic ("gfx/qplaque.lmp");
+	source_size = pic->width;
+	logo_size = source_size * startup_logo_scale;
+	logo_t = (pic->height - source_size) / pic->height;
+	Draw_SubPic (cbx, (320 - logo_size) / 2, (240 - 48 - logo_size) / 2, logo_size, logo_size, pic, 0, logo_t, 1, source_size / pic->height, NULL, 1.0f);
+}
+
+/*
+=============
 SCR_DrawMenuLoading
 =============
 */
-static void SCR_DrawMenuLoading (cb_context_t *cbx)
+static void SCR_DrawMenuLoading (cb_context_t *cbx, qboolean startup)
 {
 	const float	   old_con_current = scr_con_current;
 	const qboolean old_con_forcedup = con_forcedup;
@@ -1092,7 +1113,10 @@ static void SCR_DrawMenuLoading (cb_context_t *cbx)
 
 	Draw_FadeScreen (cbx);
 
-	SCR_DrawLoadingPic (cbx);
+	if (startup)
+		SCR_DrawStartupSplashPic (cbx);
+	else
+		SCR_DrawLoadingPic (cbx);
 }
 
 /*
@@ -1130,7 +1154,7 @@ static void SCR_SetUpToDrawConsole (void)
 
 	Con_CheckResize ();
 
-	if (scr_drawloading)
+	if (scr_drawloading || (scr_drawstartuploading && cls.state == ca_disconnected))
 		return; // never a console with loading plaque
 
 	if (con_forcedup)
@@ -1216,6 +1240,17 @@ void SCR_BeginLoadingPlaque (void)
 
 	scr_disabled_for_loading = true;
 	scr_disabled_time = realtime;
+}
+
+/*
+===============
+SCR_EndStartupLoadingPlaque
+
+================
+*/
+void SCR_EndStartupLoadingPlaque (void)
+{
+	scr_drawstartuploading = false;
 }
 
 /*
@@ -1384,9 +1419,9 @@ static void SCR_DrawGUI (void *unused)
 		Draw_FadeScreen (cbx);
 		SCR_DrawNotifyString (cbx);
 	}
-	else if (scr_drawloading) // loading
+	else if (scr_drawloading || (scr_drawstartuploading && cls.state == ca_disconnected)) // loading
 	{
-		SCR_DrawMenuLoading (cbx);
+		SCR_DrawMenuLoading (cbx, scr_drawstartuploading);
 	}
 	else if (cl.intermission == 1 && key_dest == key_game) // end of level
 	{
