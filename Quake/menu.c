@@ -2329,7 +2329,13 @@ void M_Options_Key (int k)
 #define QUICKSAVE "echo Quicksaving...; wait; save quick"
 #define QUICKLOAD "echo Quickloading...; wait; load quick"
 
-const char *bindnames[][2] = {
+typedef struct
+{
+	const char *command;
+	const char *description;
+} menukeybind_t;
+
+static const menukeybind_t default_keybinds[] = {
 	{"+forward", "Move Forward"},
 	{"+back", "Move Backward"},
 	{"+moveleft", "Strafe Left"},
@@ -2351,6 +2357,8 @@ const char *bindnames[][2] = {
 	{"impulse 6", "Grenade Launcher"},
 	{"impulse 7", "Rocket Launcher"},
 	{"impulse 8", "Thunderbolt"},
+	{"impulse 225", "Laser Cannon"},
+	{"impulse 226", "Mjolnir"},
 	{"", ""}, // placeholder used as separator
 	{QUICKSAVE, "Quick save"},
 	{QUICKLOAD, "Quick load"},
@@ -2361,13 +2369,44 @@ const char *bindnames[][2] = {
 	{"quit", "Quit"},
 	{"help", "Help"},
 	{"screenshot", "Screenshot"},
+	{"+showscores", "Show score"},
+	{"messagemode", "Text chat"},
 	{"toggleconsole", "Toggle console"},
 };
 
-#define NUMCOMMANDS countof (bindnames)
+// current bind names for the current game
+menukeybind_t *bindnames;
 
 static int		keys_cursor;
 static qboolean bind_grab;
+
+static void M_Keys_Populate (void)
+{
+	// free current binds
+	for (int i = 0; i < VEC_SIZE (bindnames); i++)
+	{
+		SAFE_FREE (bindnames[i].command);
+		SAFE_FREE (bindnames[i].description);
+	}
+	VEC_CLEAR (bindnames);
+
+	// Add applicable binds to the current game:
+	for (int i = 0; i < countof (default_keybinds); i++)
+	{
+		const menukeybind_t *item = &default_keybinds[i];
+
+		// Filter-out items not applicable for the current game:
+		if (!hipnotic && !mg3 && strcmp (item->command, "impulse 225") == 0)
+			continue;
+		if (!hipnotic && strcmp (item->command, "impulse 226") == 0)
+			continue;
+
+		// Add new item in bindnames
+		menukeybind_t applicable_item = {.command = q_strdup (item->command), .description = q_strdup (item->description)};
+
+		VEC_PUSH (bindnames, applicable_item);
+	}
+}
 
 void M_Menu_Keys_f (void)
 {
@@ -2375,6 +2414,8 @@ void M_Menu_Keys_f (void)
 	IN_Deactivate (true);
 	key_dest = key_menu;
 	m_state = m_keys;
+
+	M_Keys_Populate ();
 }
 
 void M_FindKeysForCommand (const char *command, int *twokeys)
@@ -2428,7 +2469,7 @@ static void M_Keys_Draw (cb_context_t *cbx)
 	int			keys[2];
 	const char *name;
 	qpic_t	   *p;
-	int			keys_height = q_min (BINDS_PER_PAGE, NUMCOMMANDS - first_key);
+	int			keys_height = q_min (BINDS_PER_PAGE, VEC_SIZE (bindnames) - first_key);
 
 	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
@@ -2439,17 +2480,17 @@ static void M_Keys_Draw (cb_context_t *cbx)
 		M_Print (cbx, 18, 32, "Enter to change, backspace to clear");
 
 	// search for known bindings
-	for (i = 0; i < BINDS_PER_PAGE && i < (int)NUMCOMMANDS; i++)
+	for (i = 0; i < BINDS_PER_PAGE && i < (int)VEC_SIZE (bindnames); i++)
 	{
 #define KEY_STRING_DRAW_POS (160)
 		y = 48 + 8 * i;
 
-		M_Print (cbx, 10, y, bindnames[i + first_key][1]);
+		M_Print (cbx, 10, y, bindnames[i + first_key].description);
 
-		M_FindKeysForCommand (bindnames[i + first_key][0], keys);
+		M_FindKeysForCommand (bindnames[i + first_key].command, keys);
 
 		// do not draw anything if the bindnames is empty, it means a plceholder separator.
-		if (strlen (bindnames[i + first_key][0]) && (keys[0] == -1))
+		if (strlen (bindnames[i + first_key].command) && (keys[0] == -1))
 		{
 			M_Print (cbx, KEY_STRING_DRAW_POS, y, "???");
 		}
@@ -2468,8 +2509,8 @@ static void M_Keys_Draw (cb_context_t *cbx)
 		}
 	}
 
-	if (NUMCOMMANDS > BINDS_PER_PAGE)
-		M_DrawScrollbar (cbx, MENU_SCROLLBAR_X, 56, (float)(first_key) / (NUMCOMMANDS - BINDS_PER_PAGE), BINDS_PER_PAGE - 2);
+	if (VEC_SIZE (bindnames) > BINDS_PER_PAGE)
+		M_DrawScrollbar (cbx, MENU_SCROLLBAR_X, 56, (float)(first_key) / (VEC_SIZE (bindnames) - BINDS_PER_PAGE), BINDS_PER_PAGE - 2);
 
 	if (bind_grab)
 		Draw_Character (cbx, (KEY_STRING_DRAW_POS - 10), 48 + (keys_cursor - first_key) * 8, '=');
@@ -2490,7 +2531,7 @@ void M_Keys_Key (int k)
 		S_LocalSound ("misc/menu1.wav");
 		if ((k != K_ESCAPE) && (k != '`'))
 		{
-			q_snprintf (cmd, sizeof (cmd), "bind \"%s\" \"%s\"\n", Key_KeynumToString (k), bindnames[keys_cursor][0]);
+			q_snprintf (cmd, sizeof (cmd), "bind \"%s\" \"%s\"\n", Key_KeynumToString (k), bindnames[keys_cursor].command);
 			Cbuf_InsertText (cmd);
 		}
 
@@ -2499,7 +2540,7 @@ void M_Keys_Key (int k)
 		return;
 	}
 
-	if (M_HandleScrollBarKeys (k, &keys_cursor, &first_key, (int)NUMCOMMANDS, BINDS_PER_PAGE))
+	if (M_HandleScrollBarKeys (k, &keys_cursor, &first_key, (int)VEC_SIZE (bindnames), BINDS_PER_PAGE))
 		return;
 
 	switch (k)
@@ -2514,13 +2555,13 @@ void M_Keys_Key (int k)
 	case K_ENTER: // go into bind mode
 	case K_KP_ENTER:
 	case K_ABUTTON:
-		M_FindKeysForCommand (bindnames[keys_cursor][0], keys);
+		M_FindKeysForCommand (bindnames[keys_cursor].command, keys);
 		// if bindnames is empty, it means as a placeholder separator
-		if (!strlen (bindnames[keys_cursor][0]))
+		if (!strlen (bindnames[keys_cursor].command))
 			return;
 		S_LocalSound ("misc/menu2.wav");
 		if (keys[1] != -1)
-			M_UnbindCommand (bindnames[keys_cursor][0]);
+			M_UnbindCommand (bindnames[keys_cursor].command);
 		bind_grab = true;
 		IN_Activate (); // activate to allow mouse key binding
 		break;
@@ -2528,7 +2569,7 @@ void M_Keys_Key (int k)
 	case K_BACKSPACE: // delete bindings
 	case K_DEL:
 		S_LocalSound ("misc/menu2.wav");
-		M_UnbindCommand (bindnames[keys_cursor][0]);
+		M_UnbindCommand (bindnames[keys_cursor].command);
 		break;
 	}
 }
