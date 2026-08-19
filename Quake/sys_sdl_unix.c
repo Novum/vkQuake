@@ -304,29 +304,37 @@ DIRECTORY ENUMERATION (from Ironwail)
 typedef struct unixfindfile_s
 {
 	findfile_t	   base;
-	const char	  *dir;
+	char		   dir[MAX_OSPATH];
 	DIR			  *handle;
 	struct dirent *data;
 	char		   filter[8];
 } unixfindfile_t;
 
-static void Sys_FillFindData (unixfindfile_t *find)
+static qboolean Sys_FindDataIsDirectory (const unixfindfile_t *find)
 {
 	struct stat st;
-	char		filepath[PATH_MAX];
+	char		filepath[MAX_OSPATH];
 
-	q_strlcpy (find->base.name, find->data->d_name, sizeof (find->base.name));
-	find->base.attribs = 0;
 	switch (find->data->d_type)
 	{
 	case DT_DIR:
-		find->base.attribs |= FA_DIRECTORY;
-		break;
+		return true;
 	case DT_LNK:
-		q_snprintf (filepath, sizeof (filepath), "%s/%s", find->dir, find->base.name);
-		if (stat (filepath, &st) == 0 && S_ISDIR (st.st_mode))
-			find->base.attribs |= FA_DIRECTORY;
+	case DT_UNKNOWN:
+		if ((size_t)q_snprintf (filepath, sizeof (filepath), "%s/%s", find->dir, find->data->d_name) >= sizeof (filepath))
+			return false;
+		return stat (filepath, &st) == 0 && S_ISDIR (st.st_mode);
+	default:
+		return false;
 	}
+}
+
+static void Sys_FillFindData (unixfindfile_t *find)
+{
+	q_strlcpy (find->base.name, find->data->d_name, sizeof (find->base.name));
+	find->base.attribs = 0;
+	if (Sys_FindDataIsDirectory (find))
+		find->base.attribs |= FA_DIRECTORY;
 }
 
 static struct dirent *readdir_filtered (DIR *handle, const char *ext)
@@ -368,7 +376,8 @@ findfile_t *Sys_FindFirst (const char *dir, const char *ext)
 	ret = (unixfindfile_t *)Mem_Alloc (sizeof (unixfindfile_t));
 	if (!ret)
 		Sys_Error ("Sys_FindFirst: out of memory");
-	ret->dir = dir;
+	if (q_strlcpy (ret->dir, dir, sizeof (ret->dir)) >= sizeof (ret->dir))
+		Sys_Error ("Sys_FindFirst: directory too long '%s'", dir);
 	ret->handle = handle;
 	ret->data = data;
 	q_strlcpy (ret->filter, ext, sizeof (ret->filter));
