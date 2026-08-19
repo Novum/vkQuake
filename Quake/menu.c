@@ -793,6 +793,7 @@ static void M_SinglePlayer_Key (int key)
 			if (sv.active)
 				if (!SCR_ModalMessage ("Are you sure you want to\nstart a new game? (y/n)\n", 0.0f))
 					break;
+			SCR_BeginLoadingPlaque ();
 			IN_Activate ();
 			key_dest = key_game;
 			if (sv.active)
@@ -944,13 +945,13 @@ static void M_Load_Key (int k)
 		S_LocalSound ("misc/menu2.wav");
 		if (!loadable[load_cursor])
 			return;
+
+		// Draw before leaving the menu so disconnected loads don't expose the console.
+		SCR_BeginLoadingPlaque ();
+
 		m_state = m_none;
 		IN_Activate ();
 		key_dest = key_game;
-
-		// Host_Loadgame_f can't bring up the loading plaque because too much
-		// stack space has been used, so do it now
-		SCR_BeginLoadingPlaque ();
 
 		// issue the load command
 		Cbuf_AddText (va ("load s%i\n", load_cursor));

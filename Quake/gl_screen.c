@@ -1060,21 +1060,39 @@ static void SCR_DrawPause (cb_context_t *cbx)
 }
 
 /*
-==============
-SCR_DrawLoading
-==============
+=============
+SCR_DrawLoadingPic
+=============
 */
-static void SCR_DrawLoading (cb_context_t *cbx)
+static void SCR_DrawLoadingPic (cb_context_t *cbx)
 {
 	qpic_t *pic;
-
-	if (!scr_drawloading)
-		return;
 
 	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
 	pic = Draw_CachePic ("gfx/loading.lmp");
 	Draw_Pic (cbx, (320 - pic->width) / 2, (240 - 48 - pic->height) / 2, pic, 1.0f, false); // johnfitz -- stretched menus
+}
+
+/*
+=============
+SCR_DrawMenuLoading
+=============
+*/
+static void SCR_DrawMenuLoading (cb_context_t *cbx)
+{
+	const float	   old_con_current = scr_con_current;
+	const qboolean old_con_forcedup = con_forcedup;
+
+	scr_con_current = glheight;
+	con_forcedup = true;
+	Draw_ConsoleBackground (cbx);
+	con_forcedup = old_con_forcedup;
+	scr_con_current = old_con_current;
+
+	Draw_FadeScreen (cbx);
+
+	SCR_DrawLoadingPic (cbx);
 }
 
 /*
@@ -1184,19 +1202,17 @@ void SCR_BeginLoadingPlaque (void)
 {
 	S_StopAllSounds (true, false);
 
-	if (cls.state != ca_connected)
-		return;
-	if (cls.signon != SIGNONS)
+	if (cls.state == ca_dedicated)
 		return;
 
-	// redraw with no console and the loading plaque
+	// Draw a clean loading frame and freeze screen updates until loading finishes.
 	Con_ClearNotify ();
 	SCR_CenterPrintClear ();
-	scr_con_current = 0;
 
 	scr_drawloading = true;
 	SCR_UpdateScreen (false);
 	scr_drawloading = false;
+	scr_con_current = 0;
 
 	scr_disabled_for_loading = true;
 	scr_disabled_time = realtime;
@@ -1370,8 +1386,7 @@ static void SCR_DrawGUI (void *unused)
 	}
 	else if (scr_drawloading) // loading
 	{
-		SCR_DrawLoading (cbx);
-		Sbar_Draw (cbx);
+		SCR_DrawMenuLoading (cbx);
 	}
 	else if (cl.intermission == 1 && key_dest == key_game) // end of level
 	{

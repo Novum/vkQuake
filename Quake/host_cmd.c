@@ -1450,13 +1450,15 @@ static void Host_Map_f (void)
 
 	cls.demonum = -1; // stop demo loop in case this fails
 
+	if (cls.state != ca_dedicated)
+	{
+		SCR_BeginLoadingPlaque ();
+		IN_Activate ();
+		key_dest = key_game; // remove console or menu
+	}
+
 	CL_Disconnect ();
 	Host_ShutdownServer (false);
-
-	if (cls.state != ca_dedicated)
-		IN_Activate ();
-	key_dest = key_game; // remove console or menu
-	SCR_BeginLoadingPlaque ();
 
 	svs.serverflags = 0; // haven't completed an episode yet
 	q_strlcpy (name, Cmd_Argv (1), sizeof (name));
@@ -1471,7 +1473,10 @@ static void Host_Map_f (void)
 	SV_SpawnServer (name);
 	PR_SwitchQCVM (NULL);
 	if (!sv.active)
+	{
+		SCR_EndLoadingPlaque ();
 		return;
+	}
 
 	if (cls.state != ca_dedicated)
 	{
@@ -1640,6 +1645,7 @@ static void Host_Connect_f (void)
 		CL_Disconnect ();
 	}
 	q_strlcpy (name, Cmd_Argv (1), sizeof (name));
+	SCR_BeginLoadingPlaque ();
 	CL_EstablishConnection (name);
 	Host_Reconnect_f ();
 }
@@ -2009,9 +2015,7 @@ static void Host_Loadgame_f (void)
 		return;
 	}
 
-	// we can't call SCR_BeginLoadingPlaque, because too much stack space has
-	// been used.  The menu calls it before stuffing loadgame command
-	//	SCR_BeginLoadingPlaque ();
+	SCR_BeginLoadingPlaque ();
 
 	Con_Printf ("Loading game from %s...\n", name);
 
