@@ -2618,7 +2618,8 @@ static void M_Mods_Draw (cb_context_t *cbx)
 		if (mod_index >= 0)
 		{
 			const char *fullname = Modlist_GetFullName (item);
-			M_PrintElided (cbx, MENU_LABEL_X, 32 + mod_index * CHARACTER_SIZE, fullname ? fullname : item->name, 23);
+
+			M_PrintElided (cbx, MENU_LABEL_X, 32 + mod_index * CHARACTER_SIZE, fullname ? fullname : item->name, 32);
 		}
 		++mod_index;
 	}
@@ -2626,7 +2627,7 @@ static void M_Mods_Draw (cb_context_t *cbx)
 	M_Mouse_UpdateListCursor (&mods_cursor, 12, 400, 32, CHARACTER_SIZE, mods_height, first_mod);
 	Draw_Character (cbx, MENU_CURSOR_X, 32 + (mods_cursor - first_mod) * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
 	if (num_mods > MAX_MODS_ON_SCREEN)
-		M_DrawScrollbar (cbx, 260, 32 + 8, (float)(first_mod) / (float)(num_mods - MAX_MODS_ON_SCREEN), MAX_MODS_ON_SCREEN - 2);
+		M_DrawScrollbar (cbx, MENU_SCROLLBAR_X, 32 + 8, (float)(first_mod) / (float)(num_mods - MAX_MODS_ON_SCREEN), MAX_MODS_ON_SCREEN - 2);
 }
 
 static void M_Mods_Key (int key)

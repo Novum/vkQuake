@@ -1293,8 +1293,9 @@ void Host_Init (void)
 
 	if (!COM_CheckParm ("-nomapchecks") && Sys_IsStartedFromMapEditor ())
 	{
-		Con_Printf ("Level editing environment detected, enabling map_checks\n"
-					"(pass -nomapchecks or set map_checks to 0 to disable)\n");
+		Con_Printf (
+			"Level editing environment detected, enabling map_checks\n"
+			"(pass -nomapchecks or set map_checks to 0 to disable)\n");
 		Cvar_SetValueQuick (&map_checks, 1.f);
 	}
 
