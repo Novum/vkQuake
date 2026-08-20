@@ -330,8 +330,14 @@ static void TexMgr_Imagelist_f (void)
 
 	SDL_LockMutex (texmgr_mutex);
 
+	int active_gltextures_count = 0;
+
+	Q_UNUSED (active_gltextures_count);
+
 	for (glt = active_gltextures; glt; glt = glt->next)
 	{
+		active_gltextures_count++;
+
 		if (filter)
 		{
 			if (!q_strcasestr (glt->name, filter))
@@ -343,20 +349,26 @@ static void TexMgr_Imagelist_f (void)
 			q_strlcpy (displayed_name, glt->name, sizeof (displayed_name));
 		}
 
+		float current_texels = 0.0;
+
 		if (glt->flags & TEXPREF_MIPMAP)
-			texels += glt->width * glt->height * 4.0f / 3.0f;
+			current_texels = glt->width * glt->height * 4.0f / 3.0f;
 		else
-			texels += (glt->width * glt->height);
+			current_texels = (glt->width * glt->height);
 		if (glt->source_format == SRC_RGBA_CUBEMAP)
 		{
 			Con_SafePrintf ("   %4i CUBE  %s\n", glt->width, displayed_name);
-			texels *= 6.0f;
+			current_texels *= 6.0f;
 		}
 		else
 			Con_SafePrintf ("   %4i x%4i %s\n", glt->width, glt->height, displayed_name);
 
+		texels += current_texels;
+
 		count++;
 	}
+
+	assert (active_gltextures_count == numgltextures);
 
 	SDL_UnlockMutex (texmgr_mutex);
 
