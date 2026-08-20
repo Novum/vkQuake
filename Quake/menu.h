@@ -94,7 +94,7 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 #define MENU_LABEL_X	 70
 #define MENU_VALUE_X	 204
 #define MENU_SLIDER_X	 (MENU_VALUE_X + 6)
-#define MENU_SCROLLBAR_X (312 + (48)) // make some room for slider labels
+#define MENU_SCROLLBAR_X (44 * CHARACTER_SIZE) // make some room for slider labels
 #define MAX_MENU_LINES	 14
 
 // Max FPS menu entry is a slider [10 .. 1000; no limit] by steps of 2 fps so we can set 72 fps

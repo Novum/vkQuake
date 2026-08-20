@@ -231,7 +231,7 @@ void M_Print (cb_context_t *cbx, int cx, int cy, const char *str)
 M_PrintElided
 ================
 */
-static void M_PrintElided (cb_context_t *cbx, int cx, int cy, const char *str, const int max_length)
+void M_PrintElided (cb_context_t *cbx, int cx, int cy, const char *str, const int max_length)
 {
 	int i = 0;
 	while (str[i] && i < max_length)
@@ -725,6 +725,81 @@ void M_Main_Key (int key)
 			M_Menu_Quit_f ();
 			break;
 		}
+	}
+}
+
+typedef struct
+{
+	double scroll_time;
+	double scroll_wait_time;
+} menuticker_t;
+
+static void M_Ticker_Init (menuticker_t *ticker)
+{
+	ticker->scroll_time = 0.0;
+	ticker->scroll_wait_time = 1.0;
+}
+
+static void M_Ticker_Update (menuticker_t *ticker)
+{
+	if (ticker->scroll_wait_time <= 0.0)
+		ticker->scroll_time += host_rawframetime;
+	else
+		ticker->scroll_wait_time = q_max (0.0, ticker->scroll_wait_time - host_rawframetime);
+}
+
+static qboolean M_Ticker_Key (menuticker_t *ticker, int key)
+{
+	switch (key)
+	{
+	case K_RIGHTARROW:
+		ticker->scroll_time += 0.25;
+		ticker->scroll_wait_time = 1.5;
+		return true;
+
+	case K_LEFTARROW:
+		ticker->scroll_time -= 0.25;
+		ticker->scroll_wait_time = 1.5;
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+/*
+================
+M_PrintScroll
+================
+*/
+static void M_PrintScroll (cb_context_t *cbx, int x, int y, int maxwidth, const char *str, double time, qboolean color)
+{
+	int	 maxchars = maxwidth / CHARACTER_SIZE;
+	int	 len = strlen (str);
+	int	 i, ofs;
+	char mask = color ? 0x80 : 0;
+
+	if (len <= maxchars)
+	{
+		if (color)
+			M_Print (cbx, x, y, str);
+		else
+			M_PrintWhite (cbx, x, y, str);
+		return;
+	}
+
+	ofs = (int)floor (time * 4.0);
+	ofs %= len + 5;
+	if (ofs < 0)
+		ofs += len + 5;
+
+	for (i = 0; i < maxchars; i++)
+	{
+		char c = (ofs < len) ? str[ofs] : " /// "[ofs - len];
+		Draw_Character (cbx, x, y, c ^ mask);
+		x += CHARACTER_SIZE;
+		if (++ofs >= len + 5)
+			ofs = 0;
 	}
 }
 
@@ -2629,10 +2704,11 @@ static void M_Help_Key (int key)
 
 #define MAX_MODS_ON_SCREEN MAX_MENU_LINES
 
-static int num_mods = 0;
-static int first_mod = 0;
-static int mods_cursor = 0;
-static int mod_loaded_from_menu = 0;
+static int			num_mods = 0;
+static int			first_mod = 0;
+static int			mods_cursor = 0;
+static int			mod_loaded_from_menu = 0;
+static menuticker_t m_mods_ticker;
 
 static void M_Menu_Mods_f (void)
 {
@@ -2646,6 +2722,8 @@ static void M_Menu_Mods_f (void)
 		++num_mods;
 	first_mod = 0;
 	mods_cursor = 0;
+
+	M_Ticker_Init (&m_mods_ticker);
 }
 
 static void M_Mods_Draw (cb_context_t *cbx)
@@ -2656,6 +2734,8 @@ static void M_Mods_Draw (cb_context_t *cbx)
 	int mod_index = -first_mod;
 	int mods_height = q_min (MAX_MODS_ON_SCREEN, num_mods - first_mod);
 
+	M_Ticker_Update (&m_mods_ticker);
+
 	for (filelist_item_t *item = modlist; item; item = item->next)
 	{
 		if (mod_index >= MAX_MODS_ON_SCREEN)
@@ -2664,7 +2744,11 @@ static void M_Mods_Draw (cb_context_t *cbx)
 		{
 			const char *fullname = Modlist_GetFullName (item);
 
-			M_PrintElided (cbx, MENU_LABEL_X, 32 + mod_index * CHARACTER_SIZE, fullname ? fullname : item->name, 32);
+			const qboolean selected = (mods_cursor - first_mod == mod_index);
+
+			M_PrintScroll (
+				cbx, MENU_LABEL_X, 32 + mod_index * CHARACTER_SIZE, 32 * CHARACTER_SIZE, fullname ? fullname : item->name,
+				selected ? m_mods_ticker.scroll_time : 0.0, true);
 		}
 		++mod_index;
 	}
@@ -2678,6 +2762,9 @@ static void M_Mods_Draw (cb_context_t *cbx)
 static void M_Mods_Key (int key)
 {
 	int mod_index = 0;
+
+	if (M_Ticker_Key (&m_mods_ticker, key))
+		return;
 
 	if (M_HandleScrollBarKeys (key, &mods_cursor, &first_mod, num_mods, MAX_MODS_ON_SCREEN))
 		return;
@@ -2715,81 +2802,6 @@ static void M_Mods_Key (int key)
 #define MAPLIST_COLS	 (38 + 6)
 #define MAPLIST_NAMECOLS (14 + 4)
 #define MAPLIST_VIEWSIZE 19
-
-typedef struct
-{
-	double scroll_time;
-	double scroll_wait_time;
-} menuticker_t;
-
-static void M_Ticker_Init (menuticker_t *ticker)
-{
-	ticker->scroll_time = 0.0;
-	ticker->scroll_wait_time = 1.0;
-}
-
-static void M_Ticker_Update (menuticker_t *ticker)
-{
-	if (ticker->scroll_wait_time <= 0.0)
-		ticker->scroll_time += host_rawframetime;
-	else
-		ticker->scroll_wait_time = q_max (0.0, ticker->scroll_wait_time - host_rawframetime);
-}
-
-static qboolean M_Ticker_Key (menuticker_t *ticker, int key)
-{
-	switch (key)
-	{
-	case K_RIGHTARROW:
-		ticker->scroll_time += 0.25;
-		ticker->scroll_wait_time = 1.5;
-		return true;
-
-	case K_LEFTARROW:
-		ticker->scroll_time -= 0.25;
-		ticker->scroll_wait_time = 1.5;
-		return true;
-
-	default:
-		return false;
-	}
-}
-
-/*
-================
-M_PrintScroll
-================
-*/
-static void M_PrintScroll (cb_context_t *cbx, int x, int y, int maxwidth, const char *str, double time, qboolean color)
-{
-	int	 maxchars = maxwidth / CHARACTER_SIZE;
-	int	 len = strlen (str);
-	int	 i, ofs;
-	char mask = color ? 0x80 : 0;
-
-	if (len <= maxchars)
-	{
-		if (color)
-			M_Print (cbx, x, y, str);
-		else
-			M_PrintWhite (cbx, x, y, str);
-		return;
-	}
-
-	ofs = (int)floor (time * 4.0);
-	ofs %= len + 5;
-	if (ofs < 0)
-		ofs += len + 5;
-
-	for (i = 0; i < maxchars; i++)
-	{
-		char c = (ofs < len) ? str[ofs] : " /// "[ofs - len];
-		Draw_Character (cbx, x, y, c ^ mask);
-		x += CHARACTER_SIZE;
-		if (++ofs >= len + 5)
-			ofs = 0;
-	}
-}
 
 /*
 ================
@@ -4547,14 +4559,18 @@ static void M_ServerList_Draw (cb_context_t *cbx)
 	}
 
 	if (hostCacheCount > SERVER_LIST_MAX_ON_SCREEN)
-		M_DrawScrollbar (cbx, 0, 40, (float)(slist_first) / (hostCacheCount - SERVER_LIST_MAX_ON_SCREEN), SERVER_LIST_MAX_ON_SCREEN - 2);
+		M_DrawScrollbar (cbx, MENU_SCROLLBAR_X, 40, (float)(slist_first) / (hostCacheCount - SERVER_LIST_MAX_ON_SCREEN), SERVER_LIST_MAX_ON_SCREEN - 2);
 	M_Mouse_UpdateListCursor (&slist_cursor, 12, 400, 32, 8, SERVER_LIST_MAX_ON_SCREEN, slist_first);
 
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
+
 	for (n = 0; n < SERVER_LIST_MAX_ON_SCREEN && n < hostCacheCount; n++)
-		M_Print (cbx, 28, 32 + 8 * n, NET_SlistPrintServer (slist_first + n));
-	Draw_Character (cbx, 16, 32 + (slist_cursor - slist_first) * 8, 12 + ((int)(realtime * 4) & 1));
+	{
+		M_Print (cbx, 28 - CHARACTER_SIZE, 32 + 8 * n, NET_SlistPrintServer (slist_first + n));
+	}
+
+	Draw_Character (cbx, 16 - CHARACTER_SIZE, 32 + (slist_cursor - slist_first) * 8, 12 + ((int)(realtime * 4) & 1));
 
 	if (*m_return_reason)
 		M_PrintWhite (cbx, 16, 148, m_return_reason);

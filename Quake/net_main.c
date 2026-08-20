@@ -355,11 +355,11 @@ const char *NET_SlistPrintServer (size_t idx)
 	if (hostcache[idx].maxusers)
 	{
 		q_snprintf (
-			string, sizeof (string), "%-17.17s %-17.17s %2u/%2u\n", hostcache[idx].name, hostcache[idx].map, hostcache[idx].users, hostcache[idx].maxusers);
+			string, sizeof (string), "%-17.17s %-15.15s %2u/%2u\n", hostcache[idx].name, hostcache[idx].map, hostcache[idx].users, hostcache[idx].maxusers);
 	}
 	else
 	{
-		q_snprintf (string, sizeof (string), "%-19.19s %-19.19s\n", hostcache[idx].name, hostcache[idx].map);
+		q_snprintf (string, sizeof (string), "%-19.19s %-17.17s\n", hostcache[idx].name, hostcache[idx].map);
 	}
 
 	return string;
