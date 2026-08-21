@@ -2709,6 +2709,7 @@ static void M_Help_Key (int key)
 static int			num_mods = 0;
 static int			first_mod = 0;
 static int			mods_cursor = 0;
+int					mods_prev_cursor = 0;
 static int			mod_loaded_from_menu = 0;
 static menuticker_t m_mods_ticker;
 
@@ -2724,6 +2725,7 @@ static void M_Menu_Mods_f (void)
 		++num_mods;
 	first_mod = 0;
 	mods_cursor = 0;
+	mods_prev_cursor = 0;
 
 	M_Ticker_Init (&m_mods_ticker);
 }
@@ -2736,6 +2738,15 @@ static void M_Mods_Draw (cb_context_t *cbx)
 	int mod_index = -first_mod;
 	int mods_height = q_min (MAX_MODS_ON_SCREEN, num_mods - first_mod);
 
+	if (mods_prev_cursor != mods_cursor)
+	{
+		mods_prev_cursor = mods_cursor;
+		M_Ticker_Init (&m_mods_ticker);
+	}
+	else
+		M_Ticker_Update (&m_mods_ticker);
+
+	// to trigger scroll faster
 	M_Ticker_Update (&m_mods_ticker);
 
 	for (filelist_item_t *item = modlist; item; item = item->next)
@@ -3190,6 +3201,9 @@ static void M_Maps_Draw (cb_context_t *cbx)
 	}
 	else
 		M_Ticker_Update (&mapsmenu.ticker);
+
+	// to trigger scroll faster
+	M_Ticker_Update (&mapsmenu.ticker);
 
 	M_PrintWhite (cbx, x, 8, "Levels");
 	M_DrawQuakeBar (cbx, x - 8, 16, namecols + 1);
