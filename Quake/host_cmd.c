@@ -2016,8 +2016,6 @@ static void Host_Loadgame_f (void)
 		return;
 	}
 
-	SCR_BeginLoadingPlaque ();
-
 	Con_Printf ("Loading game from %s...\n", name);
 
 	data = start;
@@ -2061,7 +2059,10 @@ static void Host_Loadgame_f (void)
 	}
 
 	if (!fastload)
+	{
+		SCR_BeginLoadingPlaque ();
 		CL_Disconnect_f ();
+	}
 	else if (cls.demorecording) // demo playback can't deal with backward timestamps, so record a map change
 		CL_Stop_f ();
 
