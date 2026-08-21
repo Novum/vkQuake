@@ -2898,6 +2898,7 @@ static void COM_Game_f (void)
 
 		// Kill the server
 		CL_Disconnect ();
+		SCR_EndStartupLoadingPlaque ();
 		cls.demonum = -1;
 		Host_ShutdownServer (true);
 

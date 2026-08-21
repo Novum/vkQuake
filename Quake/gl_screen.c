@@ -1113,7 +1113,8 @@ static void SCR_DrawMenuLoading (cb_context_t *cbx, qboolean startup)
 
 	Draw_FadeScreen (cbx);
 
-	if (startup)
+	// the startup splash is id1 artwork, mods get the "Loading" pic instead
+	if (startup && COM_GetGameNames (false)[0] == 0)
 		SCR_DrawStartupSplashPic (cbx);
 	else
 		SCR_DrawLoadingPic (cbx);
@@ -1232,6 +1233,10 @@ void SCR_BeginLoadingPlaque (void)
 	// Draw a clean loading frame and freeze screen updates until loading finishes.
 	Con_ClearNotify ();
 	SCR_CenterPrintClear ();
+
+	// map/connect/load stop the demo loop before getting here, so this only stays set for the initial attract loads
+	if (cls.demonum == -1)
+		scr_drawstartuploading = false;
 
 	scr_drawloading = true;
 	SCR_UpdateScreen (false);
