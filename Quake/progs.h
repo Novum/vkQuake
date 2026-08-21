@@ -438,6 +438,11 @@ struct qcvm_s
 	// originally from world.c
 	areanode_t areanodes[AREA_NODES];
 	int		   numareanodes;
+
+	// pusher support records, keyed by edict number: only entities riding a
+	// pusher have one, so this stays far smaller than max_edicts
+	hash_map_t *pusher_support;
+	unsigned	pusher_support_frame;
 };
 extern globalvars_t *pr_global_struct;
 

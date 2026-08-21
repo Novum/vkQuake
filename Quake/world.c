@@ -54,18 +54,32 @@ typedef struct
 	edict_t		*passedict;
 } moveclip_t;
 
-static qboolean SV_MoveIgnoresEdict (const byte *ignore_edicts, edict_t *ent)
+static qboolean SV_MoveIgnoresEdict (const sv_ignore_edicts_t *ignore_edicts, edict_t *ent)
 {
-	int entnum;
+	int lo, hi;
 
 	if (!ignore_edicts)
 		return false;
 
-	entnum = NUM_FOR_EDICT (ent);
-	if (entnum <= 0 || entnum >= MAX_EDICTS)
-		return false;
+	if (ignore_edicts->pusher == ent)
+		return true;
 
-	return ignore_edicts[entnum] != 0;
+	lo = 0;
+	hi = ignore_edicts->num_riders - 1;
+	while (lo <= hi)
+	{
+		const int	   mid = lo + (hi - lo) / 2;
+		edict_t *const at = ignore_edicts->riders[mid];
+
+		if (at == ent)
+			return true;
+		if (at < ent)
+			lo = mid + 1;
+		else
+			hi = mid - 1;
+	}
+
+	return false;
 }
 
 static qboolean SV_BoxNodeInPVS (vec3_t mins, vec3_t maxs, byte *pvs, qmodel_t *worldmodel, mnode_t *node)
@@ -1038,7 +1052,7 @@ SV_ClipToLinks
 Mins and maxs enclose the entire area swept by the move
 ====================
 */
-static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip, const byte *ignore_edicts)
+static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip, const sv_ignore_edicts_t *ignore_edicts)
 {
 	link_t	*l, *next;
 	edict_t *touch;
@@ -1053,8 +1067,6 @@ static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip, const byte *igno
 			continue;
 		if (touch == clip->passedict)
 			continue;
-		if (SV_MoveIgnoresEdict (ignore_edicts, touch))
-			continue;
 		if (touch->v.solid == SOLID_TRIGGER)
 			Sys_Error ("Trigger in clipping list");
 
@@ -1067,6 +1079,11 @@ static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip, const byte *igno
 
 		if (clip->passedict && clip->passedict->v.size[0] && !touch->v.size[0])
 			continue; // points never interact
+
+		// last, after the cheap rejections: this walks a list, and almost every
+		// edict reaching this loop is discarded by the bbox test above
+		if (SV_MoveIgnoresEdict (ignore_edicts, touch))
+			continue;
 
 		// might intersect, so do an exact clip
 		if (clip->trace.allsolid)
@@ -1306,7 +1323,7 @@ boxmaxs[0] = boxmaxs[1] = boxmaxs[2] = 9999;
 SV_Move
 ==================
 */
-trace_t SV_MoveWithEdictIgnoreMask (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const byte *ignore_edicts)
+trace_t SV_MoveWithEdictIgnoreMask (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const sv_ignore_edicts_t *ignore_edicts)
 {
 	moveclip_t clip;
 	int		   i;
