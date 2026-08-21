@@ -59,6 +59,9 @@ qboolean sv_analyticphysics_frame = true; // sv_analyticphysics latched per SV_P
 
 // max depth float rounding can embed an entity into the surface it rests on, anything deeper is a real overlap
 #define PUSH_CONTACT_EPSILON (2 * DIST_EPSILON)
+// deliberately wider than the attach epsilon: contact must clear decisively
+// before a carried entity is released, or rounding makes riders chatter
+#define PUSH_RELEASE_EPSILON 1.0f
 #define MIN_WALK_NORMAL		 0.7f
 #define STEPSIZE			 18
 
@@ -727,28 +730,24 @@ typedef struct
 	vec3_t						 pusher_move;
 } sv_pusher_support_record_t;
 
-static sv_pusher_support_record_t sv_pusher_support[MAX_EDICTS];
-static unsigned					  sv_pusher_support_frame;
-static edict_t					 *sv_pusher_support_edicts;
+typedef struct
+{
+	qboolean				   present;
+	sv_pusher_support_record_t record;
+} sv_pusher_support_backup_t;
 
 static void SV_BeginPusherSupportFrame (void)
 {
-	if (qcvm != &sv.qcvm)
-		return;
+	if (!qcvm->pusher_support)
+		qcvm->pusher_support = HashMap_Create (int, sv_pusher_support_record_t, &HashInt32, NULL);
 
-	if (sv_pusher_support_edicts != qcvm->edicts)
+	qcvm->pusher_support_frame++;
+	if (!qcvm->pusher_support_frame)
 	{
-		memset (sv_pusher_support, 0, sizeof (sv_pusher_support));
-		sv_pusher_support_edicts = qcvm->edicts;
-		sv_pusher_support_frame = 1;
-		return;
-	}
-
-	sv_pusher_support_frame++;
-	if (!sv_pusher_support_frame)
-	{
-		memset (sv_pusher_support, 0, sizeof (sv_pusher_support));
-		sv_pusher_support_frame = 1;
+		// counter wrapped, so every stored frame stamp is now meaningless
+		HashMap_Destroy (qcvm->pusher_support);
+		qcvm->pusher_support = HashMap_Create (int, sv_pusher_support_record_t, &HashInt32, NULL);
+		qcvm->pusher_support_frame = 1;
 	}
 }
 
@@ -834,64 +833,77 @@ static edict_t *SV_GetGroundPusher (edict_t *ent)
 	return ground;
 }
 
-static qboolean SV_GetPusherSupportRecord (edict_t *ent, sv_pusher_support_record_t **record)
+// Returns NULL when the entity has no record; only riders have one.
+static sv_pusher_support_record_t *SV_GetPusherSupportRecord (edict_t *ent)
 {
 	int entnum;
 
-	if (qcvm != &sv.qcvm)
-		return false;
+	if (!qcvm->pusher_support)
+		return NULL;
 
 	entnum = NUM_FOR_EDICT (ent);
 	if (entnum <= 0 || entnum >= MAX_EDICTS)
-		return false;
+		return NULL;
 
-	*record = &sv_pusher_support[entnum];
-	return true;
+	return HashMap_Lookup (sv_pusher_support_record_t, qcvm->pusher_support, &entnum);
 }
 
 static void SV_GetAppliedPusherSupportMove (edict_t *ent, vec3_t move)
 {
-	sv_pusher_support_record_t *support;
+	const sv_pusher_support_record_t *support = SV_GetPusherSupportRecord (ent);
 
 	VectorCopy (vec3_origin, move);
-	if (!SV_GetPusherSupportRecord (ent, &support))
+	if (!support)
 		return;
-	if (support->frame == sv_pusher_support_frame)
+	if (support->frame == qcvm->pusher_support_frame)
 		VectorCopy (support->pusher_move, move);
 }
 
-static void SV_BackupPusherSupport (edict_t *ent, sv_pusher_support_record_t *backup)
+// A missing record is a valid state to restore, so the backup carries a flag
+// rather than relying on a zeroed record meaning "absent".
+static void SV_BackupPusherSupport (edict_t *ent, sv_pusher_support_backup_t *backup)
 {
-	sv_pusher_support_record_t *support;
+	const sv_pusher_support_record_t *support = SV_GetPusherSupportRecord (ent);
 
 	memset (backup, 0, sizeof (*backup));
-	if (SV_GetPusherSupportRecord (ent, &support))
-		*backup = *support;
+	if (support)
+	{
+		backup->present = true;
+		backup->record = *support;
+	}
 }
 
-static void SV_RestorePusherSupport (edict_t *ent, const sv_pusher_support_record_t *backup)
+static void SV_RestorePusherSupport (edict_t *ent, const sv_pusher_support_backup_t *backup)
 {
-	sv_pusher_support_record_t *support;
+	int entnum = NUM_FOR_EDICT (ent);
 
-	if (SV_GetPusherSupportRecord (ent, &support))
-		*support = *backup;
+	if (entnum <= 0 || entnum >= MAX_EDICTS)
+		return;
+
+	if (backup->present)
+		HashMap_Insert (qcvm->pusher_support, &entnum, &backup->record);
+	else
+		HashMap_Erase (qcvm->pusher_support, &entnum);
 }
 
 static qboolean SV_WritePusherSupportRecord (edict_t *ent, edict_t *pusher, sv_client_move_frame_state_t state, const vec3_t pusher_move)
 {
-	int							pushernum;
-	sv_pusher_support_record_t *support;
+	int						   pushernum, entnum;
+	sv_pusher_support_record_t record;
 
 	pushernum = NUM_FOR_EDICT (pusher);
 	if (pushernum <= 0 || pushernum >= MAX_EDICTS)
 		return false;
-	if (!SV_GetPusherSupportRecord (ent, &support))
+	entnum = NUM_FOR_EDICT (ent);
+	if (entnum <= 0 || entnum >= MAX_EDICTS)
 		return false;
 
-	support->frame = sv_pusher_support_frame;
-	support->pusher_entnum = pushernum;
-	support->state = state;
-	VectorCopy (pusher_move, support->pusher_move);
+	record.frame = qcvm->pusher_support_frame;
+	record.pusher_entnum = pushernum;
+	record.state = state;
+	VectorCopy (pusher_move, record.pusher_move);
+
+	HashMap_Insert (qcvm->pusher_support, &entnum, &record);
 	return true;
 }
 
@@ -920,14 +932,44 @@ static qboolean SV_EntityHasPusherSupportAtOrigin (edict_t *ent, edict_t *pusher
 	return SV_TracePusherFloorAtOrigin (ent, pusher, pusher_origin, PUSH_CONTACT_EPSILON, trace);
 }
 
+// Contact established by a floor trace persists until something positively
+// breaks it. Re-deriving support from geometry every frame lets float rounding
+// drop a rider that never actually left the pusher.
+static qboolean SV_HasPersistentPusherSupport (edict_t *ent, edict_t *pusher)
+{
+	const sv_pusher_support_record_t *support = SV_GetPusherSupportRecord (ent);
+
+	if (!support)
+		return false;
+	if (support->state != SV_MOVE_FRAME_GROUND)
+		return false;
+	if (support->pusher_entnum != NUM_FOR_EDICT (pusher))
+		return false;
+
+	// carried this frame or the one before it; older records are stale
+	return support->frame == qcvm->pusher_support_frame || support->frame + 1 == qcvm->pusher_support_frame;
+}
+
+static void SV_BreakPusherSupport (edict_t *ent)
+{
+	int entnum = NUM_FOR_EDICT (ent);
+
+	if (entnum <= 0 || entnum >= MAX_EDICTS)
+		return;
+
+	HashMap_Erase (qcvm->pusher_support, &entnum);
+}
+
 static void SV_RecordPusherSupport (edict_t *ent, edict_t *pusher, const vec3_t pusher_move)
 {
 	trace_t trace;
 
-	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
+	if (sv_gameplayfix_elevators.value < 3.f)
 		return;
 
-	if (!SV_EntityHasPusherSupportAtOrigin (ent, pusher, pusher->v.origin, &trace))
+	// an established rider wedged against a neighbour fails the floor trace even
+	// though it never left the pusher, so keep carrying it on the stored record
+	if (!SV_EntityHasPusherSupportAtOrigin (ent, pusher, pusher->v.origin, &trace) && !SV_HasPersistentPusherSupport (ent, pusher))
 		return;
 	if (!SV_WritePusherSupportRecord (ent, pusher, SV_MOVE_FRAME_GROUND, pusher_move))
 		return;
@@ -979,21 +1021,16 @@ static qboolean SV_CaptureRecordedPusherMoveFrame (edict_t *ent, sv_client_move_
 
 static void SV_CaptureClientMoveFrameBeforeQC (edict_t *ent, sv_client_move_frame_t *frame)
 {
-	int							entnum;
-	sv_pusher_support_record_t *record;
-	edict_t					   *pusher;
-	trace_t						trace;
+	const sv_pusher_support_record_t *record;
+	edict_t							 *pusher;
+	trace_t							  trace;
 
 	SV_ClearClientMoveFrame (frame);
-	if (qcvm != &sv.qcvm || sv_gameplayfix_elevators.value < 3.f)
+	if (sv_gameplayfix_elevators.value < 3.f)
 		return;
 
-	entnum = NUM_FOR_EDICT (ent);
-	if (entnum <= 0 || entnum >= MAX_EDICTS)
-		return;
-
-	record = &sv_pusher_support[entnum];
-	if (record->frame && record->frame + 1 == sv_pusher_support_frame && record->pusher_entnum > 0 && record->pusher_entnum < qcvm->num_edicts)
+	record = SV_GetPusherSupportRecord (ent);
+	if (record && record->frame && record->frame + 1 == qcvm->pusher_support_frame && record->pusher_entnum > 0 && record->pusher_entnum < qcvm->num_edicts)
 	{
 		pusher = EDICT_NUM (record->pusher_entnum);
 		if (SV_IsSupportPusher (pusher))
@@ -1129,8 +1166,66 @@ static void SV_ClearStalePusherGround (edict_t *ent)
 	if (SV_EntityHasPusherSupportAtOrigin (ent, pusher, pusher->v.origin, &trace))
 		return;
 
+	// SV_UpdatePersistentPusherSupport owns the release decision; while the record
+	// still stands the entity is being carried and keeps its ground contact
+	if (SV_HasPersistentPusherSupport (ent, pusher))
+		return;
+
 	ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
 	ent->v.groundentity = 0;
+}
+
+// Owns the release decision for persistent support. Runs for every entity, not
+// just those still flagged FL_ONGROUND, so a jump or a QuakeC groundentity
+// reassignment cannot leave a record behind that keeps re-attaching the rider.
+static void SV_UpdatePersistentPusherSupport (edict_t *ent)
+{
+	const sv_pusher_support_record_t *support;
+	edict_t							 *pusher;
+	trace_t							  trace;
+	int								  pusher_entnum;
+
+	if (sv_gameplayfix_elevators.value < 3.f)
+		return;
+
+	support = SV_GetPusherSupportRecord (ent);
+	if (!support)
+		return;
+	if (support->state != SV_MOVE_FRAME_GROUND || support->pusher_entnum <= 0)
+		return;
+
+	// the record lives in hash map storage that any erase can move, so read what
+	// is needed before touching the map again
+	pusher_entnum = support->pusher_entnum;
+	support = NULL;
+
+	if (pusher_entnum >= qcvm->num_edicts)
+	{
+		SV_BreakPusherSupport (ent);
+		return;
+	}
+
+	pusher = EDICT_NUM (pusher_entnum);
+	if (!SV_IsSupportPusher (pusher))
+	{
+		SV_BreakPusherSupport (ent);
+		return;
+	}
+
+	// left the ground under its own power, or QuakeC moved it onto something else
+	if (SV_MovetypeUsesGroundFlag (ent) && !((int)ent->v.flags & FL_ONGROUND))
+	{
+		SV_BreakPusherSupport (ent);
+		return;
+	}
+	if (ent->v.groundentity && !SV_EntityGroundEntityIsPusher (ent, pusher))
+	{
+		SV_BreakPusherSupport (ent);
+		return;
+	}
+
+	if (!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_RELEASE_EPSILON, &trace))
+		SV_BreakPusherSupport (ent);
 }
 
 static qboolean SV_PusherBoundsOverlapEntity (edict_t *ent, const vec3_t mins, const vec3_t maxs)
@@ -1147,7 +1242,7 @@ SV_PusherAffectsEntity (edict_t *ent, edict_t *pusher, const vec3_t pushorig, co
 
 	*riding = false;
 
-	if (robust_push && SV_EntityHasPusherSupportAtOrigin (ent, pusher, pushorig, &support_trace))
+	if (robust_push && (SV_EntityHasPusherSupportAtOrigin (ent, pusher, pushorig, &support_trace) || SV_HasPersistentPusherSupport (ent, pusher)))
 	{
 		*riding = true;
 		return true;
@@ -1195,7 +1290,7 @@ static trace_t SV_PushEntityMove (edict_t *ent, vec3_t start, vec3_t end)
 		return SV_Move (start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
 }
 
-static trace_t SV_PushEntityMoveWithIgnoreMask (edict_t *ent, vec3_t start, vec3_t end, const byte *ignore_mask)
+static trace_t SV_PushEntityMoveWithIgnoreMask (edict_t *ent, vec3_t start, vec3_t end, const sv_ignore_edicts_t *ignore_mask)
 {
 	if (!ignore_mask)
 		return SV_PushEntityMove (ent, start, end);
@@ -1207,7 +1302,7 @@ static trace_t SV_PushEntityMoveWithIgnoreMask (edict_t *ent, vec3_t start, vec3
 		return SV_MoveWithEdictIgnoreMask (start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent, ignore_mask);
 }
 
-static edict_t *SV_TestEntityPositionWithIgnoreMask (edict_t *ent, const byte *ignore_mask)
+static edict_t *SV_TestEntityPositionWithIgnoreMask (edict_t *ent, const sv_ignore_edicts_t *ignore_mask)
 {
 	trace_t trace;
 
@@ -1228,7 +1323,7 @@ SV_PushEntityTo
 Does not change the entities velocity at all
 ============
 */
-static trace_t SV_PushEntityToWithIgnoreMask (edict_t *ent, vec3_t end, const byte *ignore_mask)
+static trace_t SV_PushEntityToWithIgnoreMask (edict_t *ent, vec3_t end, const sv_ignore_edicts_t *ignore_mask)
 {
 	trace_t trace;
 
@@ -1278,6 +1373,14 @@ static trace_t SV_PushEntityTo (edict_t *ent, vec3_t end)
 	return SV_PushEntityToWithIgnoreMask (ent, end, NULL);
 }
 
+// Appends in the caller's order, which for pusher candidates is already sorted.
+static void SV_IgnoreEdictsAddRider (sv_ignore_edicts_t *list, edict_t *ent)
+{
+	// lookups binary search this, so an unsorted append would silently miss
+	assert (!list->num_riders || list->riders[list->num_riders - 1] < ent);
+	list->riders[list->num_riders++] = ent;
+}
+
 /*
 ============
 SV_PushMove
@@ -1292,7 +1395,6 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	vec3_t	 entorig, pushorig;
 	vec3_t	 querymins, querymaxs;
 	int		 num_moved;
-	float	 pusher_solid;
 
 	if (!pusher->v.velocity[0] && !pusher->v.velocity[1] && !pusher->v.velocity[2])
 	{
@@ -1304,23 +1406,21 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	const float	   newltime = pusher->v.ltime + movetime;
 	vec3_t		   neworigin;
 
-	TEMP_ALLOC (edict_t *, moved_edict, MAX_EDICTS);
-	TEMP_ALLOC (vec3_t, moved_from, MAX_EDICTS);
-	TEMP_ALLOC (sv_pusher_support_record_t, moved_support, MAX_EDICTS);
-	TEMP_ALLOC_COND (edict_t *, push_edict, MAX_EDICTS, robust_push);
-	TEMP_ALLOC_COND (qboolean, push_riding, MAX_EDICTS, robust_push);
-	TEMP_ALLOC_ZEROED (byte, pusher_ignore_mask, MAX_EDICTS);
-	TEMP_ALLOC_ZEROED_COND (byte, rider_ignore_mask, MAX_EDICTS, robust_push);
-	TEMP_ALLOC_ZEROED_COND (byte, pusher_rider_ignore_mask, MAX_EDICTS, robust_push);
+	// PushGrid_GatherCandidates fills this up to MAX_EDICTS before it gives up
 	TEMP_ALLOC_COND (edict_t *, push_candidates, MAX_EDICTS, push_grid_active);
 
-	const int pushernum = NUM_FOR_EDICT (pusher);
-	if (pushernum > 0 && pushernum < MAX_EDICTS)
-	{
-		pusher_ignore_mask[pushernum] = true;
-		if (robust_push)
-			pusher_rider_ignore_mask[pushernum] = true;
-	}
+	// everything below holds at most one entry per candidate, so it is sized once
+	// the candidate list is known
+	TEMP_ALLOC_DECL (edict_t *, moved_edict);
+	TEMP_ALLOC_DECL (vec3_t, moved_from);
+	TEMP_ALLOC_DECL (sv_pusher_support_backup_t, moved_support);
+	TEMP_ALLOC_DECL (edict_t *, push_edict);
+	TEMP_ALLOC_DECL (qboolean, push_riding);
+	TEMP_ALLOC_DECL (edict_t *, rider_ignore_storage);
+
+	sv_ignore_edicts_t pusher_ignore_mask = {NULL, 0, pusher};
+	sv_ignore_edicts_t rider_ignore_mask = {NULL, 0, NULL};
+	sv_ignore_edicts_t pusher_rider_ignore_mask = {NULL, 0, pusher};
 
 	VectorScale (pusher->v.velocity, movetime, move);
 	VectorAdd (pusher->v.origin, move, neworigin);
@@ -1365,6 +1465,21 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		fast_count = num_pushable_ent_cache;
 	}
 
+	const int max_candidates = fast_list ? fast_count : qcvm->num_edicts;
+	TEMP_ALLOC_ASSIGN_COND (rider_ignore_storage, max_candidates, robust_push);
+	if (robust_push)
+	{
+		// both views share the rider storage and differ only in whether the pusher
+		// is ignored too
+		rider_ignore_mask.riders = rider_ignore_storage;
+		pusher_rider_ignore_mask.riders = rider_ignore_storage;
+	}
+	TEMP_ALLOC_ASSIGN (moved_edict, max_candidates);
+	TEMP_ALLOC_ASSIGN (moved_from, max_candidates);
+	TEMP_ALLOC_ASSIGN (moved_support, max_candidates);
+	TEMP_ALLOC_ASSIGN_COND (push_edict, max_candidates, robust_push);
+	TEMP_ALLOC_ASSIGN_COND (push_riding, max_candidates, robust_push);
+
 	int num_push = 0;
 
 	if (robust_push)
@@ -1376,7 +1491,9 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		{
 			qboolean riding;
 
-			if (scan_e >= (fast_list ? fast_count - 1 : qcvm->num_edicts - 1 - 1))
+			// bounded by max_candidates, which is what push_edict/push_riding were
+			// sized to; the trailing -1 skips entity 0
+			if (scan_e >= (fast_list ? fast_count - 1 : max_candidates - 1 - 1))
 				break;
 
 			scan_e++;
@@ -1404,16 +1521,12 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			num_push++;
 
 			if (riding)
-			{
-				const int ridernum = NUM_FOR_EDICT (scan_check);
-
-				if (ridernum > 0 && ridernum < MAX_EDICTS)
-				{
-					rider_ignore_mask[ridernum] = true;
-					pusher_rider_ignore_mask[ridernum] = true;
-				}
-			}
+				SV_IgnoreEdictsAddRider (&rider_ignore_mask, scan_check);
 		}
+
+		// candidates arrive in ascending pointer order, so the list is already
+		// sorted; both masks view the same storage
+		pusher_rider_ignore_mask.num_riders = rider_ignore_mask.num_riders;
 	}
 
 	int e = -1;
@@ -1423,7 +1536,9 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 	while (true)
 	{
-		if (e >= (robust_push ? num_push - 1 : (fast_list ? fast_count - 1 : qcvm->num_edicts - 1 - 1)))
+		// max_candidates rather than a fresh num_edicts read: the pusher's blocked
+		// function can spawn entities, and the scratch arrays were already sized
+		if (e >= (robust_push ? num_push - 1 : (fast_list ? fast_count - 1 : max_candidates - 1 - 1)))
 			break;
 
 		e++;
@@ -1462,8 +1577,11 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		if (!SV_IsPushable (check))
 			continue;
 
-		// remove the onground flag for non-players
-		if (check->v.movetype != MOVETYPE_WALK)
+		// remove the onground flag for non-players. riders keep it under robust
+		// push: the support layer owns their ground state, and a transient clear
+		// that survives a blocked rollback reads as the rider leaving the ground,
+		// which erases its support record
+		if (check->v.movetype != MOVETYPE_WALK && !(robust_push && riding))
 			check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
 
 		VectorCopy (check->v.origin, entorig);
@@ -1473,14 +1591,13 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		num_moved++;
 
 		// QIP fix for end.bsp
-		pusher_solid = pusher->v.solid;
-		if (pusher_solid == SOLID_BSP		   // everything that blocks: bsp models = map brushes = doors, plats, etc.
-			|| pusher_solid == SOLID_BBOX	   // normally boxes
-			|| pusher_solid == SOLID_SLIDEBOX) // normally monsters
+		if (pusher->v.solid == SOLID_BSP		  // everything that blocks: bsp models = map brushes = doors, plats, etc.
+			|| pusher->v.solid == SOLID_BBOX	  // normally boxes
+			|| pusher->v.solid == SOLID_SLIDEBOX) // normally monsters
 		{
-			const byte *move_ignore_mask = (robust_push && riding) ? pusher_rider_ignore_mask : pusher_ignore_mask;
-			const byte *block_ignore_mask = (robust_push && riding) ? rider_ignore_mask : NULL;
-			vec3_t		dest;
+			const sv_ignore_edicts_t *move_ignore_mask = (robust_push && riding) ? &pusher_rider_ignore_mask : &pusher_ignore_mask;
+			const sv_ignore_edicts_t *block_ignore_mask = (robust_push && riding) ? &rider_ignore_mask : NULL;
+			vec3_t					  dest;
 
 			if (robust_push)
 			{
@@ -1541,7 +1658,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 				if (!settle.startsolid)
 				{
 					VectorCopy (settle.endpos, check->v.origin);
-					if (!SV_TestEntityPositionWithIgnoreMask (check, rider_ignore_mask))
+					if (!SV_TestEntityPositionWithIgnoreMask (check, &rider_ignore_mask))
 					{
 						SV_LinkEdict (check, false);
 						SV_RecordPusherSupport (check, pusher, move);
@@ -1597,10 +1714,8 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			SV_RecordPusherSupport (check, pusher, move);
 	}
 
+	TEMP_FREE (rider_ignore_storage);
 	TEMP_FREE (push_candidates);
-	TEMP_FREE (pusher_rider_ignore_mask);
-	TEMP_FREE (rider_ignore_mask);
-	TEMP_FREE (pusher_ignore_mask);
 	TEMP_FREE (push_riding);
 	TEMP_FREE (push_edict);
 	TEMP_FREE (moved_support);
@@ -2340,7 +2455,7 @@ void SV_Physics (void)
 		physics_mode = (qcvm == &cl.qcvm) ? 0 : 2; // csqc doesn't run thinks by default. it was meant to simplify implementations, but we just force fields to
 												   // match ssqc so its not that large a burden.
 
-	if (qcvm == &sv.qcvm && physics_mode)
+	if (physics_mode)
 		SV_BeginPusherSupportFrame ();
 
 	if (!physics_mode)
@@ -2441,7 +2556,10 @@ void SV_Physics (void)
 				continue;
 		}
 
-		if (qcvm == &sv.qcvm && SV_MovetypeUsesGroundFlag (ent))
+		// release first: SV_ClearStalePusherGround keeps ground contact for as
+		// long as the support record stands
+		SV_UpdatePersistentPusherSupport (ent);
+		if (SV_MovetypeUsesGroundFlag (ent))
 			SV_ClearStalePusherGround (ent);
 
 		if (i > 0 && i <= svs.maxclients && qcvm == &sv.qcvm)

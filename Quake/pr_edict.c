@@ -1768,6 +1768,8 @@ void PR_ClearProgs (qcvm_t *vm)
 		Mem_Free (qcvm->fielddefs);
 	Mem_Free (qcvm->entityfieldofs);
 	Mem_Free (qcvm->progs); // spike -- pr_progs switched to use malloc (so menuqc doesn't end up stuck on the early hunk nor wiped on every map change)
+	if (qcvm->pusher_support)
+		HashMap_Destroy (qcvm->pusher_support);
 	HashMap_Destroy (qcvm->function_map);
 	HashMap_Destroy (qcvm->fielddefs_map);
 	HashMap_Destroy (qcvm->globaldefs_map);

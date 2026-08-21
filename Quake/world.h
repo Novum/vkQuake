@@ -78,7 +78,19 @@ edict_t *SV_TestEntityPosition (edict_t *ent);
 #define CONTENTMASK_ANYSOLID  (CONTENTMASK_FROMQ1 (CONTENTS_SOLID) | CONTENTMASK_FROMQ1 (CONTENTS_CLIP))
 trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, unsigned int hitcontents);
 trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict);
-trace_t SV_MoveWithEdictIgnoreMask (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const byte *ignore_edicts);
+// Entities a move should not clip against, as a list rather than a per-edict
+// array: nothing to allocate or clear between moves. A big elevator can carry
+// hundreds of riders, so `riders` is binary searched and must be sorted
+// ascending by pointer. The pusher is held separately because it is not a rider
+// and would otherwise need inserting into that order.
+typedef struct
+{
+	edict_t **riders; /* caller owned, sorted ascending, may be NULL */
+	int		  num_riders;
+	edict_t	 *pusher; /* may be NULL */
+} sv_ignore_edicts_t;
+
+trace_t SV_MoveWithEdictIgnoreMask (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const sv_ignore_edicts_t *ignore_edicts);
 // mins and maxs are reletive
 
 // if the entire move stays in a solid volume, trace.allsolid will be set
