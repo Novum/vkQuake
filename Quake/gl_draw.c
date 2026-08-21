@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t scr_style;
 
 cvar_t scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; // johnfitz
+cvar_t scr_uiforcenearest = {"scr_uiforcenearest", "1", CVAR_ARCHIVE};
 
 qpic_t *draw_disc;
 qpic_t *draw_backtile;
@@ -426,7 +427,7 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags, int picflags)
 
 qpic_t *Draw_CachePic (const char *path)
 {
-	qpic_t *pic = Draw_TryCachePic (path, TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO);
+	qpic_t *pic = Draw_TryCachePic (path, TEXPREF_ALPHA | (scr_uiforcenearest.value ? TEXPREF_NEAREST : 0) | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO);
 	if (!pic)
 		Sys_Error ("Draw_CachePic: failed to load %s", path);
 	return pic;
@@ -535,6 +536,7 @@ void Draw_Init (void)
 	q_cachepics_map = HashMap_Create (const char *, cachepic_t *, &HashStr, &HashStrCmp);
 
 	Cvar_RegisterVariable (&scr_conalpha);
+	Cvar_RegisterVariable (&scr_uiforcenearest);
 
 	// clear scrap and allocate gltextures
 	memset (scrap_allocated, 0, sizeof (scrap_allocated));

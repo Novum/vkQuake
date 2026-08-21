@@ -128,6 +128,7 @@ extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_lerpturn;
 extern cvar_t vid_filter;
+extern cvar_t scr_uiforcenearest;
 extern cvar_t vid_palettize;
 extern cvar_t vid_anisotropic;
 extern cvar_t vid_fsaa;
@@ -639,7 +640,8 @@ static qpic_t *Get_Menu2 ()
 	qboolean base_game = COM_GetGameNames (false)[0] == 0;
 	// Check if user has actually installed vkquake.pak, otherwise fall back to old menu
 	return (base_game && registered.value)
-			   ? Draw_TryCachePic ("gfx/mainmenu2.lmp", TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO)
+			   ? Draw_TryCachePic (
+					 "gfx/mainmenu2.lmp", TEXPREF_ALPHA | (scr_uiforcenearest.value ? TEXPREF_NEAREST : 0) | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO)
 			   : NULL;
 }
 
