@@ -285,7 +285,7 @@ void Cmd_Exec_f (void)
 		FILE	   *f;
 		char	   *game_buf;
 		qfilesize_t length;
-		qboolean   shared_config_file;
+		qboolean	shared_config_file;
 
 		shared_config_file = host_parms->userdir == host_parms->basedir && !q_strcasecmp (com_gamedir, va ("%s/%s", com_basedir, GAMENAME));
 		f = COM_FOpenConfigFile (true, "rb");

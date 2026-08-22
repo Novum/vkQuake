@@ -415,7 +415,7 @@ current game config
 */
 void Host_WriteConfiguration (void)
 {
-	FILE *f;
+	FILE	*f;
 	qboolean shared_config_file;
 
 	// dedicated servers initialize the host but don't parse and set the config cvars
