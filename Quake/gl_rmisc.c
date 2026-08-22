@@ -80,6 +80,7 @@ atomic_uint32_t num_vulkan_bmodel_allocations;
 atomic_uint32_t num_vulkan_mesh_allocations;
 atomic_uint32_t num_vulkan_misc_allocations;
 atomic_uint32_t num_vulkan_dynbuf_allocations;
+atomic_uint32_t num_vulkan_samplers;
 atomic_uint32_t num_vulkan_combined_image_samplers;
 atomic_uint32_t num_vulkan_ubos_dynamic;
 atomic_uint32_t num_vulkan_ubos;
@@ -1356,6 +1357,25 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
+		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, gui_sampler_layout_binding);
+		gui_sampler_layout_binding.binding = 0;
+		gui_sampler_layout_binding.descriptorCount = 1;
+		gui_sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		gui_sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		descriptor_set_layout_create_info.bindingCount = 1;
+		descriptor_set_layout_create_info.pBindings = &gui_sampler_layout_binding;
+
+		memset (&vulkan_globals.gui_sampler_set_layout, 0, sizeof (vulkan_globals.gui_sampler_set_layout));
+		vulkan_globals.gui_sampler_set_layout.num_samplers = 1;
+
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.gui_sampler_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gui_sampler_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "GUI sampler");
+	}
+
+	{
 		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, ubo_layout_bindings);
 		ubo_layout_bindings.binding = 0;
 		ubo_layout_bindings.descriptorCount = 1;
@@ -1687,7 +1707,7 @@ R_CreateDescriptorPool
 */
 void R_CreateDescriptorPool ()
 {
-	ZEROED_STRUCT_ARRAY (VkDescriptorPoolSize, pool_sizes, 8);
+	ZEROED_STRUCT_ARRAY (VkDescriptorPoolSize, pool_sizes, 9);
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[0].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + (MAX_SANITY_LIGHTMAPS * 2) + (MAX_GLTEXTURES + 1);
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -1704,6 +1724,8 @@ void R_CreateDescriptorPool ()
 	pool_sizes[6].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE;
 	pool_sizes[7].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 	pool_sizes[7].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + (1 + MAXLIGHTMAPS * 3 / 4) * MAX_SANITY_LIGHTMAPS;
+	pool_sizes[8].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+	pool_sizes[8].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE;
 
 	ZEROED_STRUCT (VkDescriptorPoolCreateInfo, descriptor_pool_create_info);
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1749,6 +1771,30 @@ void R_CreatePipelineLayouts ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.basic_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "basic_pipeline_layout");
 		vulkan_globals.basic_pipeline_layout.push_constant_range = push_constant_range;
 		vulkan_globals.basic_pipeline_layout.mboit_input_attachment_set = 1;
+	}
+
+	{
+		// GUI texture plus independently selected sampler
+		VkDescriptorSetLayout gui_descriptor_set_layouts[2] = {vulkan_globals.single_texture_set_layout.handle, vulkan_globals.gui_sampler_set_layout.handle};
+
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 22 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = countof (gui_descriptor_set_layouts);
+		pipeline_layout_create_info.pSetLayouts = gui_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.gui_pipeline_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gui_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "gui_pipeline_layout");
+		vulkan_globals.gui_pipeline_layout.push_constant_range = push_constant_range;
+		vulkan_globals.gui_pipeline_layout.mboit_input_attachment_set = -1;
 	}
 
 	{
@@ -2193,6 +2239,18 @@ void R_InitSamplers ()
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.point_sampler, VK_OBJECT_TYPE_SAMPLER, "point");
 
+		// GUI sampling is deliberately isolated from texture-manager sampler state.
+		sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.gui_point_sampler);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gui_point_sampler, VK_OBJECT_TYPE_SAMPLER, "GUI point");
+		sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
 		sampler_create_info.anisotropyEnable = VK_TRUE;
 		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
 		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_aniso_sampler);
@@ -2212,6 +2270,17 @@ void R_InitSamplers ()
 			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.linear_sampler, VK_OBJECT_TYPE_SAMPLER, "linear");
+
+		sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.gui_linear_sampler);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.gui_linear_sampler, VK_OBJECT_TYPE_SAMPLER, "GUI linear");
+		sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
 		sampler_create_info.anisotropyEnable = VK_TRUE;
 		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
@@ -2315,6 +2384,30 @@ void R_InitSamplers ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.linear_aniso_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "linear_aniso_lod_bias");
 	}
 
+	if (vulkan_globals.gui_sampler_descriptor_sets[0] == VK_NULL_HANDLE)
+	{
+		const VkSampler samplers[2] = {vulkan_globals.gui_point_sampler, vulkan_globals.gui_linear_sampler};
+		for (int i = 0; i < countof (samplers); ++i)
+		{
+			vulkan_globals.gui_sampler_descriptor_sets[i] = R_AllocateDescriptorSet (&vulkan_globals.gui_sampler_set_layout);
+			GL_SetObjectName (
+				(uint64_t)vulkan_globals.gui_sampler_descriptor_sets[i], VK_OBJECT_TYPE_DESCRIPTOR_SET,
+				i == 0 ? "GUI point sampler descriptor set" : "GUI linear sampler descriptor set");
+
+			ZEROED_STRUCT (VkDescriptorImageInfo, sampler_info);
+			sampler_info.sampler = samplers[i];
+
+			ZEROED_STRUCT (VkWriteDescriptorSet, sampler_write);
+			sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			sampler_write.dstSet = vulkan_globals.gui_sampler_descriptor_sets[i];
+			sampler_write.dstBinding = 0;
+			sampler_write.descriptorCount = 1;
+			sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+			sampler_write.pImageInfo = &sampler_info;
+			vkUpdateDescriptorSets (vulkan_globals.device, 1, &sampler_write, 0, NULL);
+		}
+	}
+
 	TexMgr_UpdateTextureDescriptorSets ();
 }
 
@@ -2359,6 +2452,8 @@ typedef struct pipeline_create_infos_s
 
 static VkVertexInputAttributeDescription basic_vertex_input_attribute_descriptions[3];
 static VkVertexInputBindingDescription	 basic_vertex_binding_description;
+static VkVertexInputAttributeDescription draw_pic_vertex_input_attribute_descriptions[4];
+static VkVertexInputBindingDescription	 draw_pic_vertex_binding_description;
 static VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
 static VkVertexInputBindingDescription	 world_vertex_binding_description;
 static VkVertexInputAttributeDescription alias_vertex_input_attribute_descriptions[5];
@@ -2395,6 +2490,11 @@ DECLARE_SHADER_MODULE (basic_mboit_composite_frag);
 DECLARE_SHADER_MODULE (basic_mboit_composite_msaa_frag);
 DECLARE_SHADER_MODULE (basic_alphatest_frag);
 DECLARE_SHADER_MODULE (basic_notex_frag);
+DECLARE_SHADER_MODULE (draw_pic_frag);
+DECLARE_SHADER_MODULE (draw_pic_alphatest_frag);
+DECLARE_SHADER_MODULE (draw_pic_xbr_frag);
+DECLARE_SHADER_MODULE (draw_pic_xbr_alphatest_frag);
+DECLARE_SHADER_MODULE (draw_pic_xbr_vert);
 DECLARE_SHADER_MODULE (world_vert);
 DECLARE_SHADER_MODULE (world_frag);
 DECLARE_SHADER_MODULE (world_oit_frag);
@@ -2539,6 +2639,17 @@ static void R_InitVertexAttributes ()
 		basic_vertex_binding_description.binding = 0;
 		basic_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		basic_vertex_binding_description.stride = 24;
+	}
+
+	{
+		memcpy (draw_pic_vertex_input_attribute_descriptions, basic_vertex_input_attribute_descriptions, sizeof (basic_vertex_input_attribute_descriptions));
+		draw_pic_vertex_input_attribute_descriptions[3].binding = 0;
+		draw_pic_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		draw_pic_vertex_input_attribute_descriptions[3].location = 3;
+		draw_pic_vertex_input_attribute_descriptions[3].offset = offsetof (draw_pic_vertex_t, texture_region);
+		draw_pic_vertex_binding_description.binding = 0;
+		draw_pic_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		draw_pic_vertex_binding_description.stride = sizeof (draw_pic_vertex_t);
 	}
 
 	{
@@ -2904,6 +3015,23 @@ static void R_CreateBasicPipelines ()
 		infos.color_blend_state.attachmentCount = render_pass_variants[render_pass].attachment_count;
 		infos.shader_stages[1].module = basic_alphatest_frag_module;
 		R_CreateGraphicsPipeline (&vulkan_globals.basic_alphatest_pipeline[index], &infos, vulkan_globals.basic_pipeline_layout, "basic_alphatest");
+
+		infos.shader_stages[1].module = draw_pic_alphatest_frag_module;
+		infos.vertex_input_state.pVertexBindingDescriptions = &draw_pic_vertex_binding_description;
+		R_CreateGraphicsPipeline (&vulkan_globals.gui_pipeline[index], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic_alphatest");
+		infos.shader_stages[1].module = draw_pic_frag_module;
+		infos.blend_attachment_states[0].blendEnable = VK_TRUE;
+		R_CreateGraphicsPipeline (&vulkan_globals.gui_blend_pipeline[index], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic");
+
+		infos.shader_stages[0].module = draw_pic_xbr_vert_module;
+		infos.shader_stages[1].module = draw_pic_xbr_alphatest_frag_module;
+		infos.vertex_input_state.vertexAttributeDescriptionCount = countof (draw_pic_vertex_input_attribute_descriptions);
+		infos.vertex_input_state.pVertexAttributeDescriptions = draw_pic_vertex_input_attribute_descriptions;
+		infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+		R_CreateGraphicsPipeline (&vulkan_globals.menu_xbr_pipeline[index], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic_xbr_alphatest");
+		infos.shader_stages[1].module = draw_pic_xbr_frag_module;
+		infos.blend_attachment_states[0].blendEnable = VK_TRUE;
+		R_CreateGraphicsPipeline (&vulkan_globals.menu_xbr_blend_pipeline[index], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic_xbr");
 	}
 
 	for (int render_pass = 0; render_pass < countof (render_pass_variants); ++render_pass)
@@ -3891,6 +4019,11 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE_COND (basic_mboit_composite_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE (basic_alphatest_frag);
 	CREATE_SHADER_MODULE (basic_notex_frag);
+	CREATE_SHADER_MODULE (draw_pic_frag);
+	CREATE_SHADER_MODULE (draw_pic_alphatest_frag);
+	CREATE_SHADER_MODULE (draw_pic_xbr_frag);
+	CREATE_SHADER_MODULE (draw_pic_xbr_alphatest_frag);
+	CREATE_SHADER_MODULE (draw_pic_xbr_vert);
 	CREATE_SHADER_MODULE (world_vert);
 	CREATE_SHADER_MODULE (world_frag);
 	CREATE_SHADER_MODULE (world_oit_frag);
@@ -3964,6 +4097,11 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (basic_mboit_composite_msaa_frag);
 	DESTROY_SHADER_MODULE (basic_alphatest_frag);
 	DESTROY_SHADER_MODULE (basic_notex_frag);
+	DESTROY_SHADER_MODULE (draw_pic_frag);
+	DESTROY_SHADER_MODULE (draw_pic_alphatest_frag);
+	DESTROY_SHADER_MODULE (draw_pic_xbr_frag);
+	DESTROY_SHADER_MODULE (draw_pic_xbr_alphatest_frag);
+	DESTROY_SHADER_MODULE (draw_pic_xbr_vert);
 	DESTROY_SHADER_MODULE (world_vert);
 	DESTROY_SHADER_MODULE (world_frag);
 	DESTROY_SHADER_MODULE (world_oit_frag);
@@ -4066,8 +4204,16 @@ void R_DestroyPipelines (void)
 		vulkan_globals.basic_alphatest_pipeline[i].handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.basic_blend_pipeline[i].handle, NULL);
 		vulkan_globals.basic_blend_pipeline[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gui_pipeline[i].handle, NULL);
+		vulkan_globals.gui_pipeline[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gui_blend_pipeline[i].handle, NULL);
+		vulkan_globals.gui_blend_pipeline[i].handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.basic_notex_blend_pipeline[i].handle, NULL);
 		vulkan_globals.basic_notex_blend_pipeline[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.menu_xbr_pipeline[i].handle, NULL);
+		vulkan_globals.menu_xbr_pipeline[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.menu_xbr_blend_pipeline[i].handle, NULL);
+		vulkan_globals.menu_xbr_blend_pipeline[i].handle = VK_NULL_HANDLE;
 	}
 	for (i = 0; i < WORLD_PIPELINE_COUNT; ++i)
 	{
@@ -4401,6 +4547,7 @@ VkDescriptorSet R_AllocateDescriptorSet (vulkan_desc_set_layout_t *layout)
 	vkAllocateDescriptorSets (vulkan_globals.device, &descriptor_set_allocate_info, &handle);
 
 	Atomic_AddUInt32 (&num_vulkan_combined_image_samplers, layout->num_combined_image_samplers);
+	Atomic_AddUInt32 (&num_vulkan_samplers, layout->num_samplers);
 	Atomic_AddUInt32 (&num_vulkan_ubos_dynamic, layout->num_ubos_dynamic);
 	Atomic_AddUInt32 (&num_vulkan_ubos, layout->num_ubos);
 	Atomic_AddUInt32 (&num_vulkan_storage_buffers, layout->num_storage_buffers);
@@ -4423,6 +4570,7 @@ void R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_layout_t *la
 	vkFreeDescriptorSets (vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &desc_set);
 
 	Atomic_SubUInt32 (&num_vulkan_combined_image_samplers, layout->num_combined_image_samplers);
+	Atomic_SubUInt32 (&num_vulkan_samplers, layout->num_samplers);
 	Atomic_SubUInt32 (&num_vulkan_ubos_dynamic, layout->num_ubos_dynamic);
 	Atomic_SubUInt32 (&num_vulkan_ubos, layout->num_ubos);
 	Atomic_SubUInt32 (&num_vulkan_storage_buffers, layout->num_storage_buffers);
@@ -4965,6 +5113,7 @@ void R_VulkanMemStats_f (void)
 	R_PrintHeapStats ("Mesh", R_GetMeshHeapStats ());
 
 	Con_Printf ("Descriptors:\n");
+	Con_Printf (" Samplers: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_samplers));
 	Con_Printf (" Combined image samplers: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_combined_image_samplers));
 	Con_Printf (" Dynamic UBOs: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_ubos_dynamic));
 	Con_Printf (" UBOs: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_ubos));

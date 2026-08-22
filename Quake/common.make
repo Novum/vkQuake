@@ -174,6 +174,11 @@ SHADER_OBJS = \
 	basic_mboit_composite_frag.o \
 	basic_mboit_composite_msaa_frag.o \
 	basic_notex_frag.o \
+	draw_pic_frag.o \
+	draw_pic_alphatest_frag.o \
+	draw_pic_xbr_frag.o \
+	draw_pic_xbr_alphatest_frag.o \
+	draw_pic_xbr_vert.o \
 	basic_vert.o \
 	sky_layer_frag.o \
 	sky_layer_vert.o \

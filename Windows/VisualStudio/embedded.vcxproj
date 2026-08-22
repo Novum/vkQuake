@@ -23,6 +23,25 @@
     <CustomBuild Include="..\..\Shaders\basic_notex.frag">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\draw_pic.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\draw_pic_alphatest.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\draw_pic_xbr.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\draw_pic_xbr_common.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\draw_pic_xbr_common.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\draw_pic_xbr_alphatest.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\draw_pic_xbr_common.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\draw_pic_xbr_common.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\draw_pic_xbr.vert">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\cs_tex_warp.comp">
       <FileType>Document</FileType>
     </CustomBuild>
@@ -329,6 +348,7 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     </CustomBuild>
     <None Include="..\..\Shaders\alias_common.inc" />
     <None Include="..\..\Shaders\basic_common.inc" />
+    <None Include="..\..\Shaders\draw_pic_xbr_common.inc" />
     <None Include="..\..\Shaders\wboit.inc" />
     <None Include="..\..\Shaders\mboit.inc" />
     <None Include="..\..\Shaders\skinning.inc" />

@@ -358,6 +358,21 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_notex.frag.c">
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\draw_pic.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\draw_pic_alphatest.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\draw_pic_xbr.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\draw_pic_xbr_alphatest.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\draw_pic_xbr.vert.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\cs_tex_warp.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
@@ -455,6 +470,21 @@
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic_notex.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\draw_pic.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\draw_pic_alphatest.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\draw_pic_xbr.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\draw_pic_xbr_alphatest.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\draw_pic_xbr.vert.c">
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\cs_tex_warp.comp.c">

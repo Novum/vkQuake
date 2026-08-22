@@ -29,7 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t scr_style;
 
 cvar_t scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; // johnfitz
-cvar_t scr_uiforcenearest = {"scr_uiforcenearest", "1", CVAR_ARCHIVE};
+// 0 = nearest, 1 = linear, 2 = xBR Level 2. World texture filtering remains independent.
+cvar_t scr_guifilter = {"scr_guifilter", "0", CVAR_ARCHIVE};
 
 qpic_t *draw_disc;
 qpic_t *draw_backtile;
@@ -427,7 +428,7 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags, int picflags)
 
 qpic_t *Draw_CachePic (const char *path)
 {
-	qpic_t *pic = Draw_TryCachePic (path, TEXPREF_ALPHA | (scr_uiforcenearest.value ? TEXPREF_NEAREST : 0) | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO);
+	qpic_t *pic = Draw_TryCachePic (path, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO);
 	if (!pic)
 		Sys_Error ("Draw_CachePic: failed to load %s", path);
 	return pic;
@@ -536,7 +537,7 @@ void Draw_Init (void)
 	q_cachepics_map = HashMap_Create (const char *, cachepic_t *, &HashStr, &HashStrCmp);
 
 	Cvar_RegisterVariable (&scr_conalpha);
-	Cvar_RegisterVariable (&scr_uiforcenearest);
+	Cvar_RegisterVariable (&scr_guifilter);
 
 	// clear scrap and allocate gltextures
 	memset (scrap_allocated, 0, sizeof (scrap_allocated));
@@ -579,17 +580,18 @@ void GL_SetCanvasColor (float r, float g, float b, float a)
 Draw_FillCharacterQuad
 ================
 */
-static void Draw_FillCharacterQuadScaled (float x, float y, float scale, char num, basicvertex_t *output, int rotation)
+static void Draw_FillCharacterQuadScaled (float x, float y, float scale, char num, draw_pic_vertex_t *output, int rotation)
 {
-	const int	row = num >> 4;
-	const int	col = num & 15;
+	const int	glyph = (unsigned char)num;
+	const int	row = glyph >> 4;
+	const int	col = glyph & 15;
 	const float st_size = 1.0f / 16.0f;
 	// Fixes sampling into previous/next character because of float rounding
 	const float texel_offset = 0.001f;
 	const float frow = row * st_size;
 	const float fcol = col * st_size;
 
-	basicvertex_t corner_verts[4];
+	draw_pic_vertex_t corner_verts[4];
 	memset (&corner_verts, 255, sizeof (corner_verts));
 
 	const float size = CHARACTER_SIZE * scale;
@@ -601,8 +603,14 @@ static void Draw_FillCharacterQuadScaled (float x, float y, float scale, char nu
 	  };
 
 	for (int i = 0; i < 4; ++i)
+	{
 		for (int j = 0; j < 4; ++j)
 			corner_verts[i].color[j] = (byte)(canvas_color[j] * 255.0f);
+		corner_verts[i].texture_region[0] = fcol;
+		corner_verts[i].texture_region[1] = frow;
+		corner_verts[i].texture_region[2] = fcol + st_size;
+		corner_verts[i].texture_region[3] = frow + st_size;
+	}
 
 	corner_verts[0].position[0] = texcoords[(rotation + 0) % 4][0];
 	corner_verts[0].position[1] = texcoords[(rotation + 0) % 4][1];
@@ -636,9 +644,26 @@ static void Draw_FillCharacterQuadScaled (float x, float y, float scale, char nu
 	output[5] = corner_verts[0];
 }
 
-static void Draw_FillCharacterQuad (float x, float y, char num, basicvertex_t *output, int rotation)
+static void Draw_FillCharacterQuad (float x, float y, char num, draw_pic_vertex_t *output, int rotation)
 {
 	Draw_FillCharacterQuadScaled (x, y, 1.0f, num, output, rotation);
+}
+
+static void Draw_BindPicState (cb_context_t *cbx, gltexture_t *texture, qboolean alpha_blend)
+{
+	const qboolean xbr = (int)scr_guifilter.value == 2;
+	if (xbr)
+		R_BindPipeline (
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			alpha_blend ? vulkan_globals.menu_xbr_blend_pipeline[cbx->render_pass_index] : vulkan_globals.menu_xbr_pipeline[cbx->render_pass_index]);
+	else
+		R_BindPipeline (
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			alpha_blend ? vulkan_globals.gui_blend_pipeline[cbx->render_pass_index] : vulkan_globals.gui_pipeline[cbx->render_pass_index]);
+
+	VkDescriptorSet descriptor_sets[2] = {texture->descriptor_set, vulkan_globals.gui_sampler_descriptor_sets[(int)scr_guifilter.value == 1 ? 1 : 0]};
+	vkCmdBindDescriptorSets (
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.gui_pipeline_layout.handle, 0, countof (descriptor_sets), descriptor_sets, 0, NULL);
 }
 
 /*
@@ -657,19 +682,13 @@ void Draw_Character (cb_context_t *cbx, float x, float y, int num)
 	if (num == 32)
 		return; // don't waste verts on spaces
 
-	VkBuffer	   buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
-
+	VkBuffer		   buffer;
+	VkDeviceSize	   buffer_offset;
+	draw_pic_vertex_t *vertices = (draw_pic_vertex_t *)R_VertexAllocate (6 * sizeof (*vertices), &buffer, &buffer_offset);
 	Draw_FillCharacterQuad (x, y, (char)num, vertices, rotation);
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	if (canvas_color[3] < 1.0f)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f);
 	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
 }
 
@@ -691,9 +710,9 @@ void Draw_String (cb_context_t *cbx, float x, float y, const char *str)
 		if (*tmp != 32)
 			num_verts += 6;
 
-	VkBuffer	   buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (num_verts * sizeof (basicvertex_t), &buffer, &buffer_offset);
+	VkBuffer		   buffer;
+	VkDeviceSize	   buffer_offset;
+	draw_pic_vertex_t *vertices = (draw_pic_vertex_t *)R_VertexAllocate (num_verts * sizeof (*vertices), &buffer, &buffer_offset);
 
 	for (i = 0; *str != 0; ++str)
 	{
@@ -706,12 +725,7 @@ void Draw_String (cb_context_t *cbx, float x, float y, const char *str)
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	if (canvas_color[3] < 1.0f)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f);
 	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
 }
 
@@ -734,9 +748,9 @@ void Draw_String_Scaled (cb_context_t *cbx, float x, float y, const char *str, f
 		if (*tmp != 32)
 			num_verts += 6;
 
-	VkBuffer	   buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (num_verts * sizeof (basicvertex_t), &buffer, &buffer_offset);
+	VkBuffer		   buffer;
+	VkDeviceSize	   buffer_offset;
+	draw_pic_vertex_t *vertices = (draw_pic_vertex_t *)R_VertexAllocate (num_verts * sizeof (*vertices), &buffer, &buffer_offset);
 
 	for (i = 0; *str != 0; ++str)
 	{
@@ -749,12 +763,7 @@ void Draw_String_Scaled (cb_context_t *cbx, float x, float y, const char *str, f
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	if (canvas_color[3] < 1.0f)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f);
 	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
 }
 
@@ -772,11 +781,11 @@ void Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qb
 		Scrap_Upload ();
 	memcpy (&gl, pic->data, sizeof (glpic_t));
 
-	VkBuffer	   buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
+	VkBuffer		   buffer;
+	VkDeviceSize	   buffer_offset;
+	draw_pic_vertex_t *vertices = (draw_pic_vertex_t *)R_VertexAllocate (6 * sizeof (*vertices), &buffer, &buffer_offset);
 
-	basicvertex_t corner_verts[4];
+	draw_pic_vertex_t corner_verts[4];
 	memset (&corner_verts, 255, sizeof (corner_verts));
 
 	corner_verts[0].position[0] = x;
@@ -804,7 +813,13 @@ void Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qb
 	corner_verts[3].texcoord[1] = gl.th;
 
 	for (i = 0; i < 4; ++i)
+	{
 		corner_verts[i].color[3] = alpha * 255.0f;
+		corner_verts[i].texture_region[0] = gl.sl;
+		corner_verts[i].texture_region[1] = gl.tl;
+		corner_verts[i].texture_region[2] = gl.sh;
+		corner_verts[i].texture_region[3] = gl.th;
+	}
 
 	vertices[0] = corner_verts[0];
 	vertices[1] = corner_verts[1];
@@ -814,12 +829,7 @@ void Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qb
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	if (alpha_blend)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
-	vkCmdBindDescriptorSets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0, NULL);
+	Draw_BindPicState (cbx, gl.gltexture, alpha_blend);
 	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
@@ -848,11 +858,11 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 	}
 	rgba[3] *= alpha;
 
-	VkBuffer	   buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
+	VkBuffer		   buffer;
+	VkDeviceSize	   buffer_offset;
+	draw_pic_vertex_t *vertices = (draw_pic_vertex_t *)R_VertexAllocate (6 * sizeof (*vertices), &buffer, &buffer_offset);
 
-	basicvertex_t corner_verts[4];
+	draw_pic_vertex_t corner_verts[4];
 	memset (&corner_verts, 255, sizeof (corner_verts));
 
 	corner_verts[0].position[0] = x;
@@ -885,6 +895,10 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 		corner_verts[i].color[1] = rgba[1];
 		corner_verts[i].color[2] = rgba[2];
 		corner_verts[i].color[3] = rgba[3];
+		corner_verts[i].texture_region[0] = corner_verts[0].texcoord[0];
+		corner_verts[i].texture_region[1] = corner_verts[0].texcoord[1];
+		corner_verts[i].texture_region[2] = corner_verts[2].texcoord[0];
+		corner_verts[i].texture_region[3] = corner_verts[2].texcoord[1];
 	}
 
 	vertices[0] = corner_verts[0];
@@ -895,12 +909,7 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	if (alpha_blend)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
-	vkCmdBindDescriptorSets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0, NULL);
+	Draw_BindPicState (cbx, gl.gltexture, alpha_blend);
 	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 

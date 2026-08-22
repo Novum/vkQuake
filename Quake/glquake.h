@@ -164,6 +164,7 @@ typedef struct vulkan_pipeline_s
 typedef struct vulkan_desc_set_layout_s
 {
 	VkDescriptorSetLayout handle;
+	int					  num_samplers;
 	int					  num_combined_image_samplers;
 	int					  num_ubos;
 	int					  num_ubos_dynamic;
@@ -405,8 +406,13 @@ typedef struct
 	// Pipelines
 	vulkan_pipeline_t		 basic_alphatest_pipeline[RENDER_PASS_INDEX_COUNT];
 	vulkan_pipeline_t		 basic_blend_pipeline[RENDER_PASS_INDEX_COUNT];
+	vulkan_pipeline_t		 gui_pipeline[RENDER_PASS_INDEX_COUNT];
+	vulkan_pipeline_t		 gui_blend_pipeline[RENDER_PASS_INDEX_COUNT];
 	vulkan_pipeline_t		 basic_notex_blend_pipeline[RENDER_PASS_INDEX_COUNT];
+	vulkan_pipeline_t		 menu_xbr_pipeline[RENDER_PASS_INDEX_COUNT];
+	vulkan_pipeline_t		 menu_xbr_blend_pipeline[RENDER_PASS_INDEX_COUNT];
 	vulkan_pipeline_layout_t basic_pipeline_layout;
+	vulkan_pipeline_layout_t gui_pipeline_layout;
 	vulkan_pipeline_t		 world_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_wboit_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_mboit_moment_pipelines[WORLD_PIPELINE_COUNT];
@@ -471,6 +477,8 @@ typedef struct
 	VkDescriptorPool		 descriptor_pool;
 	vulkan_desc_set_layout_t ubo_set_layout;
 	vulkan_desc_set_layout_t single_texture_set_layout;
+	vulkan_desc_set_layout_t gui_sampler_set_layout;
+	VkDescriptorSet			 gui_sampler_descriptor_sets[2];
 	vulkan_desc_set_layout_t input_attachment_set_layout;
 	vulkan_desc_set_layout_t oit_input_attachment_set_layout;
 	vulkan_desc_set_layout_t mboit_input_attachment_set_layout;
@@ -491,6 +499,8 @@ typedef struct
 	// Samplers
 	VkSampler point_sampler;
 	VkSampler linear_sampler;
+	VkSampler gui_point_sampler;
+	VkSampler gui_linear_sampler;
 	VkSampler point_aniso_sampler;
 	VkSampler linear_aniso_sampler;
 	VkSampler point_sampler_lod_bias;
@@ -628,6 +638,14 @@ typedef struct
 	float texcoord[2];
 	byte  color[4];
 } basicvertex_t;
+
+typedef struct
+{
+	float position[3];
+	float texcoord[2];
+	byte  color[4];
+	float texture_region[4];
+} draw_pic_vertex_t;
 
 // johnfitz -- moved here from r_brush.c
 extern int gl_lightmap_format;

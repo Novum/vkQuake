@@ -89,6 +89,21 @@
       <Filter>Shaders\Indirect</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Misc\vq_pak\vq_pak_contents.txt" />
+    <CustomBuild Include="..\..\Shaders\draw_pic.frag">
+      <Filter>Shaders\GUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\draw_pic_alphatest.frag">
+      <Filter>Shaders\GUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\draw_pic_xbr.frag">
+      <Filter>Shaders\GUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\draw_pic_xbr.vert">
+      <Filter>Shaders\GUI</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\draw_pic_xbr_alphatest.frag">
+      <Filter>Shaders\GUI</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">
@@ -118,6 +133,9 @@
     <Filter Include="Shaders\Indirect">
       <UniqueIdentifier>{7c9eddae-b82d-4f95-b3e8-c9294760ec37}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\GUI">
+      <UniqueIdentifier>{ad67544f-4be3-49d6-bb7f-b5bc9da429ec}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Shaders\alias_common.inc">
@@ -146,6 +164,9 @@
     </None>
     <None Include="..\..\Shaders\skinning.inc">
       <Filter>Shaders\Alias</Filter>
+    </None>
+    <None Include="..\..\Shaders\draw_pic_xbr_common.inc">
+      <Filter>Shaders\GUI</Filter>
     </None>
   </ItemGroup>
 </Project>

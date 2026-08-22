@@ -128,7 +128,7 @@ extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_lerpturn;
 extern cvar_t vid_filter;
-extern cvar_t scr_uiforcenearest;
+extern cvar_t scr_guifilter;
 extern cvar_t vid_palettize;
 extern cvar_t vid_anisotropic;
 extern cvar_t vid_fsaa;
@@ -273,7 +273,7 @@ M_DrawTransPic
 */
 void M_DrawTransPic (cb_context_t *cbx, int x, int y, qpic_t *pic)
 {
-	Draw_Pic (cbx, x, y, pic, 1.0f, false); // johnfitz -- simplified becuase centering is handled elsewhere
+	Draw_Pic (cbx, x, y, pic, 1.0f, false);
 }
 
 /*
@@ -283,7 +283,7 @@ M_DrawPic
 */
 void M_DrawPic (cb_context_t *cbx, int x, int y, qpic_t *pic)
 {
-	Draw_Pic (cbx, x, y, pic, 1.0f, false); // johnfitz -- simplified because centering is handled elsewhere
+	Draw_Pic (cbx, x, y, pic, 1.0f, false);
 }
 
 /*
@@ -639,10 +639,7 @@ static qpic_t *Get_Menu2 ()
 {
 	qboolean base_game = COM_GetGameNames (false)[0] == 0;
 	// Check if user has actually installed vkquake.pak, otherwise fall back to old menu
-	return (base_game && registered.value)
-			   ? Draw_TryCachePic (
-					 "gfx/mainmenu2.lmp", TEXPREF_ALPHA | (scr_uiforcenearest.value ? TEXPREF_NEAREST : 0) | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO)
-			   : NULL;
+	return (base_game && registered.value) ? Draw_TryCachePic ("gfx/mainmenu2.lmp", TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO) : NULL;
 }
 
 void M_Main_Draw (cb_context_t *cbx)
@@ -1807,6 +1804,7 @@ enum
 	GRAPHICS_OPT_FOV,
 	GRAPHICS_OPT_8BIT_COLOR,
 	GRAPHICS_OPT_FILTER,
+	GRAPHICS_OPT_MENU_FILTER,
 	GRAPHICS_OPT_MAX_FPS,
 	GRAPHICS_OPT_ANTIALIASING_SAMPLES,
 	GRAPHICS_OPT_ANTIALIASING_MODE,
@@ -1963,6 +1961,9 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_FILTER:
 		Cvar_SetValueQuick (&vid_filter, (float)(((int)vid_filter.value + 2 + dir) % 2));
 		break;
+	case GRAPHICS_OPT_MENU_FILTER:
+		Cvar_SetValueQuick (&scr_guifilter, (float)(((int)CLAMP (0, scr_guifilter.value, 2) + 3 + dir) % 3));
+		break;
 	case GRAPHICS_OPT_MAX_FPS:
 	{
 		float clamped_host_maxfps = CLAMP (MIN_FPS_MENU_VALUE, host_maxfps.value, MAX_FPS_MENU_VALUE);
@@ -2083,8 +2084,15 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, "8-bit Color");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, vid_palettize.value);
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER, "Textures");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER, "World Textures");
 	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER, (vid_filter.value == 0) ? "smooth" : "classic");
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MENU_FILTER, "UI Textures");
+	M_Print (
+		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MENU_FILTER,
+		(scr_guifilter.value == 0)	 ? "classic"
+		: (scr_guifilter.value == 1) ? "smooth"
+									 : "xBR");
 
 	// Max FPS special display
 	{
