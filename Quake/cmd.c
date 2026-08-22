@@ -285,8 +285,10 @@ void Cmd_Exec_f (void)
 		FILE	   *f;
 		char	   *game_buf;
 		qfilesize_t length;
+		qboolean   shared_config_file;
 
-		f = COM_FOpenPrefFile (CONFIG_NAME, "rb");
+		shared_config_file = host_parms->userdir == host_parms->basedir && !q_strcasecmp (com_gamedir, va ("%s/%s", com_basedir, GAMENAME));
+		f = COM_FOpenConfigFile (true, "rb");
 		if (f)
 		{
 			length = Sys_filelength (f);
@@ -300,7 +302,7 @@ void Cmd_Exec_f (void)
 				buf[length] = 0;
 			fclose (f);
 		}
-		game_buf = (char *)COM_LoadFile (path, NULL);
+		game_buf = shared_config_file ? NULL : (char *)COM_LoadFile (path, NULL);
 		if (!buf && !game_buf)
 		{
 			if (cmd_warncmd.value)

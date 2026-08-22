@@ -160,7 +160,7 @@ int CFG_OpenConfig (const char *cfg_name)
 
 	if (!q_strcasecmp (cfg_name, CONFIG_NAME))
 	{
-		f = COM_FOpenPrefFile (CONFIG_NAME, "rb");
+		f = COM_FOpenConfigFile (true, "rb");
 		if (!f)
 			return -1;
 	}

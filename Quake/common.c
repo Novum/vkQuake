@@ -3001,6 +3001,27 @@ FILE *COM_FOpenPrefFile (const char *filename, const char *mode)
 
 /*
 =================
+COM_FOpenConfigFile
+
+Opens either the global config or the current game's config. Portable
+installations keep the global config in their base game's directory; separate
+userdir installations keep it in the userdir root.
+=================
+*/
+FILE *COM_FOpenConfigFile (qboolean global, const char *mode)
+{
+	if (global)
+	{
+		if (host_parms->userdir == host_parms->basedir)
+			return Sys_fopen (va ("%s/%s/" CONFIG_NAME, com_basedir, GAMENAME), mode);
+		return Sys_fopen (va ("%s/" CONFIG_NAME, host_parms->userdir), mode);
+	}
+
+	return Sys_fopen (va ("%s/" CONFIG_NAME, com_gamedir), mode);
+}
+
+/*
+=================
 COM_SetUserPrefDir
 
 Makes the per-user preferences directory the userdir, i.e. the write

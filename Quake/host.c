@@ -416,11 +416,14 @@ current game config
 void Host_WriteConfiguration (void)
 {
 	FILE *f;
+	qboolean shared_config_file;
 
 	// dedicated servers initialize the host but don't parse and set the config cvars
 	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
-		f = COM_FOpenPrefFile (CONFIG_NAME, "w");
+		shared_config_file = host_parms->userdir == host_parms->basedir && !q_strcasecmp (com_gamedir, va ("%s/%s", com_basedir, GAMENAME));
+
+		f = COM_FOpenConfigFile (true, "w");
 		if (!f)
 		{
 			Con_Printf ("Couldn't write global " CONFIG_NAME ".\n");
@@ -431,9 +434,19 @@ void Host_WriteConfiguration (void)
 
 		Cvar_WriteVariables (f, CVAR_ARCHIVE);
 		fprintf (f, "vid_restart\n");
+
+		if (shared_config_file)
+		{
+			Key_WriteBindings (f);
+			Cvar_WriteVariables (f, CVAR_ARCHIVE_GAME);
+			fprintf (f, "+mlook\n"); // always enable mouse look on config, can be overriden by -mlook in autoexec.cfg
+			fclose (f);
+			return;
+		}
+
 		fclose (f);
 
-		f = Sys_fopen (va ("%s/" CONFIG_NAME, com_gamedir), "w");
+		f = COM_FOpenConfigFile (false, "w");
 		if (!f)
 		{
 			Con_Printf ("Couldn't write game " CONFIG_NAME ".\n");
