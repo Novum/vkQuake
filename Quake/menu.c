@@ -203,7 +203,8 @@ void M_DrawCrosshair (cb_context_t *cbx, float x, float y, float size)
 		qpic_t *pic = Draw_TryCachePic (current.pic_path, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_MIPMAP, PICFLAG_AUTO);
 		if (!pic)
 			Sys_Error ("M_DrawCrosshair: failed to load %s", current.pic_path);
-		Draw_SubPicLinear (cbx, x - size * 0.5f, y - size * 0.5f, size, size, pic, 0, 0, 1, 1, rgb, alpha);
+		const float draw_size = size * pic->width / 128.0f;
+		Draw_SubPicLinear (cbx, x - draw_size * 0.5f, y - draw_size * 0.5f, draw_size, draw_size, pic, 0, 0, 1, 1, rgb, alpha);
 	}
 	else
 	{
