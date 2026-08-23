@@ -62,10 +62,10 @@ jmp_buf screen_error;
 
 byte  *host_colormap;
 float  host_netinterval = 1.0 / HOST_NETITERVAL_FREQ;
-cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE}; // set for slow motion
-cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};		// set for running times
-cvar_t sv_speeds = {"sv_speeds", "0", CVAR_NONE};			// print per-tick server cost, split by section
-cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};	// johnfitz
+cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE};								// set for slow motion
+cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};									// set for running times
+cvar_t sv_speeds = {"sv_speeds", "0", CVAR_NONE};										// print per-tick server cost, split by section
+cvar_t host_maxfps = {"host_maxfps", QS_STRINGIFY (DEFAULT_HOST_MAXFPS), CVAR_ARCHIVE}; // johnfitz
 
 cvar_t host_phys_max_ticrate = {"host_phys_max_ticrate", "0", CVAR_NONE}; // vso = [0 = disabled; MAX_PHYSICS_FREQ]
 
@@ -119,6 +119,7 @@ static void Max_Edicts_f (cvar_t *var)
 
 // forward declarations for below...
 static void Max_Fps_f (cvar_t *var);
+static void Max_Fps_Clamp_f (cvar_t *var);
 static void Phys_Ticrate_f (cvar_t *var);
 
 /*
@@ -126,6 +127,7 @@ static void Phys_Ticrate_f (cvar_t *var);
 Max_Fps_f -- ericw
 ================
 */
+
 static void Max_Fps_f (cvar_t *var)
 {
 	// host_phys_max_ticrate overrides normal behaviour
@@ -150,6 +152,20 @@ static void Max_Fps_f (cvar_t *var)
 		if (var->value > MAX_PHYSICS_FREQ)
 			Con_Warning ("host_maxfps above 72 breaks physics.\n");
 	}
+}
+
+static void Max_Fps_Clamp_f (cvar_t *var)
+{
+	float v = var->value;
+	if (v != 0.0f && (v < MIN_HOST_MAXFPS || v > MAX_HOST_MAXFPS))
+	{
+		v = v < 0 ? DEFAULT_HOST_MAXFPS : CLAMP (MIN_HOST_MAXFPS, v, MAX_HOST_MAXFPS);
+		Cvar_SetCallback (var, NULL);
+		Cvar_SetValueQuick (var, v);
+		Cvar_SetCallback (var, Max_Fps_Clamp_f);
+		Con_Printf ("Using clamped value: %s (min: %d, max: %d)\n", var->string, (int)MIN_HOST_MAXFPS, (int)MAX_HOST_MAXFPS);
+	}
+	Max_Fps_f (var);
 }
 
 /*
@@ -363,7 +379,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&host_speeds);
 	Cvar_RegisterVariable (&sv_speeds);
 	Cvar_RegisterVariable (&host_maxfps); // johnfitz
-	Cvar_SetCallback (&host_maxfps, Max_Fps_f);
+	Cvar_SetCallback (&host_maxfps, Max_Fps_Clamp_f);
 	Cvar_RegisterVariable (&host_phys_max_ticrate); // vso
 	Cvar_SetCallback (&host_phys_max_ticrate, Phys_Ticrate_f);
 	Cvar_RegisterVariable (&host_timescale); // johnfitz
@@ -731,7 +747,7 @@ qboolean Host_FilterTime (float time)
 	if (host_maxfps.value)
 	{
 		// johnfitz -- max fps cvar
-		maxfps = CLAMP (10.0, host_maxfps.value, 1000.0);
+		maxfps = CLAMP (MIN_HOST_MAXFPS, host_maxfps.value, MAX_HOST_MAXFPS);
 
 		// Check if we still have more than 2ms till next frame and if so wait for "1ms"
 		// E.g. Windows is not a real time OS and the sleeps can vary in length even with timeBeginPeriod(1)

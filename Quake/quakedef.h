@@ -82,6 +82,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define MAX_PHYSICS_FREQ (72.0) // don't modify! Has to be 72.0
 
+#define MIN_HOST_MAXFPS		10
+#define DEFAULT_HOST_MAXFPS 200
+#define MAX_HOST_MAXFPS		1000
+
 #define HOST_NETITERVAL_FREQ (71.9990) // Physics beyond 72Hz is broken, use a slightly lower value for host_netinterval to overcome some bugs
 
 #define MAX_MSGLEN	 64000 // max length of a reliable message //ericw -- was 32000
