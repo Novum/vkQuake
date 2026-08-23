@@ -1112,8 +1112,6 @@ static void SCR_DrawMenuLoading (cb_context_t *cbx, qboolean startup)
 	con_forcedup = old_con_forcedup;
 	scr_con_current = old_con_current;
 
-	Draw_FadeScreen (cbx);
-
 	// the startup splash is id1 artwork, mods get the "Loading" pic instead
 	if (startup && COM_GetGameNames (false)[0] == 0)
 		SCR_DrawStartupSplashPic (cbx);

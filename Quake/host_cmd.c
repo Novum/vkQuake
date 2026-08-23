@@ -1451,15 +1451,15 @@ static void Host_Map_f (void)
 
 	cls.demonum = -1; // stop demo loop in case this fails
 
-	if (cls.state != ca_dedicated)
-	{
-		SCR_BeginLoadingPlaque ();
-		IN_Activate ();
-		key_dest = key_game; // remove console or menu
-	}
-
 	CL_Disconnect ();
 	Host_ShutdownServer (false);
+
+	if (cls.state != ca_dedicated)
+	{
+		IN_Activate ();
+		key_dest = key_game; // remove console or menu
+		SCR_BeginLoadingPlaque ();
+	}
 
 	svs.serverflags = 0; // haven't completed an episode yet
 	q_strlcpy (name, Cmd_Argv (1), sizeof (name));
