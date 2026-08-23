@@ -41,11 +41,13 @@ layout (location = 0) out vec4 out_frag_color;
 
 const float XBR_EQ_THRESHOLD = 0.32;
 const float XBR_LV2_COEFFICIENT = 2.30;
-const vec3	LUMA = vec3 (0.2627, 0.6780, 0.0593);
+const vec4	XBR_DISTANCE_WEIGHTS = vec4 (0.2627, 0.6780, 0.0593, 1.0);
 
-vec4 fetch_menu_texel (ivec2 p, ivec2 origin, ivec2 size)
+vec4 fetch_menu_texel (ivec2 p, ivec2 origin, ivec2 size, bool clamp_coordinates)
 {
-	return texelFetch (sampler2D (tex, tex_sampler), origin + clamp (p, ivec2 (0), size - 1), 0);
+	if (clamp_coordinates)
+		p = clamp (p, ivec2 (0), size - 1);
+	return texelFetch (sampler2D (tex, tex_sampler), origin + p, 0);
 }
 
 // Transparent palette texels have irrelevant RGB values. Premultiplying for
@@ -57,7 +59,7 @@ vec4 comparison_color (vec4 c)
 
 float comparison_distance (vec4 a, vec4 b)
 {
-	return dot (abs (a.rgb - b.rgb), LUMA) + abs (a.a - b.a);
+	return dot (abs (a - b), XBR_DISTANCE_WEIGHTS);
 }
 
 bool colors_differ (vec4 a, vec4 b)
@@ -65,16 +67,14 @@ bool colors_differ (vec4 a, vec4 b)
 	return any (notEqual (a, b));
 }
 
-vec4 xbr_level2 (ivec2 p, vec2 fp, ivec2 origin, ivec2 size)
+vec4 xbr_level2 (ivec2 p, ivec2 subpixel_index, ivec2 origin, ivec2 size, bool clamp_coordinates)
 {
-	ivec2 subpixel_index = ivec2 (fp * 2.0);
-	int	  diagonal = 1 - abs (subpixel_index.x - subpixel_index.y);
-	int	  sx = 2 * subpixel_index.x - 1;
-	int	  sy = 2 * subpixel_index.y - 1;
-	ivec2 u = ivec2 (diagonal * sx, (1 - diagonal) * sy);
-	ivec2 v = ivec2 ((1 - diagonal) * sx, diagonal * sy);
+	int	  diagonal = 1 - (subpixel_index.x ^ subpixel_index.y);
+	ivec2 direction = 2 * subpixel_index - 1;
+	ivec2 u = ivec2 (diagonal * direction.x, (1 - diagonal) * direction.y);
+	ivec2 v = ivec2 (-u.y, u.x);
 
-#define P(offset)  fetch_menu_texel (p + (offset), origin, size)
+#define P(offset)  fetch_menu_texel (p + (offset), origin, size, clamp_coordinates)
 #define CP(offset) comparison_color (P (offset))
 	vec4 output_e = P (ivec2 (0));
 	vec4 output_f = P (u);
@@ -173,12 +173,17 @@ void main ()
 	ivec2 region_origin = ivec2 (round (in_texture_region.xy * vec2 (texture_size)));
 	ivec2 region_size = max (ivec2 (round ((in_texture_region.zw - in_texture_region.xy) * vec2 (texture_size))), ivec2 (1));
 	ivec2 output_size = region_size * 2;
-	vec2  region_uv = (in_texcoord.xy - in_texture_region.xy) / (in_texture_region.zw - in_texture_region.xy);
-	ivec2 output_texel = clamp (ivec2 (floor (region_uv * vec2 (output_size))), ivec2 (0), output_size - 1);
-	ivec2 source_texel = output_texel / 2;
-	vec2  subpixel = (vec2 (output_texel - source_texel * 2) + 0.5) * 0.5;
+	vec2  region_uv = (in_texcoord.xy - in_texture_region.xy) * in_texcoord.zw;
+	ivec2 output_texel = clamp (ivec2 (region_uv * vec2 (output_size)), ivec2 (0), output_size - 1);
+	ivec2 source_texel = output_texel >> 1;
+	ivec2 subpixel_index = output_texel & 1;
 
-	out_frag_color = in_color * xbr_level2 (source_texel, subpixel, region_origin, region_size);
+	vec4 filtered_color;
+	if (any (lessThan (source_texel, ivec2 (2))) || any (greaterThanEqual (source_texel, region_size - 2)))
+		filtered_color = xbr_level2 (source_texel, subpixel_index, region_origin, region_size, true);
+	else
+		filtered_color = xbr_level2 (source_texel, subpixel_index, region_origin, region_size, false);
+	out_frag_color = in_color * filtered_color;
 #ifdef ALPHA_TEST
 	if (out_frag_color.a < 0.666f)
 		discard;

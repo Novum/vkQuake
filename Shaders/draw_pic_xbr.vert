@@ -28,7 +28,7 @@ out gl_PerVertex
 void main ()
 {
 	gl_Position = push_constants.mvp * vec4 (in_position, 1.0);
-	out_texcoord = vec4 (in_texcoord, 0.0, 0.0);
+	out_texcoord = vec4 (in_texcoord, 1.0 / (in_texture_region.zw - in_texture_region.xy));
 	out_color = in_color;
 	out_fog_frag_coord = gl_Position.w;
 	out_texture_region = in_texture_region;
