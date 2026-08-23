@@ -97,10 +97,10 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 #define MENU_SCROLLBAR_X (46 * CHARACTER_SIZE) // make some room for slider labels
 #define MAX_MENU_LINES	 14
 
-// Max FPS menu entry is a slider [10 .. 1000 OR no limit] by steps of 2 fps so we can set 72 fps
-#define MIN_FPS_MENU_VALUE	MIN_HOST_MAXFPS
+// Max FPS menu entry is a slider [10 .. 1000; no limit] by steps of 2 fps so we can set 72 fps
+#define MIN_FPS_MENU_VALUE	10.0f
 #define FPS_MENU_VALUE_STEP 2.0f
-#define MAX_FPS_MENU_VALUE	MAX_HOST_MAXFPS
+#define MAX_FPS_MENU_VALUE	1000.0f
 
 typedef struct crosshair_s
 {

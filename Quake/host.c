@@ -62,10 +62,10 @@ jmp_buf screen_error;
 
 byte  *host_colormap;
 float  host_netinterval = 1.0 / HOST_NETITERVAL_FREQ;
-cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE};								// set for slow motion
-cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};									// set for running times
-cvar_t sv_speeds = {"sv_speeds", "0", CVAR_NONE};										// print per-tick server cost, split by section
-cvar_t host_maxfps = {"host_maxfps", QS_STRINGIFY (DEFAULT_HOST_MAXFPS), CVAR_ARCHIVE}; // johnfitz
+cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE}; // set for slow motion
+cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};		// set for running times
+cvar_t sv_speeds = {"sv_speeds", "0", CVAR_NONE};			// print per-tick server cost, split by section
+cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};	// johnfitz
 
 cvar_t host_phys_max_ticrate = {"host_phys_max_ticrate", "0", CVAR_NONE}; // vso = [0 = disabled; MAX_PHYSICS_FREQ]
 
@@ -135,30 +135,6 @@ static void Max_Fps_f (cvar_t *var)
 		return;
 	}
 
-	// clamp host_maxfps within limits
-	bool adjust_host_maxfps = false;
-
-	if (var->value < 0.0f)
-	{
-		var->value = DEFAULT_HOST_MAXFPS;
-		adjust_host_maxfps = true;
-	}
-	else if (var->value > 0.0f)
-	{
-		bool original_value = var->value;
-		var->value = CLAMP (MIN_HOST_MAXFPS, var->value, MAX_HOST_MAXFPS);
-
-		adjust_host_maxfps = (original_value != var->value);
-	}
-
-	if (adjust_host_maxfps)
-	{
-		Cvar_SetCallback (var, NULL);
-		Cvar_SetValueQuick (&host_maxfps, var->value);
-		Cvar_SetCallback (var, Max_Fps_f);
-	}
-
-	// apply final value
 	if (var->value > MAX_PHYSICS_FREQ || var->value <= 0)
 	{
 		if (!host_netinterval)

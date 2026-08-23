@@ -2038,13 +2038,17 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GRAPHICS_OPT_MAX_FPS:
 	{
-		// host_maxfps 0 is displayed at max, as if MAX_FPS_MENU_VALUE.
-		float host_fps_slider_value = (host_maxfps.value <= 0.0f) ? MAX_FPS_MENU_VALUE : CLAMP (MIN_FPS_MENU_VALUE, host_maxfps.value, MAX_FPS_MENU_VALUE);
+		float clamped_host_maxfps = CLAMP (MIN_FPS_MENU_VALUE, host_maxfps.value, MAX_FPS_MENU_VALUE);
+
+		float host_fps_slider_value = (host_maxfps.value <= 0.0f) ? MAX_FPS_MENU_VALUE + FPS_MENU_VALUE_STEP : clamped_host_maxfps;
 
 		f = roundf (M_GetSliderPos (
-			MIN_FPS_MENU_VALUE, MAX_FPS_MENU_VALUE, host_fps_slider_value, false, mouse, clamped_mouse, dir, FPS_MENU_VALUE_STEP, 2.0f * MAX_FPS_MENU_VALUE));
+			MIN_FPS_MENU_VALUE, MAX_FPS_MENU_VALUE + FPS_MENU_VALUE_STEP, host_fps_slider_value, false, mouse, clamped_mouse, dir, FPS_MENU_VALUE_STEP,
+			2.0f * MAX_FPS_MENU_VALUE));
 
-		Cvar_SetValueQuick (&host_maxfps, f);
+		float changed_host_maxfps = (f >= MAX_FPS_MENU_VALUE + FPS_MENU_VALUE_STEP) ? 0.0f : f;
+
+		Cvar_SetValueQuick (&host_maxfps, changed_host_maxfps);
 	}
 	break;
 	case GRAPHICS_OPT_ANTIALIASING_SAMPLES:
