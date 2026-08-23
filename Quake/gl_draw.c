@@ -649,9 +649,9 @@ static void Draw_FillCharacterQuad (float x, float y, char num, draw_pic_vertex_
 	Draw_FillCharacterQuadScaled (x, y, 1.0f, num, output, rotation);
 }
 
-static void Draw_BindPicState (cb_context_t *cbx, gltexture_t *texture, qboolean alpha_blend)
+static void Draw_BindPicState (cb_context_t *cbx, gltexture_t *texture, qboolean alpha_blend, qboolean force_linear)
 {
-	const qboolean xbr = (int)scr_guifilter.value == 2;
+	const qboolean xbr = !force_linear && (int)scr_guifilter.value == 2;
 	if (xbr)
 		R_BindPipeline (
 			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -661,7 +661,8 @@ static void Draw_BindPicState (cb_context_t *cbx, gltexture_t *texture, qboolean
 			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			alpha_blend ? vulkan_globals.gui_blend_pipeline[cbx->render_pass_index] : vulkan_globals.gui_pipeline[cbx->render_pass_index]);
 
-	VkDescriptorSet descriptor_sets[2] = {texture->descriptor_set, vulkan_globals.gui_sampler_descriptor_sets[(int)scr_guifilter.value == 1 ? 1 : 0]};
+	VkDescriptorSet descriptor_sets[2] = {
+		texture->descriptor_set, vulkan_globals.gui_sampler_descriptor_sets[force_linear || (int)scr_guifilter.value == 1 ? 1 : 0]};
 	vkCmdBindDescriptorSets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.gui_pipeline_layout.handle, 0, countof (descriptor_sets), descriptor_sets, 0, NULL);
 }
@@ -688,7 +689,7 @@ void Draw_Character (cb_context_t *cbx, float x, float y, int num)
 	Draw_FillCharacterQuad (x, y, (char)num, vertices, rotation);
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f);
+	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f, false);
 	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
 }
 
@@ -725,7 +726,7 @@ void Draw_String (cb_context_t *cbx, float x, float y, const char *str)
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f);
+	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f, false);
 	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
 }
 
@@ -763,7 +764,7 @@ void Draw_String_Scaled (cb_context_t *cbx, float x, float y, const char *str, f
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f);
+	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f, false);
 	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
 }
 
@@ -829,11 +830,12 @@ void Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qb
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, gl.gltexture, alpha_blend);
+	Draw_BindPicState (cbx, gl.gltexture, alpha_blend, false);
 	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
-void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
+static void Draw_SubPicInternal (
+	cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha, qboolean force_linear)
 {
 	glpic_t	 gl;
 	qboolean alpha_blend = alpha < 1.0f;
@@ -909,8 +911,18 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, gl.gltexture, alpha_blend);
+	Draw_BindPicState (cbx, gl.gltexture, alpha_blend, force_linear);
 	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
+}
+
+void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
+{
+	Draw_SubPicInternal (cbx, x, y, w, h, pic, s1, t1, s2, t2, rgb, alpha, false);
+}
+
+void Draw_SubPicLinear (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
+{
+	Draw_SubPicInternal (cbx, x, y, w, h, pic, s1, t1, s2, t2, rgb, alpha, true);
 }
 
 /*

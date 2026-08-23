@@ -1,4 +1,9 @@
 gfx/conback.png
+gfx/crosshair-020.png
+gfx/crosshair-000.png
+gfx/crosshair-001.png
+gfx/crosshair-021.png
+gfx/crosshair-148.png
 gfx/mainmenu2.lmp
 gfx/p_mods.png
 gfx/sp_maps.lmp

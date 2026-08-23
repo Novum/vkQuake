@@ -104,13 +104,18 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 
 typedef struct crosshair_s
 {
-	char  crosshair_char;
-	float viewport_x_offset;
-	float viewport_y_offset;
-	int	  menu_x_offset;
-	int	  menu_y_offset;
+	const char *name;
+	char		crosshair_char;
+	float		viewport_x_offset;
+	float		viewport_y_offset;
+	int			menu_x_offset;
+	int			menu_y_offset;
+	const char *pic_path; // NULL for the legacy character crosshairs
 } crosshair_t;
 
 crosshair_t M_GetCrosshairDef (float crosshair_def_value);
+const char *M_GetCrosshairColorName (float crosshair_color_value);
+void		M_GetCrosshairColor (float crosshair_color_value, float *rgb);
+void		M_DrawCrosshair (cb_context_t *cbx, float x, float y, float size);
 
 #endif /* _QUAKE_MENU_H */

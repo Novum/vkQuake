@@ -140,20 +140,28 @@ extern cvar_t cl_rollangle;
 extern cvar_t v_gunkick;
 extern cvar_t crosshair;
 extern cvar_t crosshair_def;
+extern cvar_t crosshair_size;
+extern cvar_t crosshair_color;
+extern cvar_t crosshair_alpha;
 
 static qboolean slider_grab;
 static qboolean scrollbar_grab;
 
 // clang-format off
-//crosshair_definitions
+// crosshair_definitions
 static const crosshair_t crosshair_defs[] = 
 {
-	{'+',    - CHARACTER_SIZE * 0.5f,           - CHARACTER_SIZE * 0.5f,             0,   0},
-	{'.',    - CHARACTER_SIZE * 0.5f + 1.75f,   - CHARACTER_SIZE * 0.5f - 1.5f,      2,  -1}, 
-	{'x',    - CHARACTER_SIZE * 0.5f,           - CHARACTER_SIZE * 0.5f,             0,   0},
-	{'o',    - CHARACTER_SIZE * 0.5f,           - CHARACTER_SIZE * 0.5f,             0,   0},
-	{'^',    - CHARACTER_SIZE * 0.5f,           - CHARACTER_SIZE * 0.5f + 5.0f,      0,   2},
-	{'v',    - CHARACTER_SIZE * 0.5f - 0.65f,   - CHARACTER_SIZE * 0.5f + 0.75f,     0,   0}
+	{"Modern 020", 0, 0, 0, 0, 0, "gfx/crosshair-020.png"},
+	{"Modern 000", 0, 0, 0, 0, 0, "gfx/crosshair-000.png"},
+	{"Modern 001", 0, 0, 0, 0, 0, "gfx/crosshair-001.png"},
+	{"Modern 021", 0, 0, 0, 0, 0, "gfx/crosshair-021.png"},
+	{"Modern 148", 0, 0, 0, 0, 0, "gfx/crosshair-148.png"},
+	{"Classic +", '+', - CHARACTER_SIZE * 0.5f, - CHARACTER_SIZE * 0.5f, 0, 0, NULL},
+	{"Classic dot", '.', - CHARACTER_SIZE * 0.5f + 1.75f, - CHARACTER_SIZE * 0.5f - 1.5f, 2, -1, NULL},
+	{"Classic x", 'x', - CHARACTER_SIZE * 0.5f, - CHARACTER_SIZE * 0.5f, 0, 0, NULL},
+	{"Classic ring", 'o', - CHARACTER_SIZE * 0.5f, - CHARACTER_SIZE * 0.5f, 0, 0, NULL},
+	{"Classic up", '^', - CHARACTER_SIZE * 0.5f, - CHARACTER_SIZE * 0.5f + 5.0f, 0, 2, NULL},
+	{"Classic down", 'v', - CHARACTER_SIZE * 0.5f - .65f, - CHARACTER_SIZE * 0.5f + .75f, 0, 0, NULL}
 };
 
 static const size_t num_crosshair_defs = countof (crosshair_defs);
@@ -166,7 +174,43 @@ M_GetCrosshairDef
 */
 crosshair_t M_GetCrosshairDef (float crosshair_def_value)
 {
-	return crosshair_defs[(int)crosshair_def_value % num_crosshair_defs];
+	return crosshair_defs[CLAMP (0, (int)crosshair_def_value, (int)num_crosshair_defs - 1)];
+}
+
+static const char *const crosshair_color_names[] = {"White", "Gray", "Green", "Cyan", "Yellow", "Red", "Magenta"};
+static const float		 crosshair_colors[][3] = {{1.0f, 1.0f, 1.0f}, {0.5f, 0.5f, 0.5f}, {0.25f, 0.7f, 0.25f}, {0.2f, 0.7f, 0.7f},
+												  {0.7f, 0.7f, 0.2f}, {0.7f, 0.2f, 0.2f}, {0.7f, 0.2f, 0.7f}};
+
+const char *M_GetCrosshairColorName (float crosshair_color_value)
+{
+	return crosshair_color_names[CLAMP (0, (int)crosshair_color_value, (int)countof (crosshair_color_names) - 1)];
+}
+
+void M_GetCrosshairColor (float crosshair_color_value, float *rgb)
+{
+	memcpy (rgb, crosshair_colors[CLAMP (0, (int)crosshair_color_value, (int)countof (crosshair_colors) - 1)], sizeof (crosshair_colors[0]));
+}
+
+void M_DrawCrosshair (cb_context_t *cbx, float x, float y, float size)
+{
+	crosshair_t current = M_GetCrosshairDef (crosshair_def.value);
+	const float alpha = CLAMP (0.0f, crosshair_alpha.value, 1.0f);
+	float		rgb[3];
+	M_GetCrosshairColor (crosshair_color.value, rgb);
+
+	if (current.pic_path)
+	{
+		qpic_t *pic = Draw_TryCachePic (current.pic_path, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_MIPMAP, PICFLAG_AUTO);
+		if (!pic)
+			Sys_Error ("M_DrawCrosshair: failed to load %s", current.pic_path);
+		Draw_SubPicLinear (cbx, x - size * 0.5f, y - size * 0.5f, size, size, pic, 0, 0, 1, 1, rgb, alpha);
+	}
+	else
+	{
+		GL_SetCanvasColor (rgb[0], rgb[1], rgb[2], alpha);
+		Draw_Character (cbx, x + current.viewport_x_offset, y + current.viewport_y_offset, current.crosshair_char);
+		GL_SetCanvasColor (1.0f, 1.0f, 1.0f, 1.0f);
+	}
 }
 
 /*
@@ -1475,6 +1519,9 @@ enum
 	GAME_OPT_HUD_DETAIL,
 	GAME_OPT_HUD_STYLE,
 	GAME_OPT_CROSSHAIR,
+	GAME_OPT_CROSSHAIR_SIZE,
+	GAME_OPT_CROSSHAIR_COLOR,
+	GAME_OPT_CROSSHAIR_OPACITY,
 	GAME_OPT_FAST_LOADING,
 	GAME_OPT_AUTOLOAD,
 	GAME_OPT_STARTUP_DEMOS,
@@ -1593,6 +1640,17 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 				Cvar_SetValue ("crosshair_def", 0.0f);
 			}
 		}
+		break;
+	case GAME_OPT_CROSSHAIR_COLOR:
+		Cvar_SetValue ("crosshair_color", ((int)crosshair_color.value + (int)countof (crosshair_color_names) + dir) % (int)countof (crosshair_color_names));
+		break;
+	case GAME_OPT_CROSSHAIR_SIZE:
+		f = M_GetSliderPos (6, 64, crosshair_size.value, false, mouse, clamped_mouse, dir, 1, 999);
+		Cvar_SetValue ("crosshair_size", f);
+		break;
+	case GAME_OPT_CROSSHAIR_OPACITY:
+		f = M_GetSliderPos (0, 1, crosshair_alpha.value, true, mouse, clamped_mouse, dir, 0.1, 999);
+		Cvar_SetValue ("crosshair_alpha", f);
 		break;
 	case GAME_OPT_HUD_DETAIL: // interface detail
 		// cycles through 120 (none), 110 (standard), 100 (full)
@@ -1750,11 +1808,24 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 			}
 			else
 			{
-				char		crosshair_as_string[2] = {0};
-				crosshair_t current = M_GetCrosshairDef (crosshair_def.value);
-				crosshair_as_string[0] = current.crosshair_char;
-				M_PrintHighlighted (cbx, MENU_VALUE_X + current.menu_x_offset, y + current.menu_y_offset, crosshair_as_string);
+				M_DrawCrosshair (cbx, MENU_VALUE_X + CHARACTER_SIZE * 0.5f, y + CHARACTER_SIZE * 0.5f, CHARACTER_SIZE);
 			}
+			break;
+
+		case GAME_OPT_CROSSHAIR_SIZE:
+			M_Print (cbx, MENU_LABEL_X, y, "Crosshair Size");
+			r = (crosshair_size.value - 6.0f) / 58.0f;
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.0f", crosshair_size.value));
+			break;
+
+		case GAME_OPT_CROSSHAIR_COLOR:
+			M_Print (cbx, MENU_LABEL_X, y, "Crosshair Color");
+			M_Print (cbx, MENU_VALUE_X, y, M_GetCrosshairColorName (crosshair_color.value));
+			break;
+
+		case GAME_OPT_CROSSHAIR_OPACITY:
+			M_Print (cbx, MENU_LABEL_X, y, "Crosshair Opacity");
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, crosshair_alpha.value, va ("%.1f", crosshair_alpha.value));
 			break;
 
 		case GAME_OPT_FAST_LOADING:
