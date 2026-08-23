@@ -65,162 +65,106 @@ bool colors_differ (vec4 a, vec4 b)
 	return any (notEqual (a, b));
 }
 
-struct xbr_corner_t
-{
-	vec4 b, c, d, f, g, h, i;
-	vec4 i4, i5, h5, f4;
-};
-
-float corner_weighted_distance_1 (vec4 center, xbr_corner_t corner)
-{
-	return comparison_distance (center, corner.c) + comparison_distance (center, corner.g) + comparison_distance (corner.i, corner.h5) +
-		   comparison_distance (corner.i, corner.f4) + 4.0 * comparison_distance (corner.h, corner.f);
-}
-
-float corner_weighted_distance_2 (vec4 center, xbr_corner_t corner)
-{
-	return comparison_distance (corner.h, corner.d) + comparison_distance (corner.h, corner.i5) + comparison_distance (corner.f, corner.i4) +
-		   comparison_distance (corner.f, corner.b) + 4.0 * comparison_distance (center, corner.i);
-}
-
-bool corner_edri (vec4 center, xbr_corner_t corner)
-{
-	return colors_differ (center, corner.f) && colors_differ (center, corner.h) &&
-		   corner_weighted_distance_1 (center, corner) <= corner_weighted_distance_2 (center, corner);
-}
-
-vec4 evaluate_corner (
-	vec4 output_center, vec4 output_f, vec4 output_h, vec4 center, xbr_corner_t corner, xbr_corner_t next_corner, xbr_corner_t previous_corner)
-{
-	float d_ec = comparison_distance (center, corner.c);
-	float d_eg = comparison_distance (center, corner.g);
-	float d_hd = comparison_distance (corner.h, corner.d);
-	float d_hi5 = comparison_distance (corner.h, corner.i5);
-	float d_fi4 = comparison_distance (corner.f, corner.i4);
-	float d_fb = comparison_distance (corner.f, corner.b);
-	float d_ei = comparison_distance (center, corner.i);
-	float wd1 =
-		d_ec + d_eg + comparison_distance (corner.i, corner.h5) + comparison_distance (corner.i, corner.f4) + 4.0 * comparison_distance (corner.h, corner.f);
-	float wd2 = d_hd + d_hi5 + d_fi4 + d_fb + 4.0 * d_ei;
-	if (wd1 >= wd2)
-		return output_center;
-
-	// CORNER_C from the reference xBR Level 2 shader.
-	bool irlv1 = (d_fb > XBR_EQ_THRESHOLD && comparison_distance (corner.f, corner.c) > XBR_EQ_THRESHOLD) ||
-				 (d_hd > XBR_EQ_THRESHOLD && comparison_distance (corner.h, corner.g) > XBR_EQ_THRESHOLD) ||
-				 (d_ei <= XBR_EQ_THRESHOLD && ((comparison_distance (corner.f, corner.f4) > XBR_EQ_THRESHOLD && d_fi4 > XBR_EQ_THRESHOLD) ||
-											   (comparison_distance (corner.h, corner.h5) > XBR_EQ_THRESHOLD && d_hi5 > XBR_EQ_THRESHOLD))) ||
-				 d_eg <= XBR_EQ_THRESHOLD || d_ec <= XBR_EQ_THRESHOLD;
-	if (!irlv1)
-		return output_center;
-
-	bool next_edri = corner_edri (center, next_corner);
-	bool previous_edri = corner_edri (center, previous_corner);
-	if (next_edri && previous_edri)
-		return output_center;
-
-	float d_fg = comparison_distance (corner.f, corner.g);
-	float d_hc = comparison_distance (corner.h, corner.c);
-	bool  blend_left = !next_edri && d_ec <= XBR_EQ_THRESHOLD && d_eg > 0.0 && colors_differ (corner.d, corner.g) && XBR_LV2_COEFFICIENT * d_fg <= d_hc;
-	bool  blend_up = !previous_edri && d_eg <= XBR_EQ_THRESHOLD && d_ec > 0.0 && colors_differ (corner.b, corner.c) && XBR_LV2_COEFFICIENT * d_hc <= d_fg;
-	if (!blend_left && !blend_up)
-		return output_center;
-
-	// Preserve the original shader's tie-breaking in favor of f.
-	return comparison_distance (center, corner.f) <= comparison_distance (center, corner.h) ? output_f : output_h;
-}
-
 vec4 xbr_level2 (ivec2 p, vec2 fp, ivec2 origin, ivec2 size)
 {
-#define P(x, y) fetch_menu_texel (p + ivec2 (x, y), origin, size)
-	vec4 output_b = P (0, -1), output_d = P (-1, 0), output_e = P (0, 0);
-	vec4 output_f = P (1, 0), output_h = P (0, 1);
-	vec4 b = comparison_color (output_b), d = comparison_color (output_d);
-	vec4 e = comparison_color (output_e), f = comparison_color (output_f), h = comparison_color (output_h);
-
-	// The fixed 2x centers map to lanes 2, 1, 3, and 0 of the original
-	// four-corner vector shader.
 	ivec2 subpixel_index = ivec2 (fp * 2.0);
-	int	  corner_index = 2 - subpixel_index.x + subpixel_index.y - 2 * subpixel_index.x * subpixel_index.y;
-	vec4  selected_comparison_f, selected_comparison_h;
-	vec4  selected_output_f, selected_output_h;
-	if (corner_index == 0)
-	{
-		selected_comparison_f = f;
-		selected_comparison_h = h;
-		selected_output_f = output_f;
-		selected_output_h = output_h;
-	}
-	else if (corner_index == 1)
-	{
-		selected_comparison_f = b;
-		selected_comparison_h = f;
-		selected_output_f = output_b;
-		selected_output_h = output_f;
-	}
-	else if (corner_index == 2)
-	{
-		selected_comparison_f = d;
-		selected_comparison_h = b;
-		selected_output_f = output_d;
-		selected_output_h = output_b;
-	}
-	else
-	{
-		selected_comparison_f = h;
-		selected_comparison_h = d;
-		selected_output_f = output_h;
-		selected_output_h = output_d;
-	}
+	int	  diagonal = 1 - abs (subpixel_index.x - subpixel_index.y);
+	int	  sx = 2 * subpixel_index.x - 1;
+	int	  sy = 2 * subpixel_index.y - 1;
+	ivec2 u = ivec2 (diagonal * sx, (1 - diagonal) * sy);
+	ivec2 v = ivec2 ((1 - diagonal) * sx, diagonal * sy);
 
-	// A corner with either neighbor equal to E cannot blend. Most fragments
-	// return here after fetching only the center cross.
-	if (!colors_differ (e, selected_comparison_f) || !colors_differ (e, selected_comparison_h))
+#define P(offset)  fetch_menu_texel (p + (offset), origin, size)
+#define CP(offset) comparison_color (P (offset))
+	vec4 output_e = P (ivec2 (0));
+	vec4 output_f = P (u);
+	vec4 output_h = P (v);
+	vec4 e = comparison_color (output_e);
+	vec4 f = comparison_color (output_f);
+	vec4 h = comparison_color (output_h);
+
+	// A corner with either neighbor equal to E cannot blend. Rotating the
+	// neighborhood lets the overwhelmingly common flat path use three fetches.
+	if (!colors_differ (e, f) || !colors_differ (e, h))
 		return output_e;
 
-#define CP(x, y) comparison_color (P (x, y))
-	vec4 a1 = CP (-1, -2), b1 = CP (0, -2), c1 = CP (1, -2);
-	vec4 a = CP (-1, -1), c = CP (1, -1);
-	vec4 g = CP (-1, 1), i = CP (1, 1);
-	vec4 g5 = CP (-1, 2), h5 = CP (0, 2), i5 = CP (1, 2);
-	vec4 a0 = CP (-2, -1), d0 = CP (-2, 0), g0 = CP (-2, 1);
-	vec4 c4 = CP (2, -1), f4 = CP (2, 0), i4 = CP (2, 1);
+	vec4 b = CP (-v);
+	vec4 c = CP (u - v);
+	vec4 d = CP (-u);
+	vec4 g = CP (v - u);
+	vec4 i = CP (u + v);
+	vec4 i4 = CP (2 * u + v);
+	vec4 i5 = CP (u + 2 * v);
+	vec4 h5 = CP (2 * v);
+	vec4 f4 = CP (2 * u);
+
+	float d_ec = comparison_distance (e, c);
+	float d_eg = comparison_distance (e, g);
+	float d_hd = comparison_distance (h, d);
+	float d_hi5 = comparison_distance (h, i5);
+	float d_fi4 = comparison_distance (f, i4);
+	float d_fb = comparison_distance (f, b);
+	float d_ei = comparison_distance (e, i);
+	float d_hf = comparison_distance (h, f);
+	float wd1 = d_ec + d_eg + comparison_distance (i, h5) + comparison_distance (i, f4) + 4.0 * d_hf;
+	float wd2 = d_hd + d_hi5 + d_fi4 + d_fb + 4.0 * d_ei;
+	if (wd1 >= wd2)
+		return output_e;
+
+	// CORNER_C from the reference xBR Level 2 shader.
+	bool irlv1 = (d_fb > XBR_EQ_THRESHOLD && comparison_distance (f, c) > XBR_EQ_THRESHOLD) ||
+				 (d_hd > XBR_EQ_THRESHOLD && comparison_distance (h, g) > XBR_EQ_THRESHOLD) ||
+				 (d_ei <= XBR_EQ_THRESHOLD && ((comparison_distance (f, f4) > XBR_EQ_THRESHOLD && d_fi4 > XBR_EQ_THRESHOLD) ||
+											   (comparison_distance (h, h5) > XBR_EQ_THRESHOLD && d_hi5 > XBR_EQ_THRESHOLD))) ||
+				 d_eg <= XBR_EQ_THRESHOLD || d_ec <= XBR_EQ_THRESHOLD;
+	if (!irlv1)
+		return output_e;
+
+	// The adjacent-corner suppression rules are only needed for surviving
+	// primary edges. Their center-cross tests can reject either side before
+	// fetching that side's outer three texels.
+	bool next_edri = false;
+	bool previous_edri = false;
+	bool test_next = colors_differ (e, b);
+	bool test_previous = colors_differ (e, d);
+	if (test_next || test_previous)
+	{
+		vec4  a = CP (-u - v);
+		float d_ea = comparison_distance (e, a);
+		float d_bd = comparison_distance (b, d);
+		if (test_next)
+		{
+			vec4  b1 = CP (-2 * v);
+			vec4  c1 = CP (u - 2 * v);
+			vec4  c4 = CP (2 * u - v);
+			float next_wd1 = d_ea + d_ei + comparison_distance (c, f4) + comparison_distance (c, b1) + 4.0 * d_fb;
+			float next_wd2 = d_hf + comparison_distance (f, c4) + comparison_distance (b, c1) + d_bd + 4.0 * d_ec;
+			next_edri = next_wd1 <= next_wd2;
+		}
+		if (test_previous)
+		{
+			vec4  d0 = CP (-2 * u);
+			vec4  g0 = CP (v - 2 * u);
+			vec4  g5 = CP (2 * v - u);
+			float previous_wd1 = d_ei + d_ea + comparison_distance (g, d0) + comparison_distance (g, h5) + 4.0 * d_hd;
+			float previous_wd2 = d_bd + comparison_distance (d, g0) + comparison_distance (h, g5) + d_hf + 4.0 * d_eg;
+			previous_edri = previous_wd1 <= previous_wd2;
+		}
+	}
 #undef CP
 #undef P
+	if (next_edri && previous_edri)
+		return output_e;
 
-	// The same rule rotated around E for each corner.
-	xbr_corner_t corner0 = xbr_corner_t (b, c, d, f, g, h, i, i4, i5, h5, f4);
-	xbr_corner_t corner1 = xbr_corner_t (d, a, h, b, i, f, c, c1, c4, f4, b1);
-	xbr_corner_t corner2 = xbr_corner_t (h, g, f, d, c, b, a, a0, a1, b1, d0);
-	xbr_corner_t corner3 = xbr_corner_t (f, i, b, h, a, d, g, g5, g0, d0, h5);
+	float d_fg = comparison_distance (f, g);
+	float d_hc = comparison_distance (h, c);
+	bool  blend_left = !next_edri && d_ec <= XBR_EQ_THRESHOLD && d_eg > 0.0 && colors_differ (d, g) && XBR_LV2_COEFFICIENT * d_fg <= d_hc;
+	bool  blend_up = !previous_edri && d_eg <= XBR_EQ_THRESHOLD && d_ec > 0.0 && colors_differ (b, c) && XBR_LV2_COEFFICIENT * d_hc <= d_fg;
+	if (!blend_left && !blend_up)
+		return output_e;
 
-	xbr_corner_t corner, next_corner, previous_corner;
-	if (corner_index == 0)
-	{
-		corner = corner0;
-		next_corner = corner1;
-		previous_corner = corner3;
-	}
-	else if (corner_index == 1)
-	{
-		corner = corner1;
-		next_corner = corner2;
-		previous_corner = corner0;
-	}
-	else if (corner_index == 2)
-	{
-		corner = corner2;
-		next_corner = corner3;
-		previous_corner = corner1;
-	}
-	else
-	{
-		corner = corner3;
-		next_corner = corner0;
-		previous_corner = corner2;
-	}
-
-	return evaluate_corner (output_e, selected_output_f, selected_output_h, e, corner, next_corner, previous_corner);
+	// Preserve the original shader's tie-breaking in favor of f.
+	return comparison_distance (e, f) <= comparison_distance (e, h) ? output_f : output_h;
 }
 
 void main ()
