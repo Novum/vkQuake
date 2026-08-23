@@ -1650,7 +1650,7 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValue ("crosshair_size", f);
 		break;
 	case GAME_OPT_CROSSHAIR_OPACITY:
-		f = M_GetSliderPos (0, 1, crosshair_alpha.value, true, mouse, clamped_mouse, dir, 0.1, 999);
+		f = M_GetSliderPos (0, 1, crosshair_alpha.value, false, mouse, clamped_mouse, dir, 0.1, 999);
 		Cvar_SetValue ("crosshair_alpha", f);
 		break;
 	case GAME_OPT_HUD_DETAIL: // interface detail
@@ -4822,7 +4822,10 @@ void M_UpdateMouse (void)
 		const bool graphic_option_has_sliders = ((graphics_options_cursor >= GRAPHICS_OPT_GAMMA) && (graphics_options_cursor <= GRAPHICS_OPT_FOV)) ||
 												(graphics_options_cursor == GRAPHICS_OPT_MAX_FPS);
 
-		if (keydown[K_MOUSE1] && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL))
+		const bool game_option_has_sliders = ((game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL)) ||
+											 (game_options_cursor == GAME_OPT_CROSSHAIR_SIZE) || (game_options_cursor == GAME_OPT_CROSSHAIR_OPACITY);
+
+		if (keydown[K_MOUSE1] && (m_state == m_game) && game_option_has_sliders)
 			M_GameOptions_AdjustSliders (0, true);
 		else if (keydown[K_MOUSE1] && (m_state == m_graphics) && graphic_option_has_sliders)
 			M_GraphicsOptions_AdjustSliders (0, true);
