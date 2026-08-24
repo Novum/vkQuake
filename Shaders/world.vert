@@ -48,7 +48,7 @@ void main ()
 		if (instance_index != 0)
 		{
 			const bmodel_instance_t instance = bmodel_instances[push_constants.instance_base - 1 + instance_index];
-			const vec4 model_pos = vec4 (in_position, 1.0f);
+			const vec4				model_pos = vec4 (in_position, 1.0f);
 			position = vec3 (dot (instance.transform[0], model_pos), dot (instance.transform[1], model_pos), dot (instance.transform[2], model_pos));
 		}
 	}

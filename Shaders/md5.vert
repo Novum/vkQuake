@@ -33,10 +33,8 @@ mat4x3 MD5_LoadJointMatrix (uint joint_offset)
 {
 	uint base = joint_offset * 12;
 	return mat4x3 (
-		joint_mats[base + 0], joint_mats[base + 4], joint_mats[base + 8],
-		joint_mats[base + 1], joint_mats[base + 5], joint_mats[base + 9],
-		joint_mats[base + 2], joint_mats[base + 6], joint_mats[base + 10],
-		joint_mats[base + 3], joint_mats[base + 7], joint_mats[base + 11]);
+		joint_mats[base + 0], joint_mats[base + 4], joint_mats[base + 8], joint_mats[base + 1], joint_mats[base + 5], joint_mats[base + 9],
+		joint_mats[base + 2], joint_mats[base + 6], joint_mats[base + 10], joint_mats[base + 3], joint_mats[base + 7], joint_mats[base + 11]);
 }
 
 #include "skinning.inc"
@@ -89,23 +87,22 @@ void main ()
 	vec3 skinned_normals[2] = {vec3 (0.0f), vec3 (0.0f)};
 	uint joint_offsets[2] = {ubo.joints_offset0, ubo.joints_offset1};
 #if defined(EIGHT_WEIGHT_SKINNING)
-	vec4 joint_weights[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_weights0, in_joint_weights1};
+	vec4  joint_weights[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_weights0, in_joint_weights1};
 	uvec4 joint_indices[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_indices0, in_joint_indices1};
-	vec4 joint_position_x[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_x0, in_joint_position_x1};
-	vec4 joint_position_y[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_y0, in_joint_position_y1};
-	vec4 joint_position_z[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_z0, in_joint_position_z1};
+	vec4  joint_position_x[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_x0, in_joint_position_x1};
+	vec4  joint_position_y[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_y0, in_joint_position_y1};
+	vec4  joint_position_z[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_z0, in_joint_position_z1};
 #else
-	vec4 joint_weights[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_weights0};
+	vec4  joint_weights[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_weights0};
 	uvec4 joint_indices[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_indices0};
-	vec4 joint_position_x[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_x0};
-	vec4 joint_position_y[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_y0};
-	vec4 joint_position_z[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_z0};
+	vec4  joint_position_x[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_x0};
+	vec4  joint_position_y[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_y0};
+	vec4  joint_position_z[MD5_INFLUENCE_GROUP_COUNT] = {in_joint_position_z0};
 #endif
 	MD5_NormalizeJointWeights (joint_weights);
 	vec4 joint_positions[MD5_INFLUENCE_COUNT];
 	MD5_LoadJointPositions (joint_position_x, joint_position_y, joint_position_z, joint_weights, joint_positions);
-	MD5_SkinFrames (
-		joint_offsets, joint_indices, joint_weights, joint_positions, in_normal, (ubo.flags & 0x2) == 0, skinned_positions, skinned_normals);
+	MD5_SkinFrames (joint_offsets, joint_indices, joint_weights, joint_positions, in_normal, (ubo.flags & 0x2) == 0, skinned_positions, skinned_normals);
 
 	const vec4 lerped_position = vec4 (mix (skinned_positions[0], skinned_positions[1], ubo.blend_factor), 1.0f);
 	const vec4 model_space_position = ubo.model_matrix * lerped_position;

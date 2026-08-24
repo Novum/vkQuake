@@ -24,8 +24,6 @@ void main ()
 	if (out_frag_color.a < 0.666f)
 		discard;
 
-	float fog = exp (-push_constants.fog_density * push_constants.fog_density *
-		in_fog_frag_coord * in_fog_frag_coord);
-	out_frag_color.rgb = mix (push_constants.fog_color, out_frag_color.rgb,
-		clamp (fog, 0.0, 1.0));
+	float fog = exp (-push_constants.fog_density * push_constants.fog_density * in_fog_frag_coord * in_fog_frag_coord);
+	out_frag_color.rgb = mix (push_constants.fog_color, out_frag_color.rgb, clamp (fog, 0.0, 1.0));
 }

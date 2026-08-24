@@ -43,10 +43,9 @@ mat4x3 MD5_LoadJointMatrix (uint joint_offset)
 	JointMatrixBuffer joint_mats = JointMatrixBuffer (push_constants.joints_address);
 	const uint		  base = joint_offset * 12;
 	return mat4x3 (
-		joint_mats.data[base + 0], joint_mats.data[base + 4], joint_mats.data[base + 8],
-		joint_mats.data[base + 1], joint_mats.data[base + 5], joint_mats.data[base + 9],
-		joint_mats.data[base + 2], joint_mats.data[base + 6], joint_mats.data[base + 10],
-		joint_mats.data[base + 3], joint_mats.data[base + 7], joint_mats.data[base + 11]);
+		joint_mats.data[base + 0], joint_mats.data[base + 4], joint_mats.data[base + 8], joint_mats.data[base + 1], joint_mats.data[base + 5],
+		joint_mats.data[base + 9], joint_mats.data[base + 2], joint_mats.data[base + 6], joint_mats.data[base + 10], joint_mats.data[base + 3],
+		joint_mats.data[base + 7], joint_mats.data[base + 11]);
 }
 
 #include "skinning.inc"
@@ -99,7 +98,7 @@ void main ()
 			float ((weights_packed0 >> 24) & 0xFF)) /
 			255.0
 #if defined(EIGHT_WEIGHT_SKINNING)
-			,
+		,
 		vec4 (
 			float (weights_packed1 & 0xFF), float ((weights_packed1 >> 8) & 0xFF), float ((weights_packed1 >> 16) & 0xFF),
 			float ((weights_packed1 >> 24) & 0xFF)) /
@@ -122,14 +121,11 @@ void main ()
 	for (int g = 0; g < MD5_INFLUENCE_GROUP_COUNT; ++g)
 	{
 		uint offset = base + MD5_JOINT_POSITION_X_FLOAT + g * 4;
-		joint_position_x[g] = vec4 (
-			vertex_data.data[offset + 0], vertex_data.data[offset + 1], vertex_data.data[offset + 2], vertex_data.data[offset + 3]);
+		joint_position_x[g] = vec4 (vertex_data.data[offset + 0], vertex_data.data[offset + 1], vertex_data.data[offset + 2], vertex_data.data[offset + 3]);
 		offset = base + MD5_JOINT_POSITION_Y_FLOAT + g * 4;
-		joint_position_y[g] = vec4 (
-			vertex_data.data[offset + 0], vertex_data.data[offset + 1], vertex_data.data[offset + 2], vertex_data.data[offset + 3]);
+		joint_position_y[g] = vec4 (vertex_data.data[offset + 0], vertex_data.data[offset + 1], vertex_data.data[offset + 2], vertex_data.data[offset + 3]);
 		offset = base + MD5_JOINT_POSITION_Z_FLOAT + g * 4;
-		joint_position_z[g] = vec4 (
-			vertex_data.data[offset + 0], vertex_data.data[offset + 1], vertex_data.data[offset + 2], vertex_data.data[offset + 3]);
+		joint_position_z[g] = vec4 (vertex_data.data[offset + 0], vertex_data.data[offset + 1], vertex_data.data[offset + 2], vertex_data.data[offset + 3]);
 	}
 
 	vec4 joint_positions[MD5_INFLUENCE_COUNT];

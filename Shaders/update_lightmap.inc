@@ -279,84 +279,84 @@ void main ()
 		// frame the camera turns back to them
 		const vec3 view_pos = vec3 (push_constants.view_pos_x, push_constants.view_pos_y, push_constants.view_pos_z);
 		if (dot (view_pos - world_pos, normal) > 0.0f)
-		for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
-		{
-			uint mask = light_mask[light_mask_index];
-			while (mask != 0)
+			for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
 			{
-				const uint light_offset = findLSB (mask);
-				mask &= ~(1u << light_offset);
-				const uint	  light_index = (light_mask_index * 32) + light_offset;
-				const light_t light = lights[light_index];
-				const float	  dist = length (world_pos - light.origin);
-				if (dist > (light.radius - max (light.minlight, 0.0f)))
-					continue;
-
-				const bool kex_light = light.minlight < 0.0f;
-
-				float cone_scale = 1.0f;
-				if ((light.cone_cos > -1.0f) && (dist > 0.0f))
+				uint mask = light_mask[light_mask_index];
+				while (mask != 0)
 				{
-					const float cone_dot = dot ((world_pos - light.origin) / dist, light.cone_dir);
+					const uint light_offset = findLSB (mask);
+					mask &= ~(1u << light_offset);
+					const uint	  light_index = (light_mask_index * 32) + light_offset;
+					const light_t light = lights[light_index];
+					const float	  dist = length (world_pos - light.origin);
+					if (dist > (light.radius - max (light.minlight, 0.0f)))
+						continue;
+
+					const bool kex_light = light.minlight < 0.0f;
+
+					float cone_scale = 1.0f;
+					if ((light.cone_cos > -1.0f) && (dist > 0.0f))
+					{
+						const float cone_dot = dot ((world_pos - light.origin) / dist, light.cone_dir);
+						if (kex_light)
+						{
+							// linear falloff from cone axis to edge, from the KEX shader
+							// (ComputeSpotLight in QuakeClusteredShading.inc, QuakeEX.kpf)
+							if (cone_dot < light.cone_cos)
+								continue;
+							cone_scale = 1.0f - (1.0f - cone_dot) / (1.0f - light.cone_cos);
+						}
+						else
+						{
+							// soft edged spotlight falloff
+							cone_scale = smoothstep (light.cone_cos, mix (light.cone_cos, 1.0f, 0.25f), cone_dot);
+							if (cone_scale <= 0.0f)
+								continue;
+						}
+					}
+
+					float brightness;
 					if (kex_light)
 					{
-						// linear falloff from cone axis to edge, from the KEX shader
-						// (ComputeSpotLight in QuakeClusteredShading.inc, QuakeEX.kpf)
-						if (cone_dot < light.cone_cos)
-							continue;
-						cone_scale = 1.0f - (1.0f - cone_dot) / (1.0f - light.cone_cos);
+						// KEX clustered shading (ComputeLightShading in QuakeClusteredShading.inc):
+						// range-normalized linear falloff with a Lambert term. KEX adds this on
+						// top of lightmap * 2 (ComputeShadedColor in QuakeUtils.inc) while our
+						// lightmap gets the same 2x overbright after this shader, so divide by 2
+						const float len = (light.radius - dist) / light.radius;
+						const vec3	dir = (light.origin - world_pos) / max (dist, 0.001f);
+						const float lambert = max (dot (normal, dir), 0.0f);
+						brightness = -light.minlight * 0.5f * len * lambert;
 					}
 					else
-					{
-						// soft edged spotlight falloff
-						cone_scale = smoothstep (light.cone_cos, mix (light.cone_cos, 1.0f, 0.25f), cone_dot);
-						if (cone_scale <= 0.0f)
-							continue;
-					}
-				}
+						brightness = (light.radius - dist) / 256.0f;
 
-				float brightness;
-				if (kex_light)
-				{
-					// KEX clustered shading (ComputeLightShading in QuakeClusteredShading.inc):
-					// range-normalized linear falloff with a Lambert term. KEX adds this on
-					// top of lightmap * 2 (ComputeShadedColor in QuakeUtils.inc) while our
-					// lightmap gets the same 2x overbright after this shader, so divide by 2
-					const float len = (light.radius - dist) / light.radius;
-					const vec3	dir = (light.origin - world_pos) / max (dist, 0.001f);
-					const float lambert = max (dot (normal, dir), 0.0f);
-					brightness = -light.minlight * 0.5f * len * lambert;
-				}
-				else
-					brightness = (light.radius - dist) / 256.0f;
+					// below half a lightmap quantization step the contribution is invisible,
+					// skip the shadow rays (in particular for texels facing away from the light)
+					if ((brightness * cone_scale) < (1.0f / 512.0f))
+						continue;
 
-				// below half a lightmap quantization step the contribution is invisible,
-				// skip the shadow rays (in particular for texels facing away from the light)
-				if ((brightness * cone_scale) < (1.0f / 512.0f))
-					continue;
-
-				float occlusion = 1.0f;
+					float occlusion = 1.0f;
 #ifdef RAY_QUERIES
-				// R2 sequence constants (based on plastic constant φ₂)
-				const float R2_ALPHA1 = 0.7548776662466927;
-				const float R2_ALPHA2 = 0.5698402909980532;
+					// R2 sequence constants (based on plastic constant φ₂)
+					const float R2_ALPHA1 = 0.7548776662466927;
+					const float R2_ALPHA2 = 0.5698402909980532;
 
-				// Per-texel offset breaks coherence between adjacent texels
-				const vec2 texel_offset = fract (vec2 (coords) * vec2 (R2_ALPHA1, R2_ALPHA2));
+					// Per-texel offset breaks coherence between adjacent texels
+					const vec2 texel_offset = fract (vec2 (coords) * vec2 (R2_ALPHA1, R2_ALPHA2));
 
-				for (uint i = 0; i < push_constants.shadow_samples; ++i)
-				{
-					const vec2	sample_offset = fract (texel_offset + float (i) * vec2 (R2_ALPHA1, R2_ALPHA2));
-					const vec3	pos = world_pos + (sample_offset.x * tangent) + (sample_offset.y * bitangent);
-					const vec3	light_vec = pos - light.origin;
-					const float light_dist = length (light_vec);
-					if (IsOccluded (light.origin, normalize (light_vec), light_dist - 1e-2f))
-						occlusion -= 1.0f / float (push_constants.shadow_samples);
-				}
+					for (uint i = 0; i < push_constants.shadow_samples; ++i)
+					{
+						const vec2	sample_offset = fract (texel_offset + float (i) * vec2 (R2_ALPHA1, R2_ALPHA2));
+						const vec3	pos = world_pos + (sample_offset.x * tangent) + (sample_offset.y * bitangent);
+						const vec3	light_vec = pos - light.origin;
+						const float light_dist = length (light_vec);
+						if (IsOccluded (light.origin, normalize (light_vec), light_dist - 1e-2f))
+							occlusion -= 1.0f / float (push_constants.shadow_samples);
+					}
 #endif
-				light_accumulated.xyz += brightness * cone_scale * max (occlusion, 0.0f) * light.color;
+					light_accumulated.xyz += brightness * cone_scale * max (occlusion, 0.0f) * light.color;
+				}
 			}
-		}
 	}
 
 	if (scaled_lm)
