@@ -731,6 +731,8 @@ typedef struct
 typedef struct
 {
 	qboolean				   present;
+	qboolean				   onground;
+	int						   groundentity;
 	sv_pusher_support_record_t record;
 } sv_pusher_support_backup_t;
 
@@ -858,12 +860,15 @@ static void SV_GetAppliedPusherSupportMove (edict_t *ent, vec3_t move)
 }
 
 // A missing record is a valid state to restore, so the backup carries a flag
-// rather than relying on a zeroed record meaning "absent".
+// rather than relying on a zeroed record meaning "absent". Public ground state
+// is part of the same transaction because recording support updates it too.
 static void SV_BackupPusherSupport (edict_t *ent, sv_pusher_support_backup_t *backup)
 {
 	const sv_pusher_support_record_t *support = SV_GetPusherSupportRecord (ent);
 
 	memset (backup, 0, sizeof (*backup));
+	backup->onground = (int)ent->v.flags & FL_ONGROUND;
+	backup->groundentity = ent->v.groundentity;
 	if (support)
 	{
 		backup->present = true;
@@ -874,6 +879,12 @@ static void SV_BackupPusherSupport (edict_t *ent, sv_pusher_support_backup_t *ba
 static void SV_RestorePusherSupport (edict_t *ent, const sv_pusher_support_backup_t *backup)
 {
 	int entnum = NUM_FOR_EDICT (ent);
+
+	if (backup->onground)
+		ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
+	else
+		ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+	ent->v.groundentity = backup->groundentity;
 
 	if (entnum <= 0 || entnum >= MAX_EDICTS)
 		return;
