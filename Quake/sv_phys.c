@@ -918,6 +918,16 @@ static qboolean SV_MovetypeUsesGroundFlag (edict_t *ent)
 	return ent->v.movetype == MOVETYPE_WALK || ent->v.movetype == MOVETYPE_STEP || ent->v.movetype == MOVETYPE_TOSS || ent->v.movetype == MOVETYPE_GIB;
 }
 
+static qboolean SV_EntityClaimsPusherSupport (edict_t *ent, edict_t *pusher)
+{
+	if (SV_MovetypeUsesGroundFlag (ent))
+		return ((int)ent->v.flags & FL_ONGROUND) && SV_EntityGroundEntityIsPusher (ent, pusher);
+
+	// Other movetypes do not consistently use FL_ONGROUND/groundentity, but an
+	// explicit assignment to another ground entity still relinquishes support.
+	return !ent->v.groundentity || SV_EntityGroundEntityIsPusher (ent, pusher);
+}
+
 // groundentity only identifies the pusher to probe; support still requires a floor trace.
 static qboolean SV_EntityHasPusherSupportAtOrigin (edict_t *ent, edict_t *pusher, const vec3_t pusher_origin, trace_t *trace)
 {
@@ -942,6 +952,10 @@ static qboolean SV_HasPersistentPusherSupport (edict_t *ent, edict_t *pusher)
 	if (support->state != SV_MOVE_FRAME_GROUND)
 		return false;
 	if (support->pusher_entnum != NUM_FOR_EDICT (pusher))
+		return false;
+	// QuakeC can jump, teleport, or reassign ground state after this entity's
+	// release pass but before a later pusher consumes the record.
+	if (!SV_EntityClaimsPusherSupport (ent, pusher))
 		return false;
 
 	// carried this frame or the one before it; older records are stale
@@ -1173,9 +1187,9 @@ static void SV_ClearStalePusherGround (edict_t *ent)
 	ent->v.groundentity = 0;
 }
 
-// Owns the release decision for persistent support. Runs for every entity, not
-// just those still flagged FL_ONGROUND, so a jump or a QuakeC groundentity
-// reassignment cannot leave a record behind that keeps re-attaching the rider.
+// Owns the release decision for persistent support at the entity's physics
+// turn. Consumers re-check the live ground state because QuakeC can change it
+// again later in the same frame.
 static void SV_UpdatePersistentPusherSupport (edict_t *ent)
 {
 	const sv_pusher_support_record_t *support;
@@ -1211,12 +1225,7 @@ static void SV_UpdatePersistentPusherSupport (edict_t *ent)
 	}
 
 	// left the ground under its own power, or QuakeC moved it onto something else
-	if (SV_MovetypeUsesGroundFlag (ent) && !((int)ent->v.flags & FL_ONGROUND))
-	{
-		SV_BreakPusherSupport (ent);
-		return;
-	}
-	if (ent->v.groundentity && !SV_EntityGroundEntityIsPusher (ent, pusher))
+	if (!SV_EntityClaimsPusherSupport (ent, pusher))
 	{
 		SV_BreakPusherSupport (ent);
 		return;
