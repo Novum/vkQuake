@@ -410,19 +410,16 @@ void Host_InitLocal (void)
 Host_WriteConfiguration
 
 Writes archived cvars to the global config and game-local state to the
-current game config
+current game config.
 ===============
 */
 void Host_WriteConfiguration (void)
 {
-	FILE	*f;
-	qboolean shared_config_file;
+	FILE *f;
 
 	// dedicated servers initialize the host but don't parse and set the config cvars
 	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
-		shared_config_file = host_parms->userdir == host_parms->basedir && !q_strcasecmp (com_gamedir, va ("%s/%s", com_basedir, GAMENAME));
-
 		f = COM_FOpenConfigFile (true, "w");
 		if (!f)
 		{
@@ -434,16 +431,6 @@ void Host_WriteConfiguration (void)
 
 		Cvar_WriteVariables (f, CVAR_ARCHIVE);
 		fprintf (f, "vid_restart\n");
-
-		if (shared_config_file)
-		{
-			Key_WriteBindings (f);
-			Cvar_WriteVariables (f, CVAR_ARCHIVE_GAME);
-			fprintf (f, "+mlook\n"); // always enable mouse look on config, can be overriden by -mlook in autoexec.cfg
-			fclose (f);
-			return;
-		}
-
 		fclose (f);
 
 		f = COM_FOpenConfigFile (false, "w");

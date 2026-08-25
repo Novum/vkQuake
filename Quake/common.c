@@ -49,7 +49,7 @@ cvar_t cmdline = {"cmdline", "", CVAR_ROM /*|CVAR_SERVERINFO*/}; /* sending cmdl
 
 static qboolean com_modified; // set true if using non-id files
 
-qboolean multiuser;
+static qboolean multiuser;
 
 static void COM_Path_f (void);
 
@@ -82,15 +82,13 @@ of the file system can be transparently merged from several sources.
 The "base directory" is the path to the directory holding the quake.exe and all
 game directories.  The sys_* files pass this to host_init in quakeparms_t->basedir.
 This can be overridden with the "-basedir" command line parm to allow code
-debugging in a different directory.  The base directory is only used during
-filesystem initialization.
+debugging in a different directory.  It is selected during filesystem
+initialization and remains the primary game-data root.
 
-The "game directory" is the first tree on the search path and directory that all
-generated files (savegames, screenshots, demos, config files) will be saved to.
-This can be overridden with the "-game" command line parameter.  The game
-directory can never be changed while quake is executing.  This is a precacution
-against having a malicious server instruct clients to write files over areas they
-shouldn't.
+The active "game directory" is the highest-priority directory tree and the
+destination for game-owned files (savegames, screenshots, demos and the game
+config).  One or more game directories can be selected with "-game"; the final
+one is active.  The local "game" command can replace that list while Quake runs.
 
 The "cache directory" is only used during development to save network bandwidth,
 especially over ISDN / T1 lines.  If there is a cache directory specified, when
@@ -3001,23 +2999,68 @@ FILE *COM_FOpenPrefFile (const char *filename, const char *mode)
 
 /*
 =================
+COM_GetWriteRoot
+
+Returns the root containing files shared by all games: the global config and
+command history. This is com_basedir in portable mode and userdir otherwise.
+=================
+*/
+const char *COM_GetWriteRoot (void)
+{
+	return host_parms->userdir == host_parms->basedir ? com_basedir : host_parms->userdir;
+}
+
+/*
+=================
 COM_FOpenConfigFile
 
-Opens either the global config or the current game's config. Portable
-installations keep the global config in their base game's directory; separate
-userdir installations keep it in the userdir root.
+Opens either the global config in the write root or the current game's config.
+When reading a portable installation, the old id1 location remains a fallback
+so existing global settings are carried into the new layout. Writes always use
+the new location.
 =================
 */
 FILE *COM_FOpenConfigFile (qboolean global, const char *mode)
 {
-	if (global)
-	{
-		if (host_parms->userdir == host_parms->basedir)
-			return Sys_fopen (va ("%s/%s/" CONFIG_NAME, com_basedir, GAMENAME), mode);
-		return Sys_fopen (va ("%s/" CONFIG_NAME, host_parms->userdir), mode);
-	}
+	FILE *f;
 
-	return Sys_fopen (va ("%s/" CONFIG_NAME, com_gamedir), mode);
+	if (!global)
+		return Sys_fopen (va ("%s/" CONFIG_NAME, com_gamedir), mode);
+
+	f = Sys_fopen (va ("%s/" CONFIG_NAME, COM_GetWriteRoot ()), mode);
+	if (!f && mode[0] == 'r' && !strchr (mode, '+') && host_parms->userdir == host_parms->basedir)
+		f = Sys_fopen (va ("%s/%s/" CONFIG_NAME, com_basedir, GAMENAME), mode);
+	return f;
+}
+
+/*
+=================
+COM_GetLegacySaveDir
+
+Returns the read-only save directory used by older releases in multiuser mode.
+New saves always go to com_gamedir. The legacy directory is returned only when
+it exists and differs from the active game directory.
+=================
+*/
+qboolean COM_GetLegacySaveDir (char *dst, size_t dstsize)
+{
+	char  *pref_root;
+	size_t len;
+
+	if (!multiuser)
+		return false;
+
+	pref_root = SDL_GetPrefPath ("", "vkQuake");
+	if (!pref_root)
+		return false;
+
+	len = strlen (pref_root);
+	while (len > 0 && IS_DIR_SEPARATOR (pref_root[len - 1]))
+		pref_root[--len] = '\0';
+	q_snprintf (dst, dstsize, "%s/%s", pref_root, COM_GetGameNames (true));
+	SDL_free (pref_root);
+
+	return q_strcasecmp (dst, com_gamedir) && Sys_FileType (dst) == FS_ENT_DIRECTORY;
 }
 
 /*

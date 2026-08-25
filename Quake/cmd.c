@@ -285,9 +285,7 @@ void Cmd_Exec_f (void)
 		FILE	   *f;
 		char	   *game_buf;
 		qfilesize_t length;
-		qboolean	shared_config_file;
 
-		shared_config_file = host_parms->userdir == host_parms->basedir && !q_strcasecmp (com_gamedir, va ("%s/%s", com_basedir, GAMENAME));
 		f = COM_FOpenConfigFile (true, "rb");
 		if (f)
 		{
@@ -302,7 +300,14 @@ void Cmd_Exec_f (void)
 				buf[length] = 0;
 			fclose (f);
 		}
-		game_buf = shared_config_file ? NULL : (char *)COM_LoadFile (path, NULL);
+		game_buf = (char *)COM_LoadFile (path, NULL);
+		// The portable compatibility fallback and the game search can resolve
+		// to the same old id1 config. Execute it only once.
+		if (buf && game_buf && !strcmp (buf, game_buf))
+		{
+			Mem_Free (game_buf);
+			game_buf = NULL;
+		}
 		if (!buf && !game_buf)
 		{
 			if (cmd_warncmd.value)
@@ -319,6 +324,8 @@ void Cmd_Exec_f (void)
 		}
 
 		Cbuf_InsertText ("\n"); // just in case there was no trailing \n.
+		// InsertText prepends, so insert the game config first to execute the
+		// global config before it.
 		if (game_buf)
 			Cbuf_InsertText (game_buf);
 		if (buf)

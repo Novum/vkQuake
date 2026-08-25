@@ -334,6 +334,9 @@ void COM_InitArgv (int argc, char **argv);
 void COM_InitFilesystem (void);
 void COM_WriteSelectedBaseDir (void);
 
+const char *COM_GetWriteRoot (void);
+qboolean	COM_GetLegacySaveDir (char *dst, size_t dstsize);
+
 // opens a file in the per-user preferences dir (%APPDATA%\vkQuake on Windows)
 FILE *COM_FOpenPrefFile (const char *filename, const char *mode);
 FILE *COM_FOpenConfigFile (qboolean global, const char *mode);

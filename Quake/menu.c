@@ -953,29 +953,29 @@ int	 loadable[MAX_SAVEGAMES];
 
 static void M_ScanSaves (void)
 {
-	int	  i, j, k;
-	char  name[MAX_OSPATH];
-	FILE *f;
-	int	  version;
-	char *save_path = multiuser ? SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true)) : NULL;
+	int		 i, j, k;
+	char	 name[MAX_OSPATH];
+	char	 legacy_dir[MAX_OSPATH];
+	FILE	*f;
+	int		 version;
+	qboolean have_legacy_saves = COM_GetLegacySaveDir (legacy_dir, sizeof (legacy_dir));
 
 	for (i = 0; i < MAX_SAVEGAMES; i++)
 	{
 		strcpy (m_filenames[i], "--- UNUSED SLOT ---");
 		loadable[i] = false;
-		for (j = (multiuser ? 0 : 1); j < 2; ++j)
+		for (j = 0; j < (have_legacy_saves ? 2 : 1); j++)
 		{
-			if (j == 0)
-				q_snprintf (name, sizeof (name), "%ss%i.sav", save_path, i);
-			else
-				q_snprintf (name, sizeof (name), "%s/s%i.sav", com_gamedir, i);
+			q_snprintf (name, sizeof (name), "%s/s%i.sav", j ? legacy_dir : com_gamedir, i);
 			f = Sys_fopen (name, "r");
 			if (!f)
 				continue;
-			if (fscanf (f, "%i\n", &version) != 1)
+			if (fscanf (f, "%i\n", &version) != 1 || fscanf (f, "%79s\n", name) != 1)
+			{
+				fclose (f);
 				continue;
-			if (fscanf (f, "%79s\n", name) != 1)
-				continue;
+			}
+			fclose (f);
 			q_strlcpy (m_filenames[i], name, SAVEGAME_COMMENT_LENGTH + 1);
 
 			// change _ back to space
@@ -985,12 +985,9 @@ static void M_ScanSaves (void)
 					m_filenames[i][k] = ' ';
 			}
 			loadable[i] = true;
-			fclose (f);
 			break;
 		}
 	}
-
-	SDL_free (save_path);
 }
 
 static void M_Menu_Load_f (void)

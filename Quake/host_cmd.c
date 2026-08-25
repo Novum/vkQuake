@@ -138,19 +138,12 @@ static void FileList_Init (char *path, char *ext, filelist_item_t **list)
 	char		  filename[32];
 	findfile_t	 *find;
 	searchpath_t *search;
-	searchpath_t  multiuser_saves;
+	searchpath_t  legacy_saves;
+	qboolean	  have_legacy_saves = !strcmp (ext, "sav") && COM_GetLegacySaveDir (legacy_saves.filename, sizeof (legacy_saves.filename));
 
-	if (multiuser && !strcmp (ext, "sav"))
-	{
-		char *pref_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
-		strcpy (multiuser_saves.filename, pref_path);
-		SDL_free (pref_path);
-		multiuser_saves.next = com_searchpaths;
-	}
-	else
-		multiuser_saves.next = NULL;
+	legacy_saves.next = com_searchpaths;
 
-	for (search = (multiuser_saves.next ? &multiuser_saves : com_searchpaths); search; search = search->next)
+	for (search = have_legacy_saves ? &legacy_saves : com_searchpaths; search; search = search->next)
 	{
 		if (*search->filename) // directory
 		{
@@ -162,7 +155,7 @@ static void FileList_Init (char *path, char *ext, filelist_item_t **list)
 				COM_StripExtension (find->name, filename, sizeof (filename));
 				FileList_Add (filename, list);
 			}
-			if (!strcmp (ext, "sav") && (!multiuser || search != &multiuser_saves)) // only game dir for savegames
+			if (!strcmp (ext, "sav") && search != &legacy_saves) // legacy saves, then only the active game directory
 				break;
 		}
 	}
@@ -1758,14 +1751,7 @@ static void Host_Savegame_f (void)
 		}
 	}
 
-	if (multiuser)
-	{
-		char *save_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
-		q_snprintf (name, sizeof (name), "%s%s", save_path, Cmd_Argv (1));
-		SDL_free (save_path);
-	}
-	else
-		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
+	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
 	COM_AddExtension (name, ".sav", sizeof (name));
 
 	Con_SafePrintf ("Saving game to ");
@@ -1951,6 +1937,7 @@ static void Host_Loadgame_f (void)
 	static char *start;
 
 	char		name[MAX_OSPATH];
+	char		legacy_dir[MAX_OSPATH];
 	char		mapname[MAX_QPATH];
 	float		time, tfloat;
 	const char *data;
@@ -1986,30 +1973,20 @@ static void Host_Loadgame_f (void)
 
 	cls.demonum = -1; // stop demo loop in case this fails
 
-	char	*save_path = multiuser ? SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true)) : NULL;
-	qboolean loadable = false;
-	for (int j = (multiuser ? 0 : 1); j < 2; ++j)
+	// avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
+	if (start != NULL)
+		Mem_Free (start);
+
+	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
+	COM_AddExtension (name, ".sav", sizeof (name));
+	start = (char *)COM_LoadMallocFile_TextMode_OSPath (name, NULL);
+	if (!start && COM_GetLegacySaveDir (legacy_dir, sizeof (legacy_dir)))
 	{
-		if (j == 0)
-			q_snprintf (name, sizeof (name), "%s%s", save_path, Cmd_Argv (1));
-		else
-			q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
+		q_snprintf (name, sizeof (name), "%s/%s", legacy_dir, Cmd_Argv (1));
 		COM_AddExtension (name, ".sav", sizeof (name));
-
-		// avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
-		if (start != NULL)
-			Mem_Free (start);
-
 		start = (char *)COM_LoadMallocFile_TextMode_OSPath (name, NULL);
-		if (start)
-		{
-			loadable = true;
-			break;
-		}
 	}
-	SDL_free (save_path);
-
-	if (!loadable)
+	if (!start)
 	{
 		SCR_EndLoadingPlaque ();
 		Con_Printf ("ERROR: couldn't open.\n");

@@ -527,6 +527,4 @@ extern atomic_uint32_t num_vulkan_ubos_dynamic;
 extern atomic_uint32_t num_vulkan_input_attachments;
 extern atomic_uint32_t num_vulkan_storage_images;
 
-extern qboolean multiuser;
-
 #endif /* QUAKEDEFS_H */
