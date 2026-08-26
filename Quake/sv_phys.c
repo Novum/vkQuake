@@ -939,10 +939,33 @@ static qboolean SV_EntityClaimsPusherSupport (edict_t *ent, edict_t *pusher)
 	return !ent->v.groundentity || SV_EntityGroundEntityIsPusher (ent, pusher);
 }
 
+static qboolean SV_HasRecentPusherSupportRecord (edict_t *ent, edict_t *pusher)
+{
+	const sv_pusher_support_record_t *support = SV_GetPusherSupportRecord (ent);
+
+	if (!support)
+		return false;
+	if (support->state != SV_MOVE_FRAME_GROUND)
+		return false;
+	if (support->pusher_entnum != NUM_FOR_EDICT (pusher))
+		return false;
+
+	// carried this frame or the one before it; older records are stale
+	return support->frame == qcvm->pusher_support_frame || support->frame + 1 == qcvm->pusher_support_frame;
+}
+
 // groundentity only identifies the pusher to probe; support still requires a floor trace.
 static qboolean SV_EntityHasPusherSupportAtOrigin (edict_t *ent, edict_t *pusher, const vec3_t pusher_origin, trace_t *trace)
 {
 	if (!SV_IsSupportPusher (pusher))
+		return false;
+
+	// QuakeC can explicitly leave established support (a player jump, fiend
+	// pounce, etc.) after this entity's physics turn but before the pusher runs.
+	// The old geometric contact lasts for the remainder of that tick and must
+	// not re-establish the support record. Initial contact remains geometry-based
+	// because some entity types do not maintain public ground state consistently.
+	if (SV_HasRecentPusherSupportRecord (ent, pusher) && !SV_EntityClaimsPusherSupport (ent, pusher))
 		return false;
 
 	if (ent->v.movetype == MOVETYPE_WALK && !((int)ent->v.flags & FL_ONGROUND) && !SV_EntityGroundEntityIsPusher (ent, pusher))
@@ -956,21 +979,14 @@ static qboolean SV_EntityHasPusherSupportAtOrigin (edict_t *ent, edict_t *pusher
 // drop a rider that never actually left the pusher.
 static qboolean SV_HasPersistentPusherSupport (edict_t *ent, edict_t *pusher)
 {
-	const sv_pusher_support_record_t *support = SV_GetPusherSupportRecord (ent);
-
-	if (!support)
-		return false;
-	if (support->state != SV_MOVE_FRAME_GROUND)
-		return false;
-	if (support->pusher_entnum != NUM_FOR_EDICT (pusher))
+	if (!SV_HasRecentPusherSupportRecord (ent, pusher))
 		return false;
 	// QuakeC can jump, teleport, or reassign ground state after this entity's
 	// release pass but before a later pusher consumes the record.
 	if (!SV_EntityClaimsPusherSupport (ent, pusher))
 		return false;
 
-	// carried this frame or the one before it; older records are stale
-	return support->frame == qcvm->pusher_support_frame || support->frame + 1 == qcvm->pusher_support_frame;
+	return true;
 }
 
 static void SV_BreakPusherSupport (edict_t *ent)
