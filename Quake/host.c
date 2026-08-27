@@ -1059,6 +1059,8 @@ static void _Host_Frame (double time)
 
 	// process console commands
 	Cbuf_Execute ();
+	if (host_framecount == 0)
+		SCR_EndStartupLoadingPlaque ();
 
 	NET_Poll ();
 
