@@ -183,7 +183,7 @@ void main ()
 						best_color = palette_color;
 						best_dist_sq = dist_sq;
 					}
-					else if ((dist_sq > best_dist_sq) && (dist_sq < second_best_dist_sq))
+					else if (dist_sq < second_best_dist_sq)
 					{
 						second_best_color = palette_color;
 						second_best_dist_sq = dist_sq;
@@ -195,9 +195,9 @@ void main ()
 				{
 					[[unroll]] for (int x = -1; x <= 1; ++x)
 					{
-						uint sample_x = min (push_constants.clamp_size.x, int (pos_x) + x);
-						uint sample_y = min (push_constants.clamp_size.y, int (pos_y) + y);
-						vec3 rgb = texelFetch (input_tex, ivec2 (sample_x, sample_y), 0).rgb;
+						ivec2 sample_pos = clamp (
+							ivec2 (pos_x, pos_y) + ivec2 (x, y), ivec2 (0), ivec2 (push_constants.clamp_size));
+						vec3 rgb = texelFetch (input_tex, sample_pos, 0).rgb;
 						luma[x + 1][y + 1] = (rgb.r + rgb.g + rgb.b) / 3.0f;
 					}
 				}
@@ -219,7 +219,7 @@ void main ()
 				uint noise_shift = 0;
 #endif
 				const float noise = blue_noise (ivec2 (pos_x >> noise_shift, pos_y >> noise_shift));
-				color.rgb = (ratio < noise) ? best_color : second_best_color;
+				color.rgb = (ratio <= noise) ? best_color : second_best_color;
 				break;
 			}
 		}
@@ -316,5 +316,6 @@ void main ()
 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_MENU) != 0)
 		color.rgb = mix (color.rgb, vec3 (color.r * 0.3f + color.g * 0.59f + color.b * 0.11f), 0.5f) * 0.6f;
 
-	imageStore (output_image, ivec2 (pos_x, pos_y), color);
+	if ((pos_x <= push_constants.clamp_size.x) && (pos_y <= push_constants.clamp_size.y))
+		imageStore (output_image, ivec2 (pos_x, pos_y), color);
 }
