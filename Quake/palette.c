@@ -951,10 +951,118 @@ uint32_t palette_octree_colors[NUM_PALETTE_OCTREE_COLORS] =
 #define MAX_PALETTE_OCTREE_COLORS 8192
 #define MAX_PALETTE_OCTREE_NODES  512
 #define MAX_COLORS_IN_LEAF		  8
+#define NUM_PALETTE_COLORS		  256
 
 extern unsigned int d_8to24table[256];
 
 #ifdef _DEBUG
+typedef struct palette_kd_node_s
+{
+	int16_t children[2];
+	uint8_t palette_index;
+	uint8_t axis;
+} palette_kd_node_t;
+
+typedef struct make_colors_lut_task_args_s
+{
+	unsigned int			*colors;
+	const palette_kd_node_t *nodes;
+} make_colors_lut_task_args_t;
+
+/*
+=================
+PaletteColorComponent
+=================
+*/
+static int PaletteColorComponent (int palette_index, int axis)
+{
+	return ((byte *)&d_8to24table[palette_index])[axis];
+}
+
+/*
+=================
+CreatePaletteKDTreeRec
+=================
+*/
+static int CreatePaletteKDTreeRec (uint8_t *palette_indices, int begin, int end, int *num_nodes, palette_kd_node_t *nodes)
+{
+	if (begin == end)
+		return -1;
+
+	int min_components[3] = {255, 255, 255};
+	int max_components[3] = {0, 0, 0};
+	for (int i = begin; i < end; ++i)
+	{
+		for (int axis = 0; axis < 3; ++axis)
+		{
+			const int component = PaletteColorComponent (palette_indices[i], axis);
+			min_components[axis] = q_min (min_components[axis], component);
+			max_components[axis] = q_max (max_components[axis], component);
+		}
+	}
+
+	int axis = 0;
+	if ((max_components[1] - min_components[1]) > (max_components[axis] - min_components[axis]))
+		axis = 1;
+	if ((max_components[2] - min_components[2]) > (max_components[axis] - min_components[axis]))
+		axis = 2;
+
+	for (int i = begin + 1; i < end; ++i)
+	{
+		const uint8_t palette_index = palette_indices[i];
+		const int	  component = PaletteColorComponent (palette_index, axis);
+		int			  j = i;
+		while (j > begin)
+		{
+			const uint8_t previous_index = palette_indices[j - 1];
+			const int	  previous_component = PaletteColorComponent (previous_index, axis);
+			if ((previous_component < component) || ((previous_component == component) && (previous_index < palette_index)))
+				break;
+			palette_indices[j] = previous_index;
+			--j;
+		}
+		palette_indices[j] = palette_index;
+	}
+
+	const int		   median = begin + ((end - begin) / 2);
+	const int		   node_index = (*num_nodes)++;
+	palette_kd_node_t *node = &nodes[node_index];
+	node->palette_index = palette_indices[median];
+	node->axis = axis;
+	node->children[0] = CreatePaletteKDTreeRec (palette_indices, begin, median, num_nodes, nodes);
+	node->children[1] = CreatePaletteKDTreeRec (palette_indices, median + 1, end, num_nodes, nodes);
+	return node_index;
+}
+
+/*
+=================
+FindNearestPaletteColor
+=================
+*/
+static void FindNearestPaletteColor (const palette_kd_node_t *nodes, int node_index, const int search_color[3], int *best_index, int *best_dist_sq)
+{
+	if (node_index < 0)
+		return;
+
+	const palette_kd_node_t *node = &nodes[node_index];
+	const byte				*color = (byte *)&d_8to24table[node->palette_index];
+	const int				 dr = (int)color[0] - search_color[0];
+	const int				 dg = (int)color[1] - search_color[1];
+	const int				 db = (int)color[2] - search_color[2];
+	const int				 dist_sq = (dr * dr) + (dg * dg) + (db * db);
+	if ((dist_sq < *best_dist_sq) || ((dist_sq == *best_dist_sq) && (node->palette_index < *best_index)))
+	{
+		*best_index = node->palette_index;
+		*best_dist_sq = dist_sq;
+	}
+
+	const int delta = search_color[node->axis] - color[node->axis];
+	const int near_child = delta < 0 ? 0 : 1;
+	FindNearestPaletteColor (nodes, node->children[near_child], search_color, best_index, best_dist_sq);
+	if ((delta * delta) <= *best_dist_sq)
+		FindNearestPaletteColor (nodes, node->children[near_child ^ 1], search_color, best_index, best_dist_sq);
+}
+
 /*
 =================
 CreatePaletteOctreeRec
@@ -1021,33 +1129,43 @@ end_loops:
 
 /*
 =================
+MakeColorsLUTTask
+=================
+*/
+static void MakeColorsLUTTask (int b, make_colors_lut_task_args_t *args)
+{
+	for (int g = 0; g < 256; ++g)
+	{
+		for (int r = 0; r < 256; ++r)
+		{
+			const int search_color[3] = {r, g, b};
+			int		  best_index = 0;
+			int		  best_dist_sq = INT_MAX;
+			FindNearestPaletteColor (args->nodes, 0, search_color, &best_index, &best_dist_sq);
+			args->colors[r + (g * 256ull) + (b * 256ull * 256ull)] = d_8to24table[best_index];
+		}
+	}
+}
+
+/*
+=================
 MakeColorsLUT
 =================
 */
 static void MakeColorsLUT (unsigned int *colors)
 {
-	for (int b = 0; b < 256; ++b)
-	{
-		for (int g = 0; g < 256; ++g)
-		{
-			for (int r = 0; r < 256; ++r)
-			{
-				unsigned best_color = 0;
-				int		 best_dist_sq = INT_MAX;
-				for (int i = 0; i < 256; ++i)
-				{
-					byte	 *c = (byte *)(&d_8to24table[i]);
-					const int dist_sq = (((int)c[0] - r) * ((int)c[0] - r)) + (((int)c[1] - g) * ((int)c[1] - g)) + (((int)c[2] - b) * ((int)c[2] - b));
-					if (dist_sq < best_dist_sq)
-					{
-						best_dist_sq = dist_sq;
-						best_color = d_8to24table[i];
-					}
-				}
-				colors[r + (g * 256ull) + (b * 256ull * 256ull)] = best_color;
-			}
-		}
-	}
+	uint8_t palette_indices[NUM_PALETTE_COLORS];
+	for (int i = 0; i < NUM_PALETTE_COLORS; ++i)
+		palette_indices[i] = i;
+
+	int				  num_nodes = 0;
+	palette_kd_node_t nodes[NUM_PALETTE_COLORS];
+	CreatePaletteKDTreeRec (palette_indices, 0, NUM_PALETTE_COLORS, &num_nodes, nodes);
+	assert (num_nodes == NUM_PALETTE_COLORS);
+
+	make_colors_lut_task_args_t args = {colors, nodes};
+	task_handle_t				task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)MakeColorsLUTTask, 256, &args, sizeof (args));
+	Task_Join (task, TASK_TIMEOUT_INFINITE);
 }
 
 /*
