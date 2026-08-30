@@ -946,46 +946,82 @@ static void M_SinglePlayer_Key (int key)
 int load_cursor; // 0 < load_cursor < MAX_SAVEGAMES
 
 #define MAX_SAVEGAMES 20 /* johnfitz -- increased from 12 */
-char m_filenames[MAX_SAVEGAMES][SAVEGAME_COMMENT_LENGTH + 1];
-int	 loadable[MAX_SAVEGAMES];
+char			m_filenames[MAX_SAVEGAMES][SAVEGAME_COMMENT_LENGTH + 1];
+int				loadable[MAX_SAVEGAMES];
+static char		quicksave_filename[SAVEGAME_COMMENT_LENGTH + 1];
+static qboolean quicksave_available;
+
+static qboolean M_ScanSave (const char *save_name, char *comment, size_t comment_size, const char *legacy_dir, qboolean have_legacy_saves)
+{
+	int	   j, version;
+	size_t k;
+	char   path[MAX_OSPATH];
+	char   save_comment[SAVEGAME_COMMENT_LENGTH + 1];
+	FILE  *f;
+
+	for (j = 0; j < (have_legacy_saves ? 2 : 1); j++)
+	{
+		q_snprintf (path, sizeof (path), "%s/%s.sav", j ? legacy_dir : com_gamedir, save_name);
+		f = Sys_fopen (path, "r");
+		if (!f)
+			continue;
+		if (fscanf (f, "%i\n", &version) != 1 || fscanf (f, "%" QS_STRINGIFY (SAVEGAME_COMMENT_LENGTH) "s\n", save_comment) != 1)
+		{
+			fclose (f);
+			continue;
+		}
+		fclose (f);
+
+		if (comment && comment_size)
+		{
+			q_strlcpy (comment, save_comment, comment_size);
+			for (k = 0; comment[k]; k++)
+			{
+				if (comment[k] == '_')
+					comment[k] = ' ';
+			}
+		}
+		return true;
+	}
+
+	return false;
+}
 
 static void M_ScanSaves (void)
 {
-	int		 i, j, k;
-	char	 name[MAX_OSPATH];
+	int		 i;
+	char	 save_name[16];
 	char	 legacy_dir[MAX_OSPATH];
-	FILE	*f;
-	int		 version;
 	qboolean have_legacy_saves = COM_GetLegacySaveDir (legacy_dir, sizeof (legacy_dir));
+
+	quicksave_available = M_ScanSave ("quick", quicksave_filename, sizeof (quicksave_filename), legacy_dir, have_legacy_saves);
 
 	for (i = 0; i < MAX_SAVEGAMES; i++)
 	{
-		strcpy (m_filenames[i], "--- UNUSED SLOT ---");
-		loadable[i] = false;
-		for (j = 0; j < (have_legacy_saves ? 2 : 1); j++)
-		{
-			q_snprintf (name, sizeof (name), "%s/s%i.sav", j ? legacy_dir : com_gamedir, i);
-			f = Sys_fopen (name, "r");
-			if (!f)
-				continue;
-			if (fscanf (f, "%i\n", &version) != 1 || fscanf (f, "%79s\n", name) != 1)
-			{
-				fclose (f);
-				continue;
-			}
-			fclose (f);
-			q_strlcpy (m_filenames[i], name, SAVEGAME_COMMENT_LENGTH + 1);
-
-			// change _ back to space
-			for (k = 0; k < SAVEGAME_COMMENT_LENGTH; k++)
-			{
-				if (m_filenames[i][k] == '_')
-					m_filenames[i][k] = ' ';
-			}
-			loadable[i] = true;
-			break;
-		}
+		q_strlcpy (m_filenames[i], "--- UNUSED SLOT ---", sizeof (m_filenames[i]));
+		q_snprintf (save_name, sizeof (save_name), "s%i", i);
+		loadable[i] = M_ScanSave (save_name, m_filenames[i], sizeof (m_filenames[i]), legacy_dir, have_legacy_saves);
 	}
+}
+
+static void M_PrintSavegame (cb_context_t *cbx, int x, int y, const char *comment, const char *title)
+{
+	char   level_name[SAVEGAME_LEVEL_LENGTH + 1];
+	size_t comment_length = strlen (comment);
+	size_t level_length = q_min (comment_length, SAVEGAME_LEVEL_LENGTH);
+
+	if (!title)
+	{
+		memcpy (level_name, comment, level_length);
+		while (level_length && level_name[level_length - 1] == ' ')
+			level_length--;
+		level_name[level_length] = '\0';
+		title = level_name;
+	}
+
+	M_PrintElided (cbx, x, y, title, SAVEGAME_LEVEL_LENGTH - 2);
+	if (comment_length > SAVEGAME_LEVEL_LENGTH)
+		M_Print (cbx, x + SAVEGAME_LEVEL_LENGTH * CHARACTER_SIZE, y, comment + SAVEGAME_LEVEL_LENGTH);
 }
 
 static void M_Menu_Load_f (void)
@@ -996,6 +1032,8 @@ static void M_Menu_Load_f (void)
 	IN_Deactivate (true);
 	key_dest = key_menu;
 	M_ScanSaves ();
+	if (load_cursor >= MAX_SAVEGAMES + quicksave_available)
+		load_cursor = MAX_SAVEGAMES + quicksave_available - 1;
 }
 
 static void M_Menu_Save_f (void)
@@ -1012,21 +1050,26 @@ static void M_Menu_Save_f (void)
 	IN_Deactivate (true);
 	key_dest = key_menu;
 	M_ScanSaves ();
+	if (load_cursor >= MAX_SAVEGAMES)
+		load_cursor = MAX_SAVEGAMES - 1;
 }
 
 static void M_Load_Draw (cb_context_t *cbx)
 {
-	int		i;
+	int		i, row;
 	qpic_t *p;
 
 	p = Draw_CachePic ("gfx/p_load.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
-	for (i = 0; i < MAX_SAVEGAMES; i++)
-		M_Print (cbx, 16, 32 + 8 * i, m_filenames[i]);
+	row = 0;
+	if (quicksave_available)
+		M_PrintSavegame (cbx, 16, 32 + 8 * row++, quicksave_filename, "Quicksave");
+	for (i = 0; i < MAX_SAVEGAMES; i++, row++)
+		M_PrintSavegame (cbx, 16, 32 + 8 * row, m_filenames[i], NULL);
 
 	// line cursor
-	M_Mouse_UpdateListCursor (&load_cursor, 16, 320, 32, 8, MAX_SAVEGAMES, 0);
+	M_Mouse_UpdateListCursor (&load_cursor, 16, 320, 32, 8, MAX_SAVEGAMES + quicksave_available, 0);
 	Draw_Character (cbx, 8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
@@ -1039,7 +1082,7 @@ static void M_Save_Draw (cb_context_t *cbx)
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	for (i = 0; i < MAX_SAVEGAMES; i++)
-		M_Print (cbx, 16, 32 + 8 * i, m_filenames[i]);
+		M_PrintSavegame (cbx, 16, 32 + 8 * i, m_filenames[i], NULL);
 
 	// line cursor
 	M_Mouse_UpdateListCursor (&load_cursor, 16, 320, 32, 8, MAX_SAVEGAMES, 0);
@@ -1048,6 +1091,10 @@ static void M_Save_Draw (cb_context_t *cbx)
 
 static void M_Load_Key (int k)
 {
+	int		 num_items = MAX_SAVEGAMES + quicksave_available;
+	int		 save_slot = load_cursor - quicksave_available;
+	qboolean quicksave_selected = quicksave_available && load_cursor == 0;
+
 	switch (k)
 	{
 	case K_MOUSE2:
@@ -1061,7 +1108,7 @@ static void M_Load_Key (int k)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 		S_LocalSound ("misc/menu2.wav");
-		if (!loadable[load_cursor])
+		if (!quicksave_selected && (save_slot < 0 || save_slot >= MAX_SAVEGAMES || !loadable[save_slot]))
 			return;
 
 		// Draw before leaving the menu so disconnected loads don't expose the console.
@@ -1072,7 +1119,10 @@ static void M_Load_Key (int k)
 		key_dest = key_game;
 
 		// issue the load command
-		Cbuf_AddText (va ("load s%i\n", load_cursor));
+		if (quicksave_selected)
+			Cbuf_AddText ("load quick\n");
+		else
+			Cbuf_AddText (va ("load s%i\n", save_slot));
 		return;
 
 	case K_UPARROW:
@@ -1080,14 +1130,14 @@ static void M_Load_Key (int k)
 		S_LocalSound ("misc/menu1.wav");
 		load_cursor--;
 		if (load_cursor < 0)
-			load_cursor = MAX_SAVEGAMES - 1;
+			load_cursor = num_items - 1;
 		break;
 
 	case K_DOWNARROW:
 	case K_RIGHTARROW:
 		S_LocalSound ("misc/menu1.wav");
 		load_cursor++;
-		if (load_cursor >= MAX_SAVEGAMES)
+		if (load_cursor >= num_items)
 			load_cursor = 0;
 		break;
 	}

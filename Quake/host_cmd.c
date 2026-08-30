@@ -1676,12 +1676,12 @@ static void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1])
 	COM_SanitizeDescriptionString (cleanname, sizeof (cleanname), cl.levelname, true);
 
 	i = (int)strlen (cleanname);
-	if (i > 22)
-		i = 22;
+	if (i > SAVEGAME_LEVEL_LENGTH)
+		i = SAVEGAME_LEVEL_LENGTH;
 	memcpy (text, cleanname, (size_t)i);
 
 	sprintf (kills, "kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
-	memcpy (text + 22, kills, strlen (kills));
+	memcpy (text + SAVEGAME_LEVEL_LENGTH, kills, strlen (kills));
 
 	// convert space to _ to make stdio happy
 	for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
