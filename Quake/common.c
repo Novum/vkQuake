@@ -525,28 +525,15 @@ size_t UTF8_FromQuake (char *dst, size_t maxbytes, const char *src)
 
 char *q_strtrim (char *str)
 {
-	// trim leading and ending whitespaces:
-	char *str_start = (char *)str;
+	char *end;
 
-	// trim leading:
 	while (q_isspace ((unsigned char)*str))
 		str++;
 
-	// trim ending :
-	size_t last_index = strlen (str_start) - 1;
-
-	while (last_index >= 0)
-	{
-		if (q_isspace (str_start[last_index]))
-		{
-			str_start[last_index] = '\0';
-		}
-		else
-		{
-			break;
-		}
-		last_index--;
-	}
+	end = str + strlen (str);
+	while (end > str && q_isspace ((unsigned char)end[-1]))
+		end--;
+	*end = '\0';
 
 	return str;
 }

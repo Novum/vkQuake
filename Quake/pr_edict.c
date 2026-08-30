@@ -1557,8 +1557,9 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		if (anglehack)
 		{
 			char temp[32];
-			strcpy (temp, com_token);
-			q_snprintf (com_token, sizeof (temp), "0 %s 0", temp);
+			if (q_strlcpy (temp, com_token, sizeof (temp)) >= sizeof (temp))
+				Host_Error ("ED_ParseEdict: angle value is too long");
+			q_snprintf (com_token, sizeof (com_token), "0 %s 0", temp);
 		}
 
 		if (!ED_ParseEpair ((void *)&ent->v, key, com_token, qcvm != &sv.qcvm))

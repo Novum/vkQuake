@@ -3436,11 +3436,10 @@ void PScript_RecalculateSkyTris (void)
 						break; // error
 					if (com_token[0] == '}')
 						break; // end of worldspawn
-					if (com_token[0] == '_')
-						strcpy (key, com_token + 1);
-					else
-						strcpy (key, com_token);
-					while (key[strlen (key) - 1] == ' ') // remove trailing spaces
+					const char *key_start = com_token[0] == '_' ? com_token + 1 : com_token;
+					if (q_strlcpy (key, key_start, sizeof (key)) >= sizeof (key))
+						break;
+					while (key[0] && key[strlen (key) - 1] == ' ') // remove trailing spaces
 						key[strlen (key) - 1] = 0;
 					data = COM_Parse (data);
 					if (!data)
