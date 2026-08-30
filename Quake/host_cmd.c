@@ -1664,7 +1664,7 @@ Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 static void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1])
 {
 	int	 i;
-	char kills[20];
+	char kills[64];
 
 	for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
 		text[i] = ' ';
@@ -1680,8 +1680,8 @@ static void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1])
 		i = SAVEGAME_LEVEL_LENGTH;
 	memcpy (text, cleanname, (size_t)i);
 
-	sprintf (kills, "kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
-	memcpy (text + SAVEGAME_LEVEL_LENGTH, kills, strlen (kills));
+	q_snprintf (kills, sizeof (kills), "kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+	memcpy (text + SAVEGAME_LEVEL_LENGTH, kills, q_min (strlen (kills), SAVEGAME_COMMENT_LENGTH - SAVEGAME_LEVEL_LENGTH));
 
 	// convert space to _ to make stdio happy
 	for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
