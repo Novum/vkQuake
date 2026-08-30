@@ -774,7 +774,15 @@ qboolean Cvar_Command (void)
 	// perform a variable print or set
 	if (Cmd_Argc () == 1)
 	{
-		Con_Printf ("\"%s\" is \"%s\"\n", v->name, v->string);
+		if (v->default_string)
+		{
+			if (!strcmp (v->string, v->default_string))
+				Con_Printf ("\"%s\" is \"%s\" (default)\n", v->name, v->string);
+			else
+				Con_Printf ("\"%s\" is \"%s\" (default: \"%s\")\n", v->name, v->string, v->default_string);
+		}
+		else
+			Con_Printf ("\"%s\" is \"%s\"\n", v->name, v->string);
 		return true;
 	}
 
