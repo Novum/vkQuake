@@ -48,14 +48,14 @@ qboolean Loop_SearchForHosts (qboolean xmit)
 
 	hostCacheCount = 1;
 	if (strcmp (hostname.string, "UNNAMED") == 0)
-		strcpy (hostcache[0].name, "local");
+		q_strlcpy (hostcache[0].name, "local", sizeof (hostcache[0].name));
 	else
-		strcpy (hostcache[0].name, hostname.string);
-	strcpy (hostcache[0].map, sv.name);
+		q_strlcpy (hostcache[0].name, hostname.string, sizeof (hostcache[0].name));
+	q_strlcpy (hostcache[0].map, sv.name, sizeof (hostcache[0].map));
 	hostcache[0].users = net_activeconnections;
 	hostcache[0].maxusers = svs.maxclients;
 	hostcache[0].driver = net_driverlevel;
-	strcpy (hostcache[0].cname, "local");
+	q_strlcpy (hostcache[0].cname, "local", sizeof (hostcache[0].cname));
 	return false;
 }
 

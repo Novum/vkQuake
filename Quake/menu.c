@@ -1282,8 +1282,8 @@ static void M_Menu_Setup_f (void)
 	key_dest = key_menu;
 	m_state = m_setup;
 	m_entersound = true;
-	strcpy (setup_myname, cl_name.string);
-	strcpy (setup_hostname, hostname.string);
+	q_strlcpy (setup_myname, cl_name.string, sizeof (setup_myname));
+	q_strlcpy (setup_hostname, hostname.string, sizeof (setup_hostname));
 	setup_top = setup_oldtop = ((int)cl_topcolor.value);
 	setup_bottom = setup_oldbottom = ((int)cl_bottomcolor.value);
 }
