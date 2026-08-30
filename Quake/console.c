@@ -1509,7 +1509,7 @@ void Con_LogCenterPrint (const char *str)
 	if (cl.gametype == GAME_DEATHMATCH && con_logcenterprint.value != 2)
 		return; // don't log in deathmatch
 
-	strcpy (con_lastcenterstring, str);
+	q_strlcpy (con_lastcenterstring, str, sizeof (con_lastcenterstring));
 
 	if (con_logcenterprint.value)
 	{

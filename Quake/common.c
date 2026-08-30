@@ -1351,9 +1351,9 @@ const char *MSG_ReadString (void)
 		c = MSG_ReadByte ();
 		if (c == -1 || c == 0)
 			break;
-		string[l] = c;
-		l++;
-	} while (l < sizeof (string) - 1);
+		if (l < sizeof (string) - 1)
+			string[l++] = c;
+	} while (1);
 
 	string[l] = 0;
 

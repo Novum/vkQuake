@@ -793,11 +793,11 @@ static void Test_Poll (void *unused)
 			Sys_Error ("Unexpected repsonse to Player Info request\n");
 
 		MSG_ReadByte (); /* playerNumber */
-		strcpy (name, MSG_ReadString ());
+		q_strlcpy (name, MSG_ReadString (), sizeof (name));
 		colors = MSG_ReadLong ();
 		frags = MSG_ReadLong ();
 		connectTime = MSG_ReadLong ();
-		strcpy (address, MSG_ReadString ());
+		q_strlcpy (address, MSG_ReadString (), sizeof (address));
 
 		Con_Printf ("%s\n  frags:%3i  colors:%d %d  time:%d\n  %s\n", name, frags, colors >> 4, colors & 0x0f, connectTime / 60, address);
 	}
@@ -921,10 +921,10 @@ static void Test2_Poll (void *unused)
 	if (MSG_ReadByte () != CCREP_RULE_INFO)
 		goto Error;
 
-	strcpy (name, MSG_ReadString ());
+	q_strlcpy (name, MSG_ReadString (), sizeof (name));
 	if (name[0] == 0)
 		goto Done;
-	strcpy (value, MSG_ReadString ());
+	q_strlcpy (value, MSG_ReadString (), sizeof (value));
 
 	Con_Printf ("%-16.16s  %-16.16s\n", name, value);
 
@@ -1857,9 +1857,8 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 				Info_ReadKey (info, "protocol", tmp, sizeof (tmp));
 				if (atoi (tmp) != NET_PROTOCOL_VERSION)
 				{
-					strcpy (hostcache[n].cname, hostcache[n].name);
-					strcpy (hostcache[n].name, "*");
-					strcat (hostcache[n].name, hostcache[n].cname);
+					q_strlcpy (hostcache[n].cname, hostcache[n].name, sizeof (hostcache[n].cname));
+					q_snprintf (hostcache[n].name, sizeof (hostcache[n].name), "*%s", hostcache[n].cname);
 				}
 				memcpy (&hostcache[n].addr, &readaddr, sizeof (struct qsockaddr));
 				hostcache[n].driver = net_driverlevel;
@@ -1938,10 +1937,9 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 		hostcache[n].maxusers = MSG_ReadByte ();
 		if (MSG_ReadByte () != NET_PROTOCOL_VERSION)
 		{
-			strcpy (hostcache[n].cname, hostcache[n].name);
+			q_strlcpy (hostcache[n].cname, hostcache[n].name, sizeof (hostcache[n].cname));
 			hostcache[n].cname[14] = 0;
-			strcpy (hostcache[n].name, "*");
-			strcat (hostcache[n].name, hostcache[n].cname);
+			q_snprintf (hostcache[n].name, sizeof (hostcache[n].name), "*%s", hostcache[n].cname);
 		}
 		memcpy (&hostcache[n].addr, &readaddr, sizeof (struct qsockaddr));
 		hostcache[n].driver = net_driverlevel;
