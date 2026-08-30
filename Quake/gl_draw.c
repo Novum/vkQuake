@@ -835,10 +835,11 @@ void Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qb
 }
 
 static void Draw_SubPicInternal (
-	cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha, qboolean force_linear)
+	cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha, qboolean force_linear,
+	qboolean force_blend)
 {
 	glpic_t	 gl;
-	qboolean alpha_blend = alpha < 1.0f;
+	qboolean alpha_blend = force_blend || alpha < 1.0f;
 	int		 i;
 	if (alpha <= 0.0f)
 		return;
@@ -917,12 +918,17 @@ static void Draw_SubPicInternal (
 
 void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
 {
-	Draw_SubPicInternal (cbx, x, y, w, h, pic, s1, t1, s2, t2, rgb, alpha, false);
+	Draw_SubPicInternal (cbx, x, y, w, h, pic, s1, t1, s2, t2, rgb, alpha, false, false);
 }
 
 void Draw_SubPicLinear (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
 {
-	Draw_SubPicInternal (cbx, x, y, w, h, pic, s1, t1, s2, t2, rgb, alpha, true);
+	Draw_SubPicInternal (cbx, x, y, w, h, pic, s1, t1, s2, t2, rgb, alpha, true, false);
+}
+
+void Draw_SubPicLinearBlend (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
+{
+	Draw_SubPicInternal (cbx, x, y, w, h, pic, s1, t1, s2, t2, rgb, alpha, true, true);
 }
 
 /*
