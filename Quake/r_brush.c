@@ -57,6 +57,7 @@ typedef struct
 	texture_t *texture;
 	short	   lightmap_idx;
 	short	   is_bmodel; // for gl_zfix
+	short	   is_decal;
 	int		   max_indices;
 } indirectdraw_t;
 
@@ -699,7 +700,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 				modelorg[2] = DotProduct (temp, up);
 			}
 			VectorCopy (modelorg, instance->local_vieworg);
-			instance->local_vieworg[3] = 0.0f;
+			instance->local_vieworg[3] = e->is_static;
 		}
 
 		// indirect mark
@@ -984,8 +985,9 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 				vulkan_globals.world_mboit_composite_pipelines[pipeline_index]);
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
-			qboolean use_zbias = INDIRECT_ZBIAS && gl_zfix.value && indirect_draws[i].is_bmodel;
-			float	 constant_factor = 0.0f, slope_factor = 0.0f;
+			const qboolean is_decal = indirect_draws[i].is_decal;
+			qboolean	   use_zbias = INDIRECT_ZBIAS && gl_zfix.value && indirect_draws[i].is_bmodel && !is_decal;
+			float		   constant_factor = 0.0f, slope_factor = 0.0f;
 			if (use_zbias)
 			{
 				if (vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT_S8_UINT || vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT)
@@ -1346,36 +1348,44 @@ UpdateIndirectStructs
 */
 static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
 {
-	static int last;
-	int		   i;
+	static int	   last;
+	int			   i;
+	const qboolean split_decal = is_bmodel && surf->texinfo->texture->type == TEXTYPE_CUTOUT;
+	const int	   num_draws = split_decal ? 2 : 1;
 	if (last < used_indirect_draws && indirect_draws[last].lightmap_idx == surf->lightmaptexturenum && indirect_draws[last].texture == surf->texinfo->texture &&
-		indirect_draws[last].is_bmodel == is_bmodel)
+		indirect_draws[last].is_bmodel == is_bmodel && !indirect_draws[last].is_decal)
 	{
 		surf->indirect_idx = last;
-		indirect_draws[last].max_indices += 3 * (surf->numedges - 2);
+		for (i = 0; i < num_draws; ++i)
+			indirect_draws[last + i].max_indices += 3 * (surf->numedges - 2);
 		return;
 	}
 	for (i = 0; i < used_indirect_draws; i++)
 	{
 		if (indirect_draws[i].lightmap_idx == surf->lightmaptexturenum && indirect_draws[i].texture == surf->texinfo->texture &&
-			indirect_draws[i].is_bmodel == is_bmodel)
+			indirect_draws[i].is_bmodel == is_bmodel && !indirect_draws[i].is_decal)
 		{
 			surf->indirect_idx = last = i;
-			indirect_draws[i].max_indices += 3 * (surf->numedges - 2);
+			for (int j = 0; j < num_draws; ++j)
+				indirect_draws[i + j].max_indices += 3 * (surf->numedges - 2);
 			return;
 		}
 	}
-	if (i == MAX_INDIRECT_DRAWS - 1)
+	if (used_indirect_draws + num_draws > MAX_INDIRECT_DRAWS)
 	{
 		indirect_ready = false;
 		return;
 	}
-	++used_indirect_draws;
-	surf->indirect_idx = last = i;
-	indirect_draws[i].texture = surf->texinfo->texture;
-	indirect_draws[i].lightmap_idx = surf->lightmaptexturenum;
-	indirect_draws[i].is_bmodel = is_bmodel;
-	indirect_draws[i].max_indices = 3 * (surf->numedges - 2);
+	surf->indirect_idx = last = used_indirect_draws;
+	for (i = 0; i < num_draws; ++i)
+	{
+		indirectdraw_t *draw = &indirect_draws[used_indirect_draws++];
+		draw->texture = surf->texinfo->texture;
+		draw->lightmap_idx = surf->lightmaptexturenum;
+		draw->is_bmodel = is_bmodel;
+		draw->is_decal = split_decal && i == 1;
+		draw->max_indices = 3 * (surf->numedges - 2);
+	}
 }
 
 /*
@@ -1945,9 +1955,8 @@ void GL_BuildLightmaps (void)
 				if (current_submodel < num_worldmodel_submodels)
 					submodel = current_submodel;
 			}
-			surface_submodels[surface_index] = submodel;
-
 			surf = &m->surfaces[i];
+			surface_submodels[surface_index] = submodel | ((surf->texinfo->texture->type == TEXTYPE_CUTOUT) ? 0x80000000u : 0u);
 			if (!(surf->flags & SURF_DRAWTILED))
 			{
 				const qboolean no_dlights = j > 1;

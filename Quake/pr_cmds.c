@@ -1832,6 +1832,7 @@ static void PF_cl_makestatic (void)
 
 	stat = cl.static_entities[i];
 	cl.num_statics++;
+	stat->is_static = true;
 
 	SV_BuildEntityState (ent, &stat->baseline);
 

@@ -25,7 +25,7 @@ struct surface_t
 struct bmodel_instance_t
 {
 	vec4 transform[3];	// model to world, transposed rows
-	vec4 local_vieworg; // view origin in model space, for backface culling
+	vec4 local_vieworg; // xyz: view origin in model space; w: static entity flag
 };
 
 struct draw_indirect_command_t

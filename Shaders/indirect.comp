@@ -71,7 +71,8 @@ void main ()
 		return;
 
 	// surface planes are in model space, so test moved submodels against the model space view origin
-	const uint	submodel = surface_submodels[surf];
+	const uint	packed_submodel = surface_submodels[surf];
+	const uint	submodel = packed_submodel & 0x7FFFFFFFu;
 	const vec3	surf_normal = vec3 (surfaces[surf].normal_x, surfaces[surf].normal_y, surfaces[surf].normal_z);
 	const vec3	vieworg = (submodel != 0) ? bmodel_instances[push_constants.instance_base + submodel].local_vieworg.xyz
 										  : vec3 (push_constants.vieworg_x, push_constants.vieworg_y, push_constants.vieworg_z);
@@ -81,7 +82,11 @@ void main ()
 	if (backface && dp > dist || !backface && dp < dist)
 		return;
 
-	const uint tex_idx = surfaces[surf].packed_tex_edgecount & 0x7FFF;
+	uint	   tex_idx = surfaces[surf].packed_tex_edgecount & 0x7FFF;
+	const bool is_decal =
+		(packed_submodel & 0x80000000u) != 0u && submodel != 0u && bmodel_instances[push_constants.instance_base + submodel].local_vieworg.w != 0.0;
+	if (is_decal)
+		++tex_idx;
 	const uint numedges = surfaces[surf].packed_tex_edgecount >> 16;
 	const uint firstvert = surfaces[surf].vbo_offset;
 	const uint indexcount = R_NumTriangleIndicesForSurf (numedges);

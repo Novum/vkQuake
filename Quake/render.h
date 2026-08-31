@@ -81,6 +81,7 @@ typedef struct entlerp_s
 typedef struct entity_s
 {
 	qboolean forcelink; // no previous update to lerp from, snap to the new state
+	qboolean is_static;
 
 	int update_type;
 

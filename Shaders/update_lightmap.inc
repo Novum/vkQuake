@@ -260,7 +260,7 @@ void main ()
 			normal = -normal;
 
 		// submodel vertices are in model space, transform to world space with the current entity transform
-		const uint submodel = surface_submodels[surface_index & 0x7FFFFFFF];
+		const uint submodel = surface_submodels[surface_index & 0x7FFFFFFF] & 0x7FFFFFFF;
 		if (submodel != 0)
 		{
 			const uint base = (push_constants.submodel_transforms_offset + submodel) * 3;

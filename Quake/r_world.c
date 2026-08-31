@@ -1353,6 +1353,7 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 	qboolean	 alpha_test = false;
 	qboolean	 alpha_blend = alpha < 1.0f;
 	qboolean	 use_zbias = (gl_zfix.value && model != cl.worldmodel);
+	qboolean	 is_static = ent != NULL && ent->is_static;
 	int			 lastlightmap;
 	int			 ent_frame = ent != NULL ? ent->frame : 0;
 	gltexture_t *fullbright = NULL;
@@ -1397,6 +1398,8 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 
 		lastlightmap = -1; // avoid compiler warning
 		alpha_test = t->type == TEXTYPE_CUTOUT;
+		const qboolean is_decal = is_static && alpha_test;
+		const qboolean texture_zbias = use_zbias && !is_decal;
 
 		texture_t	*texture = R_TextureAnimation (t, ent_frame);
 		gltexture_t *gl_texture = texture->gltexture;
@@ -1408,15 +1411,15 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 		{
 			if (s->lightmaptexturenum != lastlightmap)
 			{
-				R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, &brushpasses);
+				R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, texture_zbias, lightmap_texture, &brushpasses);
 				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
 			}
 
 			lastlightmap = s->lightmaptexturenum;
-			R_BatchSurface (cbx, s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, &brushpasses);
+			R_BatchSurface (cbx, s, fullbright_enabled, alpha_test, alpha_blend, texture_zbias, lightmap_texture, &brushpasses);
 		}
 
-		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, &brushpasses);
+		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, texture_zbias, lightmap_texture, &brushpasses);
 	}
 
 	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);
