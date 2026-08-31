@@ -1766,6 +1766,52 @@ const char *COM_Parse (const char *data)
 
 /*
 ================
+COM_ParseLine
+================
+*/
+qboolean COM_ParseLine (const char **str, stringview_t *line)
+{
+	const char *p;
+
+	if (!str || !*str)
+		return false;
+
+	p = *str;
+	if (line)
+		line->data = p;
+	while (*p && *p != '\n')
+		p++;
+	if (line)
+		line->len = p - line->data;
+
+	*str = (*p == '\n') ? p + 1 : NULL;
+	return true;
+}
+
+/*
+================
+COM_ParseMutableLine
+================
+*/
+qboolean COM_ParseMutableLine (char **str, char **line)
+{
+	stringview_t view;
+
+	if (!COM_ParseLine ((const char **)str, &view))
+		return false;
+
+	if (line)
+	{
+		char *result = (char *)view.data;
+		result[view.len] = '\0';
+		*line = result;
+	}
+
+	return true;
+}
+
+/*
+================
 COM_CheckParm
 
 Returns the position (1 to argc-1) in the program's argument list

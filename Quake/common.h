@@ -313,6 +313,15 @@ typedef enum
 const char *COM_Parse (const char *data);
 const char *COM_ParseEx (const char *data, cpe_mode mode);
 
+typedef struct
+{
+	const char *data;
+	size_t		len;
+} stringview_t;
+
+qboolean COM_ParseLine (const char **str, stringview_t *line);
+qboolean COM_ParseMutableLine (char **str, char **line);
+
 int	 COM_WordLength (const char *text);
 int	 COM_AdvanceLineWrapped (const char **text, int maxchars);
 void COM_WordWrap (char *dst, const char *src, size_t dstsize, int maxcols);

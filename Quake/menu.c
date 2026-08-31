@@ -2543,12 +2543,14 @@ static const menukeybind_t default_keybinds[] = {
 	{"+moveleft", "Strafe Left"},
 	{"+moveright", "Strafe Right"},
 	{"+jump", "Jump / Swim up"},
-	{"+attack", "Attack"},
 	{"+speed", "Run"},
 	{"+zoom", "Quick zoom"},
 	{"+moveup", "Swim up"},
 	{"+movedown", "Swim down"},
-	{"+showscores", "Show Scores"},
+	{"", ""},
+	{"*", ""}, // insertion point for bindlist.lst entries
+	{"", ""},
+	{"+attack", "Attack"},
 	{"impulse 10", "Next weapon"},
 	{"impulse 12", "Previous weapon"},
 	{"impulse 1", "Axe"},
@@ -2561,7 +2563,9 @@ static const menukeybind_t default_keybinds[] = {
 	{"impulse 8", "Thunderbolt"},
 	{"impulse 225", "Laser Cannon"},
 	{"impulse 226", "Mjolnir"},
-	{"", ""}, // placeholder used as separator
+	{"", ""},
+	{"*", ""}, // end of gameplay bindings
+	{"", ""},
 	{QUICKSAVE, "Quick save"},
 	{QUICKLOAD, "Quick load"},
 	{"menu_save", "Save menu"},
@@ -2577,10 +2581,79 @@ static const menukeybind_t default_keybinds[] = {
 };
 
 // current bind names for the current game
-menukeybind_t *bindnames;
+menukeybind_t		 *bindnames;
+static menukeybind_t *custom_bindnames;
 
 static int		keys_cursor;
+static int		first_key;
 static qboolean bind_grab;
+
+static void M_Keys_AddCustomEntry (const char *command, const char *description)
+{
+	static const char *const deprecated_commands[] = {
+		"+klook",
+		"+mlook",
+	};
+	qboolean filter_default = true;
+
+	// bindlist.lst uses "-" for separators.
+	if (command[0] == '-' && command[1] == '\0')
+		command++;
+
+	if (command[0])
+	{
+		COM_Parse (command);
+		if (!Cmd_Exists (com_token) && !Cmd_AliasExists (com_token))
+		{
+			Con_DPrintf ("Skipping unsupported key binding: \"%s\" = \"%s\"\n", description, command);
+			return;
+		}
+
+		for (int i = 0; i < countof (deprecated_commands); i++)
+		{
+			if (!strcmp (deprecated_commands[i], command))
+			{
+				Con_DPrintf ("Skipping deprecated key binding: \"%s\" = \"%s\"\n", description, command);
+				return;
+			}
+		}
+
+		// Custom gameplay entries may replace built-in weapon labels, but not
+		// standard movement or menu bindings outside the marked section.
+		for (int i = 0; i < countof (default_keybinds); i++)
+		{
+			if (!default_keybinds[i].command[0])
+				continue;
+			if (!strcmp (default_keybinds[i].command, "*"))
+			{
+				filter_default = !filter_default;
+				continue;
+			}
+			if (filter_default && !strcmp (default_keybinds[i].command, command))
+				return;
+		}
+	}
+
+	menukeybind_t item = {.command = q_strdup (command), .description = q_strdup (description)};
+	VEC_PUSH (custom_bindnames, item);
+}
+
+static void M_Keys_AddItem (const menukeybind_t *item)
+{
+	if (item->command[0])
+	{
+		for (int i = 0; i < VEC_SIZE (bindnames); i++)
+			if (bindnames[i].command[0] && !strcmp (bindnames[i].command, item->command))
+				return;
+	}
+
+	// Collapse adjacent separators.
+	if (VEC_SIZE (bindnames) && !bindnames[VEC_SIZE (bindnames) - 1].command[0] && !item->command[0])
+		return;
+
+	menukeybind_t copy = {.command = q_strdup (item->command), .description = q_strdup (item->description)};
+	VEC_PUSH (bindnames, copy);
+}
 
 static void M_Keys_Populate (void)
 {
@@ -2592,7 +2665,9 @@ static void M_Keys_Populate (void)
 	}
 	VEC_CLEAR (bindnames);
 
-	// Add applicable binds to the current game:
+	qboolean added_custom_entries = false;
+
+	// Add applicable binds to the current game.
 	for (int i = 0; i < countof (default_keybinds); i++)
 	{
 		const menukeybind_t *item = &default_keybinds[i];
@@ -2603,21 +2678,51 @@ static void M_Keys_Populate (void)
 		if (!hipnotic && strcmp (item->command, "impulse 226") == 0)
 			continue;
 
-		// Add new item in bindnames
-		menukeybind_t applicable_item = {.command = q_strdup (item->command), .description = q_strdup (item->description)};
+		if (!strcmp (item->command, "*"))
+		{
+			if (!added_custom_entries)
+			{
+				added_custom_entries = true;
+				for (int j = 0; j < VEC_SIZE (custom_bindnames); j++)
+					M_Keys_AddItem (&custom_bindnames[j]);
+			}
+			continue;
+		}
 
-		VEC_PUSH (bindnames, applicable_item);
+		M_Keys_AddItem (item);
 	}
 }
 
 void M_Menu_Keys_f (void)
 {
+	for (int i = 0; i < VEC_SIZE (custom_bindnames); i++)
+	{
+		SAFE_FREE (custom_bindnames[i].command);
+		SAFE_FREE (custom_bindnames[i].description);
+	}
+	VEC_CLEAR (custom_bindnames);
+
+	char *file = (char *)COM_LoadFile ("bindlist.lst", NULL);
+	if (file)
+	{
+		char *text = file;
+		char *line;
+		while (COM_ParseMutableLine (&text, &line))
+		{
+			Cmd_TokenizeString (line);
+			M_Keys_AddCustomEntry (Cmd_Argv (0), Cmd_Argv (1));
+		}
+		Mem_Free (file);
+	}
+
 	M_MenuChanged ();
 	IN_Deactivate (true);
 	key_dest = key_menu;
 	m_state = m_keys;
 
 	M_Keys_Populate ();
+	keys_cursor = 0;
+	first_key = 0;
 }
 
 void M_FindKeysForCommand (const char *command, int *twokeys)
@@ -2662,8 +2767,6 @@ void M_UnbindCommand (const char *command)
 extern qpic_t *pic_up, *pic_down;
 
 #define BINDS_PER_PAGE 19
-
-static int first_key;
 
 static void M_Keys_Draw (cb_context_t *cbx)
 {
