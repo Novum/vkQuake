@@ -309,7 +309,6 @@ static void GL_FrustumMatrix (float matrix[16], float fovx, float fovy)
 	// reduce near clip distance at high FOV's to avoid seeing through walls
 	const float d = 12.f * q_min (w, h);
 	const float n = CLAMP (0.5f, d, NEARCLIP);
-	const float f = gl_farclip.value;
 
 	memset (matrix, 0, 16 * sizeof (float));
 
@@ -320,11 +319,11 @@ static void GL_FrustumMatrix (float matrix[16], float fovx, float fovy)
 	matrix[1 * 4 + 1] = -h;
 
 	// Third column
-	matrix[2 * 4 + 2] = f / (f - n) - 1.0f;
+	matrix[2 * 4 + 2] = 0.0f;
 	matrix[2 * 4 + 3] = -1.0f;
 
 	// Fourth column
-	matrix[3 * 4 + 2] = (n * f) / (f - n);
+	matrix[3 * 4 + 2] = n;
 }
 
 /*
