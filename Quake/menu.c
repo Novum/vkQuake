@@ -4938,20 +4938,15 @@ void M_NewGame (void)
 
 void M_UpdateMouse (void)
 {
-#ifdef USE_SDL3
-	float new_mouse_x;
-	float new_mouse_y;
-	SDL_GetMouseState (&new_mouse_x, &new_mouse_y);
-#else
-	int new_mouse_x_int;
-	int new_mouse_y_int;
-	SDL_GetMouseState (&new_mouse_x_int, &new_mouse_y_int);
-	float new_mouse_x = (float)new_mouse_x_int;
-	float new_mouse_y = (float)new_mouse_y_int;
-#endif
-	m_mouse_moved = !menu_changed && ((m_mouse_x_pixels != (int)new_mouse_x) || (m_mouse_y_pixels != (int)new_mouse_y));
-	m_mouse_x_pixels = (int)new_mouse_x;
-	m_mouse_y_pixels = (int)new_mouse_y;
+	// IN_GetMousePos scales window coordinates to drawable pixels, which is what
+	// M_PixelToMenuCanvasCoord expects; the two differ on high pixel density displays
+	int new_mouse_x;
+	int new_mouse_y;
+	IN_GetMousePos (&new_mouse_x, &new_mouse_y);
+
+	m_mouse_moved = !menu_changed && ((m_mouse_x_pixels != new_mouse_x) || (m_mouse_y_pixels != new_mouse_y));
+	m_mouse_x_pixels = new_mouse_x;
+	m_mouse_y_pixels = new_mouse_y;
 	menu_changed = false;
 
 	m_mouse_x = new_mouse_x;
