@@ -42,12 +42,13 @@ typedef enum
 // clang-format on
 
 // Use float coords and sizes in Draw_XXX to allow sub-pixel precision
-void	Draw_Init (void);
-void	Draw_Character (cb_context_t *cbx, float x, float y, int num);
-void	Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qboolean alpha_blend);
-void	Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha);
-void	Draw_SubPicLinear (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha);
-void	Draw_SubPicLinearBlend (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha);
+void Draw_Init (void);
+void Draw_Character (cb_context_t *cbx, float x, float y, int num);
+void Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qboolean alpha_blend);
+void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha);
+void Draw_SubPicLinear (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha);
+void Draw_SubPicLinearBlend (
+	cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha);
 void	Draw_TransPicTranslate (cb_context_t *cbx, float x, float y, qpic_t *pic, int top, int bottom); // johnfitz -- more parameters
 void	Draw_ConsoleBackground (cb_context_t *cbx);														// johnfitz -- removed parameter int lines
 void	Draw_TileClear (cb_context_t *cbx, float x, float y, float w, float h);

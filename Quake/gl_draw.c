@@ -926,7 +926,8 @@ void Draw_SubPicLinear (cb_context_t *cbx, float x, float y, float w, float h, q
 	Draw_SubPicInternal (cbx, x, y, w, h, pic, s1, t1, s2, t2, rgb, alpha, true, false);
 }
 
-void Draw_SubPicLinearBlend (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
+void Draw_SubPicLinearBlend (
+	cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
 {
 	Draw_SubPicInternal (cbx, x, y, w, h, pic, s1, t1, s2, t2, rgb, alpha, true, true);
 }
