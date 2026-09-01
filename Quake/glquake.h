@@ -355,6 +355,7 @@ typedef struct
 	qboolean						 validation;
 	qboolean						 debug_utils;
 	VkQueue							 queue;
+	SDL_Mutex						*queue_mutex;
 	cb_context_t					 primary_cb_contexts[PCBX_NUM];
 	cb_context_t					*secondary_cb_contexts[SCBX_NUM];
 	VkClearValue					 color_clear_value;

@@ -688,7 +688,9 @@ static void R_SubmitStagingBuffer (int index)
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &staging_buffers[index].command_buffer;
 
+	SDL_LockMutex (vulkan_globals.queue_mutex);
 	vkQueueSubmit (vulkan_globals.queue, 1, &submit_info, staging_buffers[index].fence);
+	SDL_UnlockMutex (vulkan_globals.queue_mutex);
 
 	staging_buffers[index].submitted = true;
 	current_staging_buffer = (current_staging_buffer + 1) % NUM_STAGING_BUFFERS;

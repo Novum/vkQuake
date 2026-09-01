@@ -1394,6 +1394,7 @@ static void GL_InitDevice (void)
 #endif
 
 	vkGetDeviceQueue (vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
+	vulkan_globals.queue_mutex = SDL_CreateMutex ();
 
 	VkFormatProperties format_properties;
 
@@ -3859,8 +3860,9 @@ void ScheduleScreenshotCopy (VkCommandBuffer command_buffer, VkBuffer *buffer, v
 
 void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 {
-
+	SDL_LockMutex (vulkan_globals.queue_mutex);
 	vkDeviceWaitIdle (vulkan_globals.device);
+	SDL_UnlockMutex (vulkan_globals.queue_mutex);
 	vulkan_globals.device_idle = true;
 
 	void *buffer_ptr;
@@ -4155,7 +4157,9 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 
+		SDL_LockMutex (vulkan_globals.queue_mutex);
 		err = vkQueueSubmit (vulkan_globals.queue, 1, &submit_info, command_buffer_fences[cb_index]);
+		SDL_UnlockMutex (vulkan_globals.queue_mutex);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkQueueSubmit failed with code %i", (int)err);
 	}
@@ -4187,7 +4191,9 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			present_info.pNext = &present_id_info;
 		}
 #endif
+		SDL_LockMutex (vulkan_globals.queue_mutex);
 		err = fpQueuePresentKHR (vulkan_globals.queue, &present_info);
+		SDL_UnlockMutex (vulkan_globals.queue_mutex);
 #if defined(VK_KHR_present_wait2)
 		if (swapchain_present_wait)
 			current_present_id = next_present_id;
@@ -4284,7 +4290,9 @@ void GL_WaitForDeviceIdle (void)
 	if (!vulkan_globals.device_idle)
 	{
 		R_SubmitStagingBuffers ();
+		SDL_LockMutex (vulkan_globals.queue_mutex);
 		vkDeviceWaitIdle (vulkan_globals.device);
+		SDL_UnlockMutex (vulkan_globals.queue_mutex);
 	}
 
 	vulkan_globals.device_idle = true;
