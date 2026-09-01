@@ -97,13 +97,14 @@ char		   m_return_reason[32];
 #define IPXConfig	 (m_net_cursor == 0)
 #define TCPIPConfig	 (m_net_cursor == 1)
 
-static int		m_main_cursor;
-static qboolean m_mouse_moved;
-static qboolean menu_changed;
-static int		m_mouse_x = -1;
-static int		m_mouse_y = -1;
-static int		m_mouse_x_pixels = -1;
-static int		m_mouse_y_pixels = -1;
+static int			  m_main_cursor;
+static qboolean		  m_mouse_moved;
+static enum m_state_e m_mouse_hover_state = m_none;
+static qboolean		  menu_changed;
+static int			  m_mouse_x = -1;
+static int			  m_mouse_y = -1;
+static int			  m_mouse_x_pixels = -1;
+static int			  m_mouse_y_pixels = -1;
 
 static int scrollbar_x;
 static int scrollbar_y;
@@ -409,6 +410,7 @@ M_MenuChanged
 void M_MenuChanged ()
 {
 	m_entersound = true;
+	m_mouse_hover_state = m_none;
 	menu_changed = true;
 }
 
@@ -639,14 +641,27 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 
 /*
 ================
-M_UpdateCursorForList
+M_Mouse_InRect
+================
+*/
+static qboolean M_Mouse_InRect (int left, int right, int top, int bottom)
+{
+	return m_mouse_x >= left && m_mouse_x <= right && m_mouse_y >= top && m_mouse_y <= bottom;
+}
+
+/*
+================
+M_Mouse_UpdateListCursor
 ================
 */
 static void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset)
 {
-	if (!scrollbar_grab && !slider_grab && m_mouse_moved && (num_items > 0) && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) &&
-		(m_mouse_y <= (top + item_height * num_items)))
-		*cursor = scroll_offset + CLAMP (0, (m_mouse_y - top) / item_height, num_items - 1);
+	if (!scrollbar_grab && !slider_grab && num_items > 0 && M_Mouse_InRect (left, right, top, top + item_height * num_items))
+	{
+		m_mouse_hover_state = m_state;
+		if (m_mouse_moved)
+			*cursor = scroll_offset + CLAMP (0, (m_mouse_y - top) / item_height, num_items - 1);
+	}
 }
 
 /*
@@ -656,8 +671,12 @@ M_Mouse_UpdateCursor
 */
 void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_height, int index)
 {
-	if (m_mouse_moved && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) && (m_mouse_y <= (top + item_height)))
-		*cursor = index;
+	if (M_Mouse_InRect (left, right, top, top + item_height))
+	{
+		m_mouse_hover_state = m_state;
+		if (m_mouse_moved)
+			*cursor = index;
+	}
 }
 
 //=============================================================================
@@ -2453,7 +2472,8 @@ static void M_Options_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * OPT_DEFAULTS, "Reset config");
 
 	// cursor
-	M_Mouse_UpdateListCursor (&options_cursor, MENU_LABEL_X, 320, top, CHARACTER_SIZE, OPTIONS_ITEMS, 0);
+	M_Mouse_UpdateListCursor (&options_cursor, MENU_LABEL_X, 320, top, CHARACTER_SIZE, OPT_PADDING, 0);
+	M_Mouse_UpdateCursor (&options_cursor, MENU_LABEL_X, 320, top + OPT_DEFAULTS * CHARACTER_SIZE, CHARACTER_SIZE, OPT_DEFAULTS);
 	if (options_cursor == OPT_PADDING)
 		options_cursor = OPT_SOUND;
 	Draw_Character (cbx, MENU_CURSOR_X, top + options_cursor * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
@@ -3356,7 +3376,7 @@ static void M_Maps_UpdateMouse (void)
 {
 	int i, yrel, numvis;
 
-	if (scrollbar_grab || slider_grab || !m_mouse_moved)
+	if (scrollbar_grab || slider_grab)
 		return;
 	if (m_mouse_x < MAPLIST_X - CHARACTER_SIZE || m_mouse_x > MAPLIST_X + MAPLIST_COLS * CHARACTER_SIZE)
 		return;
@@ -3370,6 +3390,10 @@ static void M_Maps_UpdateMouse (void)
 		return;
 
 	i += mapsmenu.scroll;
+	if (M_Maps_IsSelectable (i))
+		m_mouse_hover_state = m_state;
+	if (!m_mouse_moved)
+		return;
 	if (mapsmenu.cursor == i)
 		return;
 
@@ -4983,6 +5007,8 @@ void M_UpdateMouse (void)
 
 void M_Draw (cb_context_t *cbx)
 {
+	m_mouse_hover_state = m_none;
+
 	if (m_state == m_none || key_dest != key_menu)
 		return;
 
@@ -5114,8 +5140,16 @@ void M_Draw (cb_context_t *cbx)
 	S_ExtraUpdate ();
 }
 
+static qboolean M_Mouse_ClickValid (void)
+{
+	return bind_grab || m_state == m_help || m_mouse_hover_state == m_state || M_InScrollbar ();
+}
+
 void M_Keydown (int key)
 {
+	if (key == K_MOUSE1 && !M_Mouse_ClickValid ())
+		return;
+
 	switch (m_state)
 	{
 	case m_none:

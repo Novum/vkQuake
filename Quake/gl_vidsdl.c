@@ -5377,7 +5377,8 @@ void M_Video_Draw (cb_context_t *cbx)
 			break;
 		}
 
-		M_Mouse_UpdateCursor (&video_options_cursor, 12, 400, y, 8, i);
+		if (i != VID_OPT_PADDING)
+			M_Mouse_UpdateCursor (&video_options_cursor, 12, 400, y, 8, i);
 		if (video_options_cursor == VID_OPT_PADDING)
 			video_options_cursor = VID_OPT_VSYNC;
 		if (video_options_cursor == i)
