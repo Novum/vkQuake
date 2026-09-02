@@ -100,6 +100,8 @@ char		   m_return_reason[32];
 static int			  m_main_cursor;
 static qboolean		  m_mouse_moved;
 static enum m_state_e m_mouse_hover_state = m_none;
+static int			 *m_mouse_hover_cursor;
+static int			  m_mouse_hover_value;
 static qboolean		  menu_changed;
 static int			  m_mouse_x = -1;
 static int			  m_mouse_y = -1;
@@ -659,8 +661,10 @@ static void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top,
 	if (!scrollbar_grab && !slider_grab && num_items > 0 && M_Mouse_InRect (left, right, top, top + item_height * num_items))
 	{
 		m_mouse_hover_state = m_state;
+		m_mouse_hover_cursor = cursor;
+		m_mouse_hover_value = scroll_offset + CLAMP (0, (m_mouse_y - top) / item_height, num_items - 1);
 		if (m_mouse_moved)
-			*cursor = scroll_offset + CLAMP (0, (m_mouse_y - top) / item_height, num_items - 1);
+			*cursor = m_mouse_hover_value;
 	}
 }
 
@@ -674,6 +678,8 @@ void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_h
 	if (M_Mouse_InRect (left, right, top, top + item_height))
 	{
 		m_mouse_hover_state = m_state;
+		m_mouse_hover_cursor = cursor;
+		m_mouse_hover_value = index;
 		if (m_mouse_moved)
 			*cursor = index;
 	}
@@ -3391,7 +3397,11 @@ static void M_Maps_UpdateMouse (void)
 
 	i += mapsmenu.scroll;
 	if (M_Maps_IsSelectable (i))
+	{
 		m_mouse_hover_state = m_state;
+		m_mouse_hover_cursor = &mapsmenu.cursor;
+		m_mouse_hover_value = i;
+	}
 	if (!m_mouse_moved)
 		return;
 	if (mapsmenu.cursor == i)
@@ -5009,6 +5019,7 @@ void M_UpdateMouse (void)
 void M_Draw (cb_context_t *cbx)
 {
 	m_mouse_hover_state = m_none;
+	m_mouse_hover_cursor = NULL;
 
 	if (m_state == m_none || key_dest != key_menu)
 		return;
@@ -5150,6 +5161,8 @@ void M_Keydown (int key)
 {
 	if (key == K_MOUSE1 && !M_Mouse_ClickValid ())
 		return;
+	if (key == K_MOUSE1 && m_mouse_hover_state == m_state && m_mouse_hover_cursor)
+		*m_mouse_hover_cursor = m_mouse_hover_value;
 
 	switch (m_state)
 	{
