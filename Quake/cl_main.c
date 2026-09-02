@@ -1263,7 +1263,7 @@ static void SV_DecodeUserInfo (client_t *client)
 	{ // name changed.
 		if (client->name[0] && strcmp (client->name, "unconnected"))
 			Con_DPrintf ("\"%s\" renamed to \"%s\"\n", client->name, tmp);
-		strcpy (client->name, tmp);
+		q_strlcpy (client->name, tmp, sizeof(client->name));
 
 		client->edict->v.netname = PR_SetEngineString (client->name);
 	}
