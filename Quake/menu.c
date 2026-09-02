@@ -1495,7 +1495,7 @@ static void M_Menu_Net_f (void)
 	if (!ipv4Available && !ipv6Available)
 		m_net_items -= 1;
 
-	m_net_cursor = CLAMP (m_first_net_item, m_net_cursor, m_first_net_item + m_net_items);
+	m_net_cursor = CLAMP (m_first_net_item, m_net_cursor, m_first_net_item + m_net_items - 1);
 }
 
 static void M_Net_Draw (cb_context_t *cbx)
@@ -1531,7 +1531,7 @@ static void M_Net_Draw (cb_context_t *cbx)
 	M_Print (cbx, f, 128, net_helpMessage[m_net_cursor * 4 + 3]);
 
 	f = (int)(realtime * 10) % 6;
-	M_Mouse_UpdateListCursor (&m_net_cursor, 70, 320, 32, 20, m_net_items, m_first_net_item);
+	M_Mouse_UpdateListCursor (&m_net_cursor, 70, 320, 32 + m_first_net_item * 20, 20, m_net_items, m_first_net_item);
 	M_DrawTransPic (cbx, 54, 32 + m_net_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
 }
 
@@ -1547,14 +1547,14 @@ static void M_Net_Key (int k)
 
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
-		if (++m_net_cursor >= m_net_items)
-			m_net_cursor = 0;
+		if (++m_net_cursor >= m_first_net_item + m_net_items)
+			m_net_cursor = m_first_net_item;
 		break;
 
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		if (--m_net_cursor < m_first_net_item)
-			m_net_cursor = m_net_items - 1;
+			m_net_cursor = m_first_net_item + m_net_items - 1;
 		break;
 
 	case K_MOUSE1:
@@ -2794,7 +2794,6 @@ static void M_Keys_Draw (cb_context_t *cbx)
 	int			keys[2];
 	const char *name;
 	qpic_t	   *p;
-	int			keys_height = q_min (BINDS_PER_PAGE, VEC_SIZE (bindnames) - first_key);
 
 	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
@@ -2811,6 +2810,8 @@ static void M_Keys_Draw (cb_context_t *cbx)
 		y = 48 + 8 * i;
 
 		M_Print (cbx, 10, y, bindnames[i + first_key].description);
+		if (bindnames[i + first_key].command[0])
+			M_Mouse_UpdateCursor (&keys_cursor, 12, 400, y, 8, i + first_key);
 
 		M_FindKeysForCommand (bindnames[i + first_key].command, keys);
 
@@ -2841,7 +2842,6 @@ static void M_Keys_Draw (cb_context_t *cbx)
 		Draw_Character (cbx, (KEY_STRING_DRAW_POS - 10), 48 + (keys_cursor - first_key) * 8, '=');
 	else
 	{
-		M_Mouse_UpdateListCursor (&keys_cursor, 12, 400, 48, 8, keys_height, first_key);
 		Draw_Character (cbx, 0, 48 + (keys_cursor - first_key) * 8, 12 + ((int)(realtime * 4) & 1));
 	}
 }
@@ -4828,12 +4828,13 @@ static void M_ServerList_Draw (cb_context_t *cbx)
 
 	if (hostCacheCount > SERVER_LIST_MAX_ON_SCREEN)
 		M_DrawScrollbar (cbx, MENU_SCROLLBAR_X, 40, (float)(slist_first) / (hostCacheCount - SERVER_LIST_MAX_ON_SCREEN), SERVER_LIST_MAX_ON_SCREEN - 2);
-	M_Mouse_UpdateListCursor (&slist_cursor, 12, 400, 32, 8, SERVER_LIST_MAX_ON_SCREEN, slist_first);
+	const int server_list_height = CLAMP (0, (int)hostCacheCount - slist_first, SERVER_LIST_MAX_ON_SCREEN);
+	M_Mouse_UpdateListCursor (&slist_cursor, 12, 400, 32, 8, server_list_height, slist_first);
 
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
-	for (n = 0; n < SERVER_LIST_MAX_ON_SCREEN && n < hostCacheCount; n++)
+	for (n = 0; n < (size_t)server_list_height; n++)
 	{
 		M_Print (cbx, 28 - CHARACTER_SIZE, 32 + 8 * n, NET_SlistPrintServer (slist_first + n));
 	}
