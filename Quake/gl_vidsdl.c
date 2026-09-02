@@ -296,6 +296,32 @@ static int VID_GetCurrentHeight (void)
 }
 
 /*
+================
+VID_GetCurrentWindowWidth
+
+Window size in points; vid.width / vid.height are in pixels.
+================
+*/
+static int VID_GetCurrentWindowWidth (void)
+{
+	int w = 0, h = 0;
+	SDL_GetWindowSize (draw_context, &w, &h);
+	return w;
+}
+
+/*
+================
+VID_GetCurrentWindowHeight
+================
+*/
+static int VID_GetCurrentWindowHeight (void)
+{
+	int w = 0, h = 0;
+	SDL_GetWindowSize (draw_context, &w, &h);
+	return h;
+}
+
+/*
 ====================
 VID_GetCurrentRefreshRate
 ====================
@@ -691,8 +717,8 @@ static void VID_Test (void)
 	//
 	// now try the switch
 	//
-	old_width = VID_GetCurrentWidth ();
-	old_height = VID_GetCurrentHeight ();
+	old_width = VID_GetCurrentWindowWidth ();
+	old_height = VID_GetCurrentWindowHeight ();
 	old_refreshrate = VID_GetCurrentRefreshRate ();
 	old_fullscreen = VID_GetFullscreen () ? (vulkan_globals.swap_chain_full_screen_exclusive ? 2 : 1) : 0;
 	VID_Restart (true);
@@ -4907,8 +4933,8 @@ void VID_SyncCvars (void)
 	{
 		if (!VID_GetDesktopFullscreen ())
 		{
-			Cvar_SetValueQuick (&vid_width, VID_GetCurrentWidth ());
-			Cvar_SetValueQuick (&vid_height, VID_GetCurrentHeight ());
+			Cvar_SetValueQuick (&vid_width, VID_GetCurrentWindowWidth ());
+			Cvar_SetValueQuick (&vid_height, VID_GetCurrentWindowHeight ());
 		}
 		Cvar_SetValueQuick (&vid_refreshrate, VID_GetCurrentRefreshRate ());
 		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen () ? (vulkan_globals.want_full_screen_exclusive ? "2" : "1") : "0");
