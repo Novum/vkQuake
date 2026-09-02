@@ -1193,27 +1193,6 @@ static qboolean SV_EntityRidingPusher (edict_t *ent, edict_t *pusher)
 	return ((int)ent->v.flags & FL_ONGROUND) && SV_EntityGroundEntityIsPusher (ent, pusher);
 }
 
-static void SV_ClearStalePusherGround (edict_t *ent)
-{
-	edict_t *pusher;
-	trace_t	 trace;
-
-	pusher = SV_GetGroundPusher (ent);
-	if (!pusher)
-		return;
-
-	if (SV_EntityHasPusherSupportAtOrigin (ent, pusher, pusher->v.origin, &trace))
-		return;
-
-	// SV_UpdatePersistentPusherSupport owns the release decision; while the record
-	// still stands the entity is being carried and keeps its ground contact
-	if (SV_HasPersistentPusherSupport (ent, pusher))
-		return;
-
-	ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
-	ent->v.groundentity = 0;
-}
-
 // Owns the release decision for persistent support at the entity's physics
 // turn. Consumers re-check the live ground state because QuakeC can change it
 // again later in the same frame.
@@ -1259,7 +1238,38 @@ static void SV_UpdatePersistentPusherSupport (edict_t *ent)
 	}
 
 	if (!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_RELEASE_EPSILON, &trace))
+	{
 		SV_BreakPusherSupport (ent);
+		// Only clear public ground state backed by our private support record.
+		// Mods may use FL_ONGROUND/groundentity for their own movement logic even
+		// when the named pusher is not geometrically beneath the entity.
+		if (SV_EntityGroundEntityIsPusher (ent, pusher))
+		{
+			ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+			ent->v.groundentity = 0;
+		}
+	}
+}
+
+// Adopt an existing QuakeC ground claim only after geometry confirms it. This
+// gives riders present at spawn/load the same persistent support as riders
+// already carried by SV_PushMove, without rewriting non-geometric ground state
+// used by mods for custom movement.
+static void SV_AdoptPusherSupport (edict_t *ent)
+{
+	edict_t *pusher;
+	trace_t	 trace;
+
+	if (sv_gameplayfix_elevators.value < 3.f || SV_GetPusherSupportRecord (ent))
+		return;
+
+	pusher = SV_GetGroundPusher (ent);
+	if (!pusher)
+		return;
+	if (!SV_EntityHasPusherSupportAtOrigin (ent, pusher, pusher->v.origin, &trace))
+		return;
+
+	SV_WritePusherSupportRecord (ent, pusher, SV_MOVE_FRAME_GROUND, vec3_origin);
 }
 
 static qboolean SV_PusherBoundsOverlapEntity (edict_t *ent, const vec3_t mins, const vec3_t maxs)
@@ -2575,11 +2585,11 @@ void SV_Physics (void)
 				continue;
 		}
 
-		// release first: SV_ClearStalePusherGround keeps ground contact for as
-		// long as the support record stands
+		// Release only support established by the private pusher record. QuakeC
+		// is otherwise free to give FL_ONGROUND/groundentity custom semantics.
 		SV_UpdatePersistentPusherSupport (ent);
 		if (SV_MovetypeUsesGroundFlag (ent))
-			SV_ClearStalePusherGround (ent);
+			SV_AdoptPusherSupport (ent);
 
 		if (i > 0 && i <= svs.maxclients && qcvm == &sv.qcvm)
 			SV_Physics_Client (ent, i);
