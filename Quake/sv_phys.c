@@ -999,6 +999,20 @@ static void SV_BreakPusherSupport (edict_t *ent)
 	HashMap_Erase (qcvm->pusher_support, &entnum);
 }
 
+static void SV_ClearRecordedPusherSupport (edict_t *ent, edict_t *pusher)
+{
+	SV_BreakPusherSupport (ent);
+
+	// Only clear public ground state backed by our private support record.
+	// Mods may use FL_ONGROUND/groundentity for their own movement logic even
+	// when the named pusher is not geometrically beneath the entity.
+	if (SV_EntityGroundEntityIsPusher (ent, pusher))
+	{
+		ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
+		ent->v.groundentity = 0;
+	}
+}
+
 static void SV_RecordPusherSupport (edict_t *ent, edict_t *pusher, const vec3_t pusher_move)
 {
 	trace_t trace;
@@ -1226,7 +1240,10 @@ static void SV_UpdatePersistentPusherSupport (edict_t *ent)
 	pusher = EDICT_NUM (pusher_entnum);
 	if (!SV_IsSupportPusher (pusher))
 	{
-		SV_BreakPusherSupport (ent);
+		if (pusher->free || pusher->v.solid == SOLID_NOT || pusher->v.solid == SOLID_TRIGGER)
+			SV_ClearRecordedPusherSupport (ent, pusher);
+		else
+			SV_BreakPusherSupport (ent);
 		return;
 	}
 
@@ -1238,17 +1255,7 @@ static void SV_UpdatePersistentPusherSupport (edict_t *ent)
 	}
 
 	if (!SV_TracePusherFloorAtOrigin (ent, pusher, pusher->v.origin, PUSH_RELEASE_EPSILON, &trace))
-	{
-		SV_BreakPusherSupport (ent);
-		// Only clear public ground state backed by our private support record.
-		// Mods may use FL_ONGROUND/groundentity for their own movement logic even
-		// when the named pusher is not geometrically beneath the entity.
-		if (SV_EntityGroundEntityIsPusher (ent, pusher))
-		{
-			ent->v.flags = (int)ent->v.flags & ~FL_ONGROUND;
-			ent->v.groundentity = 0;
-		}
-	}
+		SV_ClearRecordedPusherSupport (ent, pusher);
 }
 
 // Adopt an existing QuakeC ground claim only after geometry confirms it. This
