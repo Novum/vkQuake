@@ -2807,23 +2807,7 @@ static void Host_Give_f (void)
 	v = atoi (Cmd_Argv (2));
 
 	if (strcmp (t, "all") == 0)
-	{
-		for (int i = 0; i < 9; ++i)
-		{
-			if (hipnotic)
-				sv_player->v.items = (int)sv_player->v.items | HIT_PROXIMITY_GUN | HIT_LASER_CANNON | HIT_MJOLNIR;
-			for (i = 0; i <= 9; ++i)
-				sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << i);
-			sv_player->v.items = sv_player->v.items - ((int)(sv_player->v.items) & (int)(IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + IT_ARMOR3;
-			sv_player->v.items = (int)sv_player->v.items | (int)(IT_KEY1 | IT_KEY2);
-			sv_player->v.ammo_shells = 999;
-			sv_player->v.ammo_nails = 999;
-			sv_player->v.ammo_rockets = 999;
-			sv_player->v.ammo_cells = 999;
-			sv_player->v.armortype = 0.8;
-			sv_player->v.armorvalue = 200;
-		}
-	}
+		sv_player->v.impulse = 9;
 	else
 	{
 		switch (t[0])
