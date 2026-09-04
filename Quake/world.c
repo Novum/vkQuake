@@ -392,7 +392,7 @@ Based on code from Spike.
 static void SV_TouchLinks (edict_t *ent)
 {
 	int old_self, old_other;
-	int listcount;
+	int listcount, retainedcount;
 
 	assert_always (!ent->free);
 
@@ -403,15 +403,26 @@ static void SV_TouchLinks (edict_t *ent)
 
 	listcount = 0;
 	SV_AreaTriggerEdicts (ent, qcvm->areanodes, list, &listcount, qcvm->num_edicts);
+	ED_Retain (ent);
+
+	retainedcount = 0;
+	for (int i = 0; i < listcount; i++)
+	{
+		edict_t *touch = EDICT_NUM (list[i]);
+		if (touch->free || touch == ent)
+			continue;
+
+		ED_Retain (touch);
+		list[retainedcount++] = list[i];
+	}
 
 	old_self = pr_global_struct->self;
 	old_other = pr_global_struct->other;
 
-	for (int i = 0; i < listcount; i++)
+	for (int i = 0; i < retainedcount; i++)
 	{
 		edict_t *touch = EDICT_NUM (list[i]);
-		// re-validate in case of PR_ExecuteProgram having side effects that make
-		// edicts later in the list no longer touch
+		// Touch only live triggers that still overlap the entity.
 		if (touch->free || touch == ent)
 			continue;
 		if (!touch->v.touch || touch->v.solid != SOLID_TRIGGER)
@@ -425,13 +436,17 @@ static void SV_TouchLinks (edict_t *ent)
 		pr_global_struct->time = qcvm->time;
 		PR_ExecuteProgram (touch->v.touch);
 
-		// bail out if ent get free as a side effect of v.touch
+		// Stop after the moving entity is removed.
 		if (ent->free)
 			break;
 	}
 
 	pr_global_struct->self = old_self;
 	pr_global_struct->other = old_other;
+
+	for (int i = retainedcount - 1; i >= 0; i--)
+		ED_Release (EDICT_NUM (list[i]));
+	ED_Release (ent);
 
 	TEMP_FREE (list);
 }

@@ -79,7 +79,7 @@ edict_t *ED_Alloc (void)
 
 	if (e && ((e->freetime < MAX_EDICT_FREETIME_ALWAYS_REUSE) || (qcvm->time - e->freetime) > MIN_EDICT_AGE_FOR_REUSE))
 	{
-		assert (e->free);
+		assert (e->free && !e->retain_count);
 		memset (&e->v, 0, qcvm->progs->entityfields * 4);
 		e->free = false;
 
@@ -126,6 +126,8 @@ ED_AddToFreeList
 */
 static void ED_AddToFreeList (edict_t *ed)
 {
+	assert (ed->free && !ed->retain_count);
+
 #if defined(DEBUG) || defined(_DEBUG)
 	if (qcvm->free_list.size >= MAX_EDICTS)
 		Host_Error ("ED_AddToFreeList : is full (qcvm 0x%p)", qcvm);
@@ -168,10 +170,26 @@ void ED_Free (edict_t *ed)
 	ed->v.nextthink = -1;
 	ed->v.solid = 0;
 	ed->alpha = ENTALPHA_DEFAULT; // johnfitz -- reset alpha for next entity
-
 	ed->freetime = qcvm->time;
 
-	ED_AddToFreeList (ed);
+	if (!ed->retain_count)
+		ED_AddToFreeList (ed);
+}
+
+void ED_Retain (edict_t *ed)
+{
+	assert (!ed->free);
+	ed->retain_count++;
+	assert (ed->retain_count);
+}
+
+void ED_Release (edict_t *ed)
+{
+	assert (ed->retain_count > 0);
+	ed->retain_count--;
+
+	if (ed->free && !ed->retain_count)
+		ED_AddToFreeList (ed);
 }
 
 /*
@@ -229,9 +247,9 @@ void ED_CheckFreeList (void)
 		edict_t *e = EDICT_NUM (edict_num);
 
 		// check : e should be free
-		if (!e->free)
+		if (!e->free || e->retain_count)
 		{
-			Con_Warning ("ED_CheckFreeList: edict %i is in free-list but is NOT free\n", edict_num);
+			Con_Warning ("ED_CheckFreeList: edict %i is not reclaimable but is in free-list\n", edict_num);
 			has_errors = true;
 		}
 
@@ -247,9 +265,11 @@ void ED_CheckFreeList (void)
 
 		if (e->free)
 		{
-			if (free_list_edicts[i] != 1)
+			const qboolean in_free_list = free_list_edicts[i] != 0;
+			const qboolean reusable = !e->retain_count;
+			if (in_free_list != reusable)
 			{
-				Con_Warning ("ED_CheckFreeList: edict %i is free, but is NOT in free-list\n", i);
+				Con_Warning ("ED_CheckFreeList: edict %i has an inconsistent retained/free-list state\n", i);
 				has_errors = true;
 			}
 		}
@@ -287,7 +307,7 @@ void ED_RebuildFreeList (bool force_free_reuse)
 	// 1. Enumerate free edict nums and put it in free_edicts_table
 	for (int i = 0; i < qcvm->num_edicts; i++)
 	{
-		if (EDICT_NUM (i)->free)
+		if (EDICT_NUM (i)->free && !EDICT_NUM (i)->retain_count)
 		{
 			if (force_free_reuse)
 				EDICT_NUM (i)->freetime = 0.0f;
@@ -2272,7 +2292,7 @@ int EDICT_TO_PROG (edict_t *e)
 	int edict_num = NUM_FOR_EDICT (e);
 	int found_prog = (int)((byte *)e - (byte *)qcvm->edicts);
 
-	// It seems invalid to cast a edict to prog if it's free, because it is intended to be active.
+	// Reject conversions after an edict has been removed.
 	if (e->free)
 		Host_Error ("EDICT_TO_PROG: edict %i is free (qcvm 0x%p)", edict_num, qcvm);
 

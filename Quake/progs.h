@@ -80,8 +80,9 @@ typedef struct edict_s
 	int				showbboxframe; /* last render frame this entity was highlighted by r_showbboxes */
 	showbboxflags_t showbboxflags;
 
-	float	 freetime; /* sv.time when the object was freed */
-	qboolean free;
+	float		 freetime; /* sv.time when the object was freed */
+	qboolean	 free;
+	unsigned int retain_count; /* prevents slot reuse while C code retains this edict */
 
 	entvars_t v; /* C exported fields from progs */
 
@@ -132,6 +133,8 @@ void PR_Profile_f (void);
 
 edict_t *ED_Alloc (void);
 void	 ED_Free (edict_t *ed);
+void	 ED_Retain (edict_t *ed);
+void	 ED_Release (edict_t *ed);
 void	 ED_RemoveFromFreeList (edict_t *ed);
 void	 ED_CheckFreeList (void);
 void	 ED_RebuildFreeList (bool force_free_reuse);

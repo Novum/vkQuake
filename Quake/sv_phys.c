@@ -348,8 +348,9 @@ int	   sv_speeds_thinks, sv_speeds_pushers, sv_speeds_pushables, sv_speeds_grid_
 
 static qboolean SV_RunThink (edict_t *ent)
 {
-	float  thinktime;
-	double think_start = 0;
+	float	 thinktime;
+	double	 think_start = 0;
+	qboolean alive;
 
 	thinktime = ent->v.nextthink;
 	if (thinktime <= 0 || thinktime > qcvm->time + host_frametime)
@@ -370,10 +371,12 @@ static qboolean SV_RunThink (edict_t *ent)
 	pr_global_struct->time = thinktime;
 	pr_global_struct->self = EDICT_TO_PROG (ent);
 	pr_global_struct->other = EDICT_TO_PROG (qcvm->edicts);
+	ED_Retain (ent);
 	PR_ExecuteProgram (ent->v.think);
 
 	ent->lastthink = 0;
-	if (!ent->free && ent->v.groundentity && ent->v.nextthink > 0 && ent->v.nextthink - thinktime < 0.105f &&
+	alive = !ent->free;
+	if (alive && ent->v.groundentity && ent->v.nextthink > 0 && ent->v.nextthink - thinktime < 0.105f &&
 		ent->v.groundentity <= (qcvm->num_edicts - 1) * qcvm->edict_size)
 	{
 		edict_t *pusher = PROG_TO_EDICT (ent->v.groundentity);
@@ -392,6 +395,7 @@ static qboolean SV_RunThink (edict_t *ent)
 			}
 		}
 	}
+	ED_Release (ent);
 
 	if (think_start != 0)
 	{
@@ -399,7 +403,7 @@ static qboolean SV_RunThink (edict_t *ent)
 		sv_speeds_thinks++;
 	}
 
-	return !ent->free;
+	return alive;
 }
 
 /*
@@ -411,31 +415,36 @@ Two entities have touched, so run their touch functions
 */
 static void SV_Impact (edict_t *e1, edict_t *e2)
 {
-	assert_always (!e1->free && !e2->free);
+	assert (!e1->free && !e2->free);
 
-	int old_self, old_other;
+	int old_self, old_other, e1_prog, e2_prog;
 
 	old_self = pr_global_struct->self;
 	old_other = pr_global_struct->other;
+	e1_prog = EDICT_TO_PROG (e1);
+	e2_prog = EDICT_TO_PROG (e2);
 
 	pr_global_struct->time = qcvm->time;
+	ED_Retain (e1);
+	ED_Retain (e2);
 
 	if (e1->v.touch && e1->v.solid != SOLID_NOT)
 	{
-		pr_global_struct->self = EDICT_TO_PROG (e1);
-		pr_global_struct->other = EDICT_TO_PROG (e2);
+		pr_global_struct->self = e1_prog;
+		pr_global_struct->other = e2_prog;
 		PR_ExecuteProgram (e1->v.touch);
 	}
 
-	// PR_ExecuteProgram can have side effects on e1, e2 (like freeing) so only execute the next one if
-	// e1,e2 are still valid
-	// TBC : why managing impact e1 => e2 AND e2 => e1 in this call ?
-	if (!e1->free && !e2->free && e2->v.touch && e2->v.solid != SOLID_NOT)
+	// Run e2's touch function if e2 survives e1's callback.
+	if (!e2->free && e2->v.touch && e2->v.solid != SOLID_NOT)
 	{
-		pr_global_struct->self = EDICT_TO_PROG (e2);
-		pr_global_struct->other = EDICT_TO_PROG (e1);
+		pr_global_struct->self = e2_prog;
+		pr_global_struct->other = e1_prog;
 		PR_ExecuteProgram (e2->v.touch);
 	}
+
+	ED_Release (e2);
+	ED_Release (e1);
 
 	pr_global_struct->self = old_self;
 	pr_global_struct->other = old_other;
@@ -1409,12 +1418,19 @@ static trace_t SV_PushEntityToWithIgnoreMask (edict_t *ent, vec3_t end, const sv
 
 	VectorCopy (trace.endpos, ent->v.origin);
 
+	ED_Retain (ent);
+	if (trace.ent)
+		ED_Retain (trace.ent);
+
 	SV_LinkEdict (ent, true);
 
-	// SV_LinkEdict(true) could have freed ent calling its touch program,
-	// and also through calling SV_Touch_Links () internally could also free trace.ent.
+	// Run the impact only while both collision participants still exist.
 	if (!ent->free && trace.ent && !trace.ent->free)
 		SV_Impact (ent, trace.ent);
+
+	if (trace.ent)
+		ED_Release (trace.ent);
+	ED_Release (ent);
 
 	return trace;
 }
@@ -1486,6 +1502,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	}
 
 	VectorCopy (pusher->v.origin, pushorig);
+	ED_Retain (pusher);
 
 	// move the pusher to it's final position
 
@@ -1561,6 +1578,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 			push_edict[num_push] = scan_check;
 			push_riding[num_push] = riding;
+			ED_Retain (scan_check);
 			num_push++;
 
 			if (riding)
@@ -1631,6 +1649,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		VectorCopy (check->v.origin, moved_from[num_moved]);
 		SV_BackupPusherSupport (check, &moved_support[num_moved]);
 		moved_edict[num_moved] = check;
+		ED_Retain (check);
 		num_moved++;
 
 		// QIP fix for end.bsp
@@ -1662,6 +1681,10 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 			// try moving the contacted entity
 			SV_PushEntityToWithIgnoreMask (check, dest, move_ignore_mask);
+			if (pusher->free)
+				break;
+			if (check->free)
+				continue;
 
 			// if it is still inside the pusher, block
 			if (pusher->v.skin < 0)
@@ -1730,22 +1753,27 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			VectorCopy (entorig, check->v.origin);
 			SV_LinkEdict (check, true);
 
-			VectorCopy (pushorig, pusher->v.origin);
-			SV_LinkEdict (pusher, false);
-			pusher->v.ltime -= movetime;
-
-			// if the pusher has a "blocked" function, call it
-			// otherwise, just stay in place until the obstacle is gone
-			if (pusher->v.blocked)
+			if (!pusher->free)
 			{
-				pr_global_struct->self = EDICT_TO_PROG (pusher);
-				pr_global_struct->other = EDICT_TO_PROG (check);
-				PR_ExecuteProgram (pusher->v.blocked);
+				VectorCopy (pushorig, pusher->v.origin);
+				SV_LinkEdict (pusher, false);
+				pusher->v.ltime -= movetime;
+
+				// if the pusher has a "blocked" function, call it
+				// otherwise, just stay in place until the obstacle is gone
+				if (!check->free && pusher->v.blocked)
+				{
+					pr_global_struct->self = EDICT_TO_PROG (pusher);
+					pr_global_struct->other = EDICT_TO_PROG (check);
+					PR_ExecuteProgram (pusher->v.blocked);
+				}
 			}
 
 			// move back any entities we already moved
 			for (i = 0; i < num_moved; i++)
 			{
+				if (moved_edict[i]->free)
+					continue;
 				SV_RestorePusherSupport (moved_edict[i], &moved_support[i]);
 				VectorCopy (moved_from[i], moved_edict[i]->v.origin);
 				SV_LinkEdict (moved_edict[i], false);
@@ -1756,6 +1784,12 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		if (riding)
 			SV_RecordPusherSupport (check, pusher, move);
 	}
+
+	for (i = num_moved - 1; i >= 0; i--)
+		ED_Release (moved_edict[i]);
+	for (i = num_push - 1; i >= 0; i--)
+		ED_Release (push_edict[i]);
+	ED_Release (pusher);
 
 	TEMP_FREE (rider_ignore_storage);
 	TEMP_FREE (push_candidates);
@@ -1794,13 +1828,15 @@ static void SV_Physics_Pusher (edict_t *ent)
 		SV_PushMove (ent, movetime); // advances ent->v.ltime if not blocked
 	}
 
-	if (thinktime > oldltime && thinktime <= ent->v.ltime)
+	if (!ent->free && thinktime > oldltime && thinktime <= ent->v.ltime)
 	{
 		ent->v.nextthink = 0;
 		pr_global_struct->time = qcvm->time;
 		pr_global_struct->self = EDICT_TO_PROG (ent);
 		pr_global_struct->other = EDICT_TO_PROG (qcvm->edicts);
+		ED_Retain (ent);
 		PR_ExecuteProgram (ent->v.think);
+		ED_Release (ent);
 	}
 
 	if (timing)
@@ -2178,6 +2214,7 @@ static void SV_Physics_ClientWalk (edict_t *ent, sv_client_move_frame_t *move_fr
 static void SV_Physics_Client (edict_t *ent, int num)
 {
 	sv_client_move_frame_t move_frame;
+	edict_t				  *retained_pusher;
 
 	if (!svs.clients[num - 1].active)
 		return; // unconnected slot
@@ -2185,7 +2222,11 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	if (!svs.clients[num - 1].knowntoqc && sv_gameplayfix_spawnbeforethinks.value)
 		return; // don't spam prethinks before we called putclientinserver.
 
+	ED_Retain (ent);
 	SV_CaptureClientMoveFrameBeforeQC (ent, &move_frame);
+	retained_pusher = move_frame.pusher;
+	if (retained_pusher)
+		ED_Retain (retained_pusher);
 
 	//
 	// call standard client pre-think
@@ -2210,12 +2251,12 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	{
 	case MOVETYPE_NONE:
 		if (!SV_RunThink (ent))
-			return;
+			goto done;
 		break;
 
 	case MOVETYPE_WALK:
 		if (!SV_RunThink (ent))
-			return;
+			goto done;
 		SV_Physics_ClientWalk (ent, &move_frame);
 		break;
 
@@ -2227,13 +2268,13 @@ static void SV_Physics_Client (edict_t *ent, int num)
 
 	case MOVETYPE_FLY:
 		if (!SV_RunThink (ent))
-			return;
+			goto done;
 		SV_FlyMove (ent, host_frametime, NULL);
 		break;
 
 	case MOVETYPE_NOCLIP:
 		if (!SV_RunThink (ent))
-			return;
+			goto done;
 		VectorMA (ent->v.origin, host_frametime, ent->v.velocity, ent->v.origin);
 		if (!SV_TestEntityPosition (ent))
 			VectorCopy (ent->v.origin, ent->v.oldorigin);
@@ -2253,6 +2294,11 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG (ent);
 	PR_ExecuteProgram (pr_global_struct->PlayerPostThink);
+
+done:
+	if (retained_pusher)
+		ED_Release (retained_pusher);
+	ED_Release (ent);
 }
 
 //============================================================================
@@ -2469,12 +2515,9 @@ static void SV_Physics_Step (edict_t *ent)
 // track ED_Alloc during SV_Physics execution
 static void SV_Physics_Alloc_Hook (edict_t *e)
 {
-	// track the newly allocated edicts in order to add them into the pushable_ent_cache.
-	// this is OK because by construction free edicts cannot be reused immediatly,
-	// so e is garanteed not to be in pushable_ent_cache already.
-	// since they are just allocated, they have a blank state so we add all of them
-	// to pushable_ent_cache regardless, and the pushable test will be made later on in SV_PushMove in any case.
+	// Keep every cached slot attached to the same edict for the rest of this physics frame.
 	pushable_ent_cache[num_pushable_ent_cache++] = e;
+	ED_Retain (e);
 }
 
 /*
@@ -2562,6 +2605,7 @@ void SV_Physics (void)
 				continue;
 
 			pushable_ent_cache[num_pushable_ent_cache++] = check;
+			ED_Retain (check);
 			PushGrid_Insert (check);
 		}
 		push_grid_tail_start = num_pushable_ent_cache;
@@ -2644,5 +2688,7 @@ void SV_Physics (void)
 	{
 		push_grid_active = false;
 		ED_AllocSetHook (previous_alloc_hook);
+		for (i = num_pushable_ent_cache - 1; i >= 0; i--)
+			ED_Release (pushable_ent_cache[i]);
 	}
 }
