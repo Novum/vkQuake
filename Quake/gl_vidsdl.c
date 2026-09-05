@@ -4466,7 +4466,7 @@ void M_Video_Draw (cb_context_t *cbx)
 			break;
 		case VID_OPT_FULLSCREEN:
 			M_Print (cbx, MENU_LABEL_X, y, "Fullscreen");
-			M_Print (cbx, MENU_VALUE_X, y, ((int)vid_fullscreen.value == 0) ? "off" : (((int)vid_fullscreen.value == 1) ? "on" : "exclusive"));
+			M_Print (cbx, MENU_VALUE_X, y, ((int)vid_fullscreen.value == 0) ? "off" : (((int)vid_fullscreen.value == 1) ? "borderless" : "exclusive"));
 			break;
 		case VID_OPT_VSYNC:
 			M_Print (cbx, MENU_LABEL_X, y, "Vertical sync");
