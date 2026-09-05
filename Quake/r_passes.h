@@ -23,6 +23,7 @@ See the GNU General Public License for more details.
 typedef enum
 {
 	SUBPASS_MAIN,
+	SUBPASS_ENTITY_SSAO,
 	SUBPASS_UI,
 	SUBPASS_WBOIT,
 	SUBPASS_MBOIT_MOMENTS,

@@ -14,6 +14,7 @@ See the GNU General Public License for more details.
 */
 
 #include "quakedef.h"
+#include "r_ssao.h"
 
 #define MAX_FRAME_STEPS		 64
 #define MAX_PASS_ATTACHMENTS 8
@@ -26,6 +27,8 @@ typedef enum
 	FRAME_NEXT_SUBPASS,
 	FRAME_GRAPHICS_WORK,
 	FRAME_RECORD_WORK,
+	FRAME_SCREEN_EFFECTS,
+	FRAME_READBACK,
 	FRAME_END_GRAPHICS,
 	FRAME_PREPARED_COMMANDS,
 } frame_step_type_t;
@@ -36,25 +39,14 @@ typedef enum
 	FRAME_TARGET_UI,
 } frame_target_t;
 
-typedef struct
-{
-	cb_context_t		  *cbx;
-	end_rendering_parms_t *parms;
-	bool				   screen_effects;
-	void (*record_readback) (void *);
-	void *readback_data;
-} frame_record_context_t;
-
-typedef void (*frame_recorder_t) (const frame_record_context_t *context);
-
-static void R_RecordScreenEffects (const frame_record_context_t *context);
-static void R_RecordReadback (const frame_record_context_t *context);
+typedef void (*frame_recorder_t) (cb_context_t *cbx);
 
 // Draw-stage identity is independent of attachment use and graphics grouping.
 typedef enum
 {
 	DRAW_WORLD,
 	DRAW_ENTITIES,
+	DRAW_ENTITY_SSAO,
 	DRAW_POST_ENTITIES,
 	DRAW_TRANSPARENCY,
 	DRAW_TRANSPARENCY_COMPOSITE,
@@ -215,7 +207,21 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 
 	R_BeginGraphicsPass (&builder, FRAME_TARGET_SCENE, SUBPASS_MAIN);
 	R_AddGraphicsWork (&builder, DRAW_WORLD, SCBX_WORLD, SCBX_WORLD);
+	if (r_ssao.value > 0)
+	{
+		R_EndGraphicsPass (&builder);
+		R_AddRecordWork (&builder, R_PrepareSSAOWorldDepth);
+		R_BeginGraphicsPass (&builder, FRAME_TARGET_SCENE, SUBPASS_MAIN);
+	}
 	R_AddGraphicsWork (&builder, DRAW_ENTITIES, SCBX_ENTITIES, SCBX_ENTITIES);
+	if (r_ssao.value > 0)
+	{
+		R_EndGraphicsPass (&builder);
+		R_AddRecordWork (&builder, R_ComputeSSAO);
+		R_BeginGraphicsPass (&builder, FRAME_TARGET_SCENE, SUBPASS_ENTITY_SSAO);
+		R_AddGraphicsWork (&builder, DRAW_ENTITY_SSAO, SCBX_ENTITY_SSAO, SCBX_ENTITY_SSAO);
+		R_NextSubpass (&builder, SUBPASS_MAIN);
+	}
 	R_AddGraphicsWork (&builder, DRAW_POST_ENTITIES, SCBX_SKY, SCBX_VIEW_MODEL);
 	if (!use_oit)
 		R_AddGraphicsWork (&builder, DRAW_TRANSPARENCY, SCBX_FTE_PARTICLES_BLEND, SCBX_MAIN_PASS_LAST);
@@ -242,18 +248,23 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 
 	// When disabled, this records the scene-to-GUI memory barrier instead.
 	// Runtime effect parameters do not change graphics pipeline compatibility.
-	R_AddRecordWork (&builder, R_RecordScreenEffects);
+	R_AddFrameStep (&builder, FRAME_SCREEN_EFFECTS);
 
 	R_BeginGraphicsPass (&builder, FRAME_TARGET_UI, SUBPASS_UI);
 	R_AddGraphicsWork (&builder, DRAW_UI, SCBX_GUI, SCBX_GUI);
 	R_NextSubpass (&builder, SUBPASS_POST_PROCESS);
 	R_AddGraphicsWork (&builder, DRAW_POST_PROCESS, SCBX_POST_PROCESS, SCBX_POST_PROCESS);
 	R_EndGraphicsPass (&builder);
-	R_AddRecordWork (&builder, R_RecordReadback);
+	R_AddFrameStep (&builder, FRAME_READBACK);
 }
 
 bool R_SetupRenderPasses (void)
 {
+	if (r_ssao.value > 0 && !vulkan_globals.screen_effects_sops)
+	{
+		Con_Printf ("Entity SSAO requires subgroup operations\n");
+		Cvar_SetValueQuick (&r_ssao, 0);
+	}
 	memset (&pending_layout, 0, sizeof (pending_layout));
 	pending_layout.color_format = vulkan_globals.color_format;
 	pending_layout.depth_format = vulkan_globals.depth_format;
@@ -328,6 +339,17 @@ static void R_CreateGraphicsPasses (
 			}
 		}
 
+		// Start entity classification with clear stencil, preserving world depth.
+		if (target == FRAME_TARGET_SCENE && r_ssao.value > 0)
+			for (uint32_t i = 0; i < frame->step_count; ++i)
+				if (frame->steps[i].type == FRAME_GRAPHICS_WORK && frame->steps[i].pass == pass_index && frame->steps[i].draw_stage == DRAW_ENTITIES)
+					pass_attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+		// A preceding compute step may leave depth read-only for the first subpass.
+		const VkAttachmentReference *depth = subpasses[0].pDepthStencilAttachment;
+		if (depth && depth->attachment != VK_ATTACHMENT_UNUSED && used_before[depth->attachment])
+			pass_attachments[depth->attachment].initialLayout = depth->layout;
+
 		// External dependencies cover preceding graphics/compute/transfer work.
 		// Internal dependencies cover every earlier subpass, including writers
 		// separated from their consumers by preserve-only subpasses.
@@ -337,7 +359,7 @@ static void R_CreateGraphicsPasses (
 													 VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 		const VkAccessFlags graphics_access = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
 											  VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
-											  VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+											  VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
 		for (uint32_t dst = 0; dst < desc->subpass_count; ++dst)
 		{
 			dependencies[dependency_count++] = (VkSubpassDependency){
@@ -697,17 +719,6 @@ static void R_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering_
 	}
 }
 
-static void R_RecordScreenEffects (const frame_record_context_t *context)
-{
-	R_ScreenEffects (context->cbx, context->screen_effects, context->parms);
-}
-
-static void R_RecordReadback (const frame_record_context_t *context)
-{
-	if (context->record_readback)
-		context->record_readback (context->readback_data);
-}
-
 static void R_SubmitContexts (VkCommandBuffer command_buffer, int first_context, int last_context)
 {
 	for (int scbx_index = first_context; scbx_index <= last_context; ++scbx_index)
@@ -775,15 +786,8 @@ uint32_t R_RecordFrame (
 		for (int i = 0; i < 4; ++i)
 			clear_values[msaa ? 4 : 3].color.float32[i] = 1.0f;
 
-	uint32_t					 submit_count = 0;
-	const frame_record_context_t record_context = {
-		.cbx = &vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES],
-		.parms = parms,
-		.screen_effects = screen_effects,
-		.record_readback = record_readback,
-		.readback_data = readback_data,
-	};
-	bool recording_started = false;
+	uint32_t submit_count = 0;
+	bool	 recording_started = false;
 	for (uint32_t i = 0; i < frame->step_count; ++i)
 	{
 		const frame_step_t *step = &frame->steps[i];
@@ -825,7 +829,14 @@ uint32_t R_RecordFrame (
 			R_SubmitContexts (command_buffer, step->first_context, step->last_context);
 			break;
 		case FRAME_RECORD_WORK:
-			step->recorder (&record_context);
+			step->recorder (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES]);
+			break;
+		case FRAME_SCREEN_EFFECTS:
+			R_ScreenEffects (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], screen_effects, parms);
+			break;
+		case FRAME_READBACK:
+			if (record_readback)
+				record_readback (readback_data);
 			break;
 		case FRAME_END_GRAPHICS:
 			vkCmdEndRenderPass (command_buffer);
@@ -924,6 +935,10 @@ static void R_CreateScenePasses (main_render_pass_variant_t variant)
 		.attachment = 1,
 		.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 	};
+	VkAttachmentReference depth_read_attachment_reference = {
+		.attachment = 1,
+		.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+	};
 	VkAttachmentReference resolve_attachment_reference = {
 		.attachment = 0,
 		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -971,6 +986,8 @@ static void R_CreateScenePasses (main_render_pass_variant_t variant)
 	subpass_descriptions[SUBPASS_MAIN].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	if (resolve && !use_oit)
 		subpass_descriptions[SUBPASS_MAIN].pResolveAttachments = &resolve_attachment_reference;
+	subpass_descriptions[SUBPASS_ENTITY_SSAO] = subpass_descriptions[SUBPASS_MAIN];
+	subpass_descriptions[SUBPASS_ENTITY_SSAO].pDepthStencilAttachment = &depth_read_attachment_reference;
 
 	if (use_wboit)
 	{

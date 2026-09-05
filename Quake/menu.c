@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
+#include "r_ssao.h"
 
 void (*vid_menucmdfn) (void); // johnfitz
 void (*vid_menukeyfn) (int key);
@@ -1958,12 +1959,13 @@ enum
 	GRAPHICS_OPT_MODEL_INTERPOLATION,
 	GRAPHICS_OPT_PARTICLES,
 	GRAPHICS_OPT_SHADOWS,
+	GRAPHICS_OPT_AMBIENT_OCCLUSION,
 	GRAPHICS_OPTIONS_ITEMS,
 };
 
 static int M_GraphicsOptions_NumItems ()
 {
-	return GRAPHICS_OPTIONS_ITEMS - (vulkan_globals.ray_query ? 0 : 1);
+	return GRAPHICS_OPTIONS_ITEMS - (vulkan_globals.ray_query ? 0 : 1) - (vulkan_globals.screen_effects_sops ? 0 : 1);
 }
 
 static int graphics_options_cursor = 0;
@@ -2083,7 +2085,10 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	if (mouse)
 		slider_grab = true;
 
-	switch (graphics_options_cursor)
+	int option = graphics_options_cursor;
+	if (!vulkan_globals.ray_query && option >= GRAPHICS_OPT_SHADOWS)
+		++option;
+	switch (option)
 	{
 	case GRAPHICS_OPT_GAMMA:
 		f = M_GetSliderPos (0.5, 1, vid_gamma.value, true, mouse, clamped_mouse, dir, 0.05, 999);
@@ -2155,6 +2160,10 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_SHADOWS:
 		if (vulkan_globals.ray_query)
 			Cvar_SetValueQuick (&r_rtshadows, (float)(((int)r_rtshadows.value + 4 + dir) % 4));
+		break;
+	case GRAPHICS_OPT_AMBIENT_OCCLUSION:
+		if (vulkan_globals.screen_effects_sops)
+			Cvar_SetValueQuick (&r_ssao, r_ssao.value > 0 ? 0 : 1);
 		break;
 	}
 }
@@ -2296,6 +2305,13 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PARTICLES,
 		((int)r_particles.value == 0) ? "off" : (((int)r_particles.value == 2) ? "Classic" : "glQuake"));
+
+	if (vulkan_globals.screen_effects_sops)
+	{
+		const int row = GRAPHICS_OPT_AMBIENT_OCCLUSION - (vulkan_globals.ray_query ? 0 : 1);
+		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * row, "Ambient Occlusion");
+		M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * row, r_ssao.value > 0);
+	}
 
 	if (vulkan_globals.ray_query)
 	{

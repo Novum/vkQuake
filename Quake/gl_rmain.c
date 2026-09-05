@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.h"
+#include "r_ssao.h"
 #include "tasks.h"
 #include "atomics.h"
 
@@ -1595,6 +1596,15 @@ void R_RenderView (
 		Task_AddDependency (draw_view_model_task, draw_done_task);
 
 		Atomic_StoreUInt32 (&next_visedict, 0u);
+		if (r_ssao.value > 0)
+		{
+			task_handle_t draw_ssao_task = Task_AllocateAndAssignFunc (R_DrawSSAOTask, NULL, 0);
+			Task_AddDependency (before_mark, draw_ssao_task);
+			Task_AddDependency (begin_rendering_task, draw_ssao_task);
+			Task_AddDependency (draw_ssao_task, draw_done_task);
+			Task_Submit (draw_ssao_task);
+		}
+
 		task_handle_t draw_entities_task = Task_AllocateAndAssignIndexedFunc (R_DrawEntitiesTask, NUM_ENTITIES_CBX, &use_tasks, sizeof (use_tasks));
 		Task_AddDependency (store_efrags, draw_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_entities_task);
@@ -1691,6 +1701,8 @@ void R_RenderView (
 		R_DrawSkyTask (NULL);
 		R_DrawWaterTask (NULL);
 		R_DrawEntitiesTask (0, NULL);
+		if (r_ssao.value > 0)
+			R_DrawSSAOTask (NULL);
 		R_SortAlphaEntitiesTask (NULL);
 		R_DrawAlphaEntitiesTask (0, NULL);
 #ifdef PSET_SCRIPT

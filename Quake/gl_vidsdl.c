@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_vidsdl.c -- SDL vid component
 
 #include "quakedef.h"
+#include "r_ssao.h"
 #define NO_SDL_VULKAN_TYPEDEFS
 #include "cfgfile.h"
 #include "bgmusic.h"
@@ -1600,6 +1601,8 @@ static void GL_CreateDepthBuffer (void)
 	image_create_info.samples = vulkan_globals.sample_count;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 	image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	if (r_ssao.value > 0)
+		image_create_info.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
 	assert (depth_buffer == VK_NULL_HANDLE);
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &depth_buffer);
@@ -2631,6 +2634,7 @@ static void GL_CreateRenderResources (void)
 
 	GL_CreateColorBuffer ();
 	GL_CreateDepthBuffer ();
+	R_CreateSSAO (depth_buffer);
 	R_CreateRenderPasses ();
 	GL_CreateFrameBuffers ();
 	R_CreatePipelines ();
@@ -2706,6 +2710,7 @@ static void GL_DestroyRenderResources (void)
 	}
 
 	vkDestroyImageView (vulkan_globals.device, depth_buffer_view, NULL);
+	R_DestroySSAO ();
 	vkDestroyImage (vulkan_globals.device, depth_buffer, NULL);
 	R_FreeVulkanMemory (&depth_buffer_memory, &num_vulkan_misc_allocations);
 

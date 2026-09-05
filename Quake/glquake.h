@@ -236,6 +236,7 @@ typedef enum
 	// UI render Pass:
 	SCBX_GUI,
 	SCBX_POST_PROCESS,
+	SCBX_ENTITY_SSAO,
 	SCBX_NUM,
 	// Last pass before UI
 	SCBX_MAIN_OPAQUE_PASS_LAST = SCBX_FTE_PARTICLES_BLEND,
@@ -316,6 +317,7 @@ static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 	1,				  // SCBX_OIT_RESOLVE,
 	1,				  // SCBX_GUI,
 	1,				  // SCBX_POST_PROCESS,
+	1,				  // SCBX_ENTITY_SSAO
 };
 
 typedef struct cb_context_s

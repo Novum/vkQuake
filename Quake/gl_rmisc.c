@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_misc.c
 
 #include "quakedef.h"
+#include "r_ssao.h"
 #include "gl_heap.h"
 #include <float.h>
 
@@ -1942,6 +1943,53 @@ void R_CreatePipelineLayouts ()
 	}
 
 	{
+		// Entity-only screen-space occlusion.
+		VkDescriptorSetLayout layouts[] = {
+			vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle,
+			vulkan_globals.single_texture_set_layout.handle};
+		VkPushConstantRange		   range = {VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof (ssao_constants_t)};
+		VkPipelineLayoutCreateInfo info = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.setLayoutCount = countof (layouts),
+			.pSetLayouts = layouts,
+			.pushConstantRangeCount = 1,
+			.pPushConstantRanges = &range,
+		};
+		if (vkCreatePipelineLayout (vulkan_globals.device, &info, NULL, &ssao_layout.handle) != VK_SUCCESS)
+			Sys_Error ("Couldn't create entity SSAO layout");
+		ssao_layout.push_constant_range = range;
+		ssao_layout.mboit_input_attachment_set = -1;
+		layouts[2] = vulkan_globals.single_texture_cs_write_set_layout.handle;
+		layouts[3] = vulkan_globals.single_texture_cs_write_set_layout.handle;
+		range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		if (vkCreatePipelineLayout (vulkan_globals.device, &info, NULL, &ssao_compute_layout.handle) != VK_SUCCESS)
+			Sys_Error ("Couldn't create entity GTAO compute layout");
+		ssao_compute_layout.push_constant_range = range;
+		ssao_compute_layout.mboit_input_attachment_set = -1;
+		ssao_prepare_pipeline.layout = ssao_compute_layout;
+		ssao_evaluate_pipeline.layout = ssao_compute_layout;
+		ssao_filter_pipeline.layout = ssao_compute_layout;
+		VkDescriptorSetLayoutBinding bindings[5];
+		for (int i = 0; i < 5; ++i)
+			bindings[i] = (VkDescriptorSetLayoutBinding){
+				.binding = i,
+				.descriptorCount = 1,
+				.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+				.descriptorType = i == 0 ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE};
+		const VkDescriptorSetLayoutCreateInfo set_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = countof (bindings), .pBindings = bindings};
+		ssao_mip_set_layout.num_combined_image_samplers = 1;
+		ssao_mip_set_layout.num_storage_images = 4;
+		if (vkCreateDescriptorSetLayout (vulkan_globals.device, &set_info, NULL, &ssao_mip_set_layout.handle) != VK_SUCCESS)
+			Sys_Error ("Couldn't create entity GTAO mip descriptor layout");
+		info.setLayoutCount = 1;
+		info.pSetLayouts = &ssao_mip_set_layout.handle;
+		ssao_mip_pipeline.layout = ssao_compute_layout;
+		if (vkCreatePipelineLayout (vulkan_globals.device, &info, NULL, &ssao_mip_pipeline.layout.handle) != VK_SUCCESS)
+			Sys_Error ("Couldn't create entity GTAO mip pipeline layout");
+	}
+
+	{
 		// WBOIT resolve
 		VkDescriptorSetLayout wboit_resolve_descriptor_set_layouts[1] = {
 			vulkan_globals.oit_input_attachment_set_layout.handle,
@@ -2528,6 +2576,13 @@ DECLARE_SHADER_MODULE (sky_cube_vert);
 DECLARE_SHADER_MODULE (sky_cube_frag);
 DECLARE_SHADER_MODULE (postprocess_vert);
 DECLARE_SHADER_MODULE (postprocess_frag);
+DECLARE_SHADER_MODULE (ssao_composite_frag);
+DECLARE_SHADER_MODULE (ssao_composite_msaa_frag);
+DECLARE_SHADER_MODULE (ssao_prepare_comp);
+DECLARE_SHADER_MODULE (ssao_prepare_msaa_comp);
+DECLARE_SHADER_MODULE (ssao_evaluate_comp);
+DECLARE_SHADER_MODULE (ssao_filter_comp);
+DECLARE_SHADER_MODULE (ssao_mip_comp);
 DECLARE_SHADER_MODULE (wboit_resolve_frag);
 DECLARE_SHADER_MODULE (wboit_resolve_msaa_frag);
 DECLARE_SHADER_MODULE (mboit_resolve_frag);
@@ -2967,6 +3022,15 @@ static void R_CreateGraphicsPipeline (vulkan_pipeline_t *pipeline, pipeline_crea
 {
 	assert (pipeline->handle == VK_NULL_HANDLE);
 	infos->graphics_pipeline.layout = layout.handle;
+	VkPipelineDepthStencilStateCreateInfo depth_stencil = infos->depth_stencil_state;
+	if (r_ssao.value > 0 && depth_stencil.depthTestEnable && depth_stencil.depthWriteEnable && !depth_stencil.stencilTestEnable)
+	{
+		// Bit 0 belongs to sky. Bit 1 records surviving opaque samples for SSAO.
+		depth_stencil.stencilTestEnable = VK_TRUE;
+		depth_stencil.front = (VkStencilOpState){VK_STENCIL_OP_KEEP, VK_STENCIL_OP_REPLACE, VK_STENCIL_OP_KEEP, VK_COMPARE_OP_ALWAYS, 2, 2, 2};
+		depth_stencil.back = depth_stencil.front;
+	}
+	infos->graphics_pipeline.pDepthStencilState = &depth_stencil;
 	const VkResult err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos->graphics_pipeline, NULL, &pipeline->handle);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (%s) with code %i", name, (int)err);
@@ -2996,6 +3060,7 @@ static void R_CreateGraphicsPipeline (vulkan_pipeline_t *pipeline, pipeline_crea
 		pipeline_instances = instance;
 		GL_SetObjectName ((uint64_t)instance->handle, VK_OBJECT_TYPE_PIPELINE, name);
 	}
+	infos->graphics_pipeline.pDepthStencilState = &infos->depth_stencil_state;
 }
 
 /*
@@ -3961,6 +4026,33 @@ static void R_CreatePostprocessPipelines ()
 	base.vertex_input_state.pVertexBindingDescriptions = NULL;
 
 	base.shader_stages[0].module = postprocess_vert_module;
+	if (r_ssao.value > 0)
+	{
+		pipeline_create_infos_t ssao;
+		R_CreateComputePipeline (
+			&ssao_prepare_pipeline, vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? ssao_prepare_comp_module : ssao_prepare_msaa_comp_module, 0, NULL,
+			"ssao_prepare");
+		R_CreateComputePipeline (&ssao_evaluate_pipeline, ssao_evaluate_comp_module, 0, NULL, "ssao_evaluate");
+		R_CreateComputePipeline (
+			&ssao_mip_pipeline, ssao_mip_comp_module,
+			VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT | VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT, NULL,
+			"ssao_mip");
+		R_CreateComputePipeline (&ssao_filter_pipeline, ssao_filter_comp_module, 0, NULL, "ssao_filter");
+		R_CopyPipelineCreateInfos (&ssao, &base);
+		ssao.depth_stencil_state.depthTestEnable = VK_FALSE;
+		ssao.depth_stencil_state.depthWriteEnable = VK_FALSE;
+		ssao.multisample_state.sampleShadingEnable = VK_FALSE;
+		ssao.blend_attachment_states[0].blendEnable = VK_TRUE;
+		ssao.blend_attachment_states[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		ssao.blend_attachment_states[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		ssao.blend_attachment_states[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+		ssao.shader_stages[1].module = vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? ssao_composite_frag_module : ssao_composite_msaa_frag_module;
+		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+		{
+			R_SetPipelineRenderPassVariant (&ssao, SUBPASS_ENTITY_SSAO, variant);
+			R_CreateGraphicsPipeline (&ssao_pipelines[variant], &ssao, ssao_layout, "ssao");
+		}
+	}
 
 	pipeline_create_infos_t infos;
 	R_CopyPipelineCreateInfos (&infos, &base);
@@ -4106,6 +4198,24 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (sky_cube_frag);
 	CREATE_SHADER_MODULE (postprocess_vert);
 	CREATE_SHADER_MODULE (postprocess_frag);
+#ifdef _DEBUG
+	if (r_ssao.value > 0)
+	{
+		if (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT)
+			ssao_composite_frag_module = R_CreateShaderModule (ssao_composite_debug_frag_spv, ssao_composite_debug_frag_spv_size, "ssao_composite_debug_frag");
+		else
+			ssao_composite_msaa_frag_module =
+				R_CreateShaderModule (ssao_composite_msaa_debug_frag_spv, ssao_composite_msaa_debug_frag_spv_size, "ssao_composite_msaa_debug_frag");
+	}
+#else
+	CREATE_SHADER_MODULE_COND (ssao_composite_frag, r_ssao.value > 0 && vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT);
+	CREATE_SHADER_MODULE_COND (ssao_composite_msaa_frag, r_ssao.value > 0 && vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+#endif
+	CREATE_SHADER_MODULE_COND (ssao_prepare_comp, r_ssao.value > 0 && vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT);
+	CREATE_SHADER_MODULE_COND (ssao_prepare_msaa_comp, r_ssao.value > 0 && vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+	CREATE_SHADER_MODULE_COND (ssao_evaluate_comp, r_ssao.value > 0);
+	CREATE_SHADER_MODULE_COND (ssao_mip_comp, r_ssao.value > 0);
+	CREATE_SHADER_MODULE_COND (ssao_filter_comp, r_ssao.value > 0);
 	CREATE_SHADER_MODULE (wboit_resolve_frag);
 	CREATE_SHADER_MODULE_COND (wboit_resolve_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE (mboit_resolve_frag);
@@ -4184,6 +4294,13 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (sky_cube_frag);
 	DESTROY_SHADER_MODULE (postprocess_vert);
 	DESTROY_SHADER_MODULE (postprocess_frag);
+	DESTROY_SHADER_MODULE (ssao_composite_frag);
+	DESTROY_SHADER_MODULE (ssao_composite_msaa_frag);
+	DESTROY_SHADER_MODULE (ssao_prepare_comp);
+	DESTROY_SHADER_MODULE (ssao_prepare_msaa_comp);
+	DESTROY_SHADER_MODULE (ssao_evaluate_comp);
+	DESTROY_SHADER_MODULE (ssao_mip_comp);
+	DESTROY_SHADER_MODULE (ssao_filter_comp);
 	DESTROY_SHADER_MODULE (wboit_resolve_frag);
 	DESTROY_SHADER_MODULE (wboit_resolve_msaa_frag);
 	DESTROY_SHADER_MODULE (mboit_resolve_frag);
@@ -4248,6 +4365,17 @@ R_DestroyPipelines
 */
 void R_DestroyPipelines (void)
 {
+	vkDestroyPipeline (vulkan_globals.device, ssao_mip_pipeline.handle, NULL);
+	ssao_mip_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, ssao_prepare_pipeline.handle, NULL);
+	vkDestroyPipeline (vulkan_globals.device, ssao_evaluate_pipeline.handle, NULL);
+	vkDestroyPipeline (vulkan_globals.device, ssao_filter_pipeline.handle, NULL);
+	ssao_prepare_pipeline.handle = ssao_evaluate_pipeline.handle = ssao_filter_pipeline.handle = VK_NULL_HANDLE;
+	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+	{
+		vkDestroyPipeline (vulkan_globals.device, ssao_pipelines[variant].handle, NULL);
+		ssao_pipelines[variant].handle = VK_NULL_HANDLE;
+	}
 	while (pipeline_instances)
 	{
 		pipeline_instance_t *instance = pipeline_instances;
@@ -4565,6 +4693,7 @@ void R_Init (void)
 	Cvar_SetCallback (&r_rtshadows, R_SetRTShadows_f);
 	Cvar_RegisterVariable (&r_indirect);
 	Cvar_RegisterVariable (&r_tasks);
+	R_InitSSAO ();
 	Cvar_RegisterVariable (&r_parallelmark);
 	Cvar_RegisterVariable (&r_usesops);
 

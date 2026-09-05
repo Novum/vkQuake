@@ -186,6 +186,15 @@ SHADER_OBJS = \
 	sky_cube_frag.o \
 	sky_cube_vert.o \
 	postprocess_frag.o \
+	ssao_composite_frag.o \
+	ssao_composite_debug_frag.o \
+	ssao_composite_msaa_debug_frag.o \
+	ssao_prepare_comp.o \
+	ssao_prepare_msaa_comp.o \
+	ssao_evaluate_comp.o \
+	ssao_mip_comp.o \
+	ssao_filter_comp.o \
+	ssao_composite_msaa_frag.o \
 	postprocess_vert.o \
 	wboit_resolve_frag.o \
 	wboit_resolve_msaa_frag.o \
@@ -217,6 +226,7 @@ GLOBJS = \
 	gl_fog.o \
 	gl_rmisc.o \
 	r_passes.o \
+	r_ssao.o \
 	r_part.o \
 	r_part_fte.o \
 	r_world.o \
@@ -308,6 +318,9 @@ $(BINTOC_EXE): ../Shaders/bintoc.c
 .SECONDARY:
 ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv: ../Shaders/%.comp
 	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.d
+
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/ssao_mip_comp.spv: GLSLANG_FLAGS += --target-env vulkan1.1
+
 %_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv $(BINTOC_EXE)
 	$(BINTOC_EXE) $< $*_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c

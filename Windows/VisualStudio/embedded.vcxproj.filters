@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="Shaders\SSAO">
+      <UniqueIdentifier>{76f46179-befd-4d91-99cb-a75a08031d0f}</UniqueIdentifier>
+    </Filter>
     <CustomBuild Include="..\..\Shaders\alias.frag">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
@@ -24,6 +27,33 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\postprocess.frag">
       <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_composite.frag">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_composite_debug.frag">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_prepare.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_prepare_msaa.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_evaluate.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_mip.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_filter.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_composite_msaa.frag">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_composite_msaa_debug.frag">
+      <Filter>Shaders\SSAO</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects.comp">
       <Filter>Shaders\Screen Effects</Filter>
@@ -140,6 +170,15 @@
   <ItemGroup>
     <None Include="..\..\Shaders\alias_common.inc">
       <Filter>Shaders\Alias</Filter>
+    </None>
+    <None Include="..\..\Shaders\ssao_composite.inc">
+      <Filter>Shaders\SSAO</Filter>
+    </None>
+    <None Include="..\..\Shaders\gtao.inc">
+      <Filter>Shaders\SSAO</Filter>
+    </None>
+    <None Include="..\..\Shaders\ssao_prepare.inc">
+      <Filter>Shaders\SSAO</Filter>
     </None>
     <None Include="..\..\Shaders\basic_common.inc">
       <Filter>Shaders\World</Filter>

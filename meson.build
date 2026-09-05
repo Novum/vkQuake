@@ -43,6 +43,15 @@ shaders = [
     'Shaders/indirect.comp',
     'Shaders/indirect_clear.comp',
     'Shaders/postprocess.frag',
+    'Shaders/ssao_composite.frag',
+    'Shaders/ssao_composite_debug.frag',
+    'Shaders/ssao_composite_msaa_debug.frag',
+    'Shaders/ssao_prepare.comp',
+    'Shaders/ssao_prepare_msaa.comp',
+    'Shaders/ssao_evaluate.comp',
+    'Shaders/ssao_mip.comp',
+    'Shaders/ssao_filter.comp',
+    'Shaders/ssao_composite_msaa.frag',
     'Shaders/postprocess.vert',
     'Shaders/showtris.frag',
     'Shaders/showtris.vert',
@@ -171,7 +180,7 @@ fs = import('fs')
 
 shader_jobs = []
 foreach shader : shaders
-    target_env = shader.contains('sops') ? ['--target-env', 'vulkan1.1'] : []
+    target_env = (shader.contains('sops') or shader.endswith('ssao_mip.comp')) ? ['--target-env', 'vulkan1.1'] : []
     shader_jobs += [[shader, fs.name(shader), target_env]]
 endforeach
 foreach variant : shader_variants
@@ -231,6 +240,7 @@ srcs = [
     'Quake/gl_rmain.c',
     'Quake/gl_rmisc.c',
     'Quake/r_passes.c',
+    'Quake/r_ssao.c',
     'Quake/gl_screen.c',
     'Quake/gl_sky.c',
     'Quake/gl_texmgr.c',

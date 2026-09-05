@@ -1,0 +1,120 @@
+// MIT License
+//
+// Copyright (c) 2016-2021 Intel Corporation
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#version 450
+#extension GL_GOOGLE_include_directive : require
+layout (local_size_x = 8, local_size_y = 8) in;
+layout (set = 0, binding = 0) uniform usampler2D source;
+layout (set = 1, binding = 0) uniform sampler2D edges;
+layout (r32ui, set = 2, binding = 0) uniform writeonly uimage2D output_texture;
+#include "gtao.inc"
+
+vec4 unpack_edges (float _packed_val)
+{
+	uint packed_val = uint ((_packed_val * 255.5));
+	vec4 edges_lrtb;
+	edges_lrtb.x = float ((packed_val >> 6) & 0x03) / 3.0;
+	edges_lrtb.y = float ((packed_val >> 4) & 0x03) / 3.0;
+	edges_lrtb.z = float ((packed_val >> 2) & 0x03) / 3.0;
+	edges_lrtb.w = float ((packed_val >> 0) & 0x03) / 3.0;
+
+	return clamp (edges_lrtb, 0.0, 1.0);
+}
+
+void add_sample (float ssao_value, float edge_value, inout float sum, inout float sum_weight)
+{
+	sum += edge_value * ssao_value;
+	sum_weight += edge_value;
+}
+
+void main ()
+{
+	uvec2		   pixel = gl_GlobalInvocationID.xy * uvec2 (2, 1);
+	gtao_constants c = get_gtao_constants ();
+	if (any (greaterThanEqual (pixel, uvec2 (c.viewport_size))))
+		return;
+	bool final_apply = pc.settings.z != 0;
+
+	float blur_amount = (final_apply) ? (c.denoise_blur_beta) : (c.denoise_blur_beta / 5.0);
+	float diag_weight = 0.85 * 0.5;
+
+	vec2 gather_center = vec2 (pixel.x, pixel.y) * c.viewport_pixel_size;
+	vec4 edges_q0 = textureGatherOffset (edges, gather_center, ivec2 (0, 0), 0);
+	vec4 edges_q1 = textureGatherOffset (edges, gather_center, ivec2 (2, 0), 0);
+	vec4 edges_q2 = textureGatherOffset (edges, gather_center, ivec2 (1, 2), 0);
+
+	vec4 vis_q0 = vec4 (textureGatherOffset (source, gather_center, ivec2 (0, 0), 0)) / 255.0;
+	vec4 vis_q1 = vec4 (textureGatherOffset (source, gather_center, ivec2 (2, 0), 0)) / 255.0;
+	vec4 vis_q2 = vec4 (textureGatherOffset (source, gather_center, ivec2 (0, 2), 0)) / 255.0;
+	vec4 vis_q3 = vec4 (textureGatherOffset (source, gather_center, ivec2 (2, 2), 0)) / 255.0;
+
+	for (int side = 0; side < 2; side++)
+	{
+		ivec2 pix_coord = ivec2 (pixel.x + side, pixel.y);
+
+		vec4 edges_l_lrtb = unpack_edges ((side == 0) ? (edges_q0.x) : (edges_q0.y));
+		vec4 edges_t_lrtb = unpack_edges ((side == 0) ? (edges_q0.z) : (edges_q1.w));
+		vec4 edges_r_lrtb = unpack_edges ((side == 0) ? (edges_q1.x) : (edges_q1.y));
+		vec4 edges_b_lrtb = unpack_edges ((side == 0) ? (edges_q2.w) : (edges_q2.z));
+
+		vec4 edges_c_lrtb = unpack_edges ((side == 0) ? (edges_q0.y) : (edges_q1.x));
+
+		edges_c_lrtb *= vec4 (edges_l_lrtb.y, edges_r_lrtb.x, edges_t_lrtb.w, edges_b_lrtb.z);
+
+		float leak_threshold = 2.5;
+		float leak_strength = 0.5;
+		float edginess = (clamp (4.0 - leak_threshold - dot (edges_c_lrtb, vec4 (1, 1, 1, 1)), 0.0, 1.0) / (4 - leak_threshold)) * leak_strength;
+		edges_c_lrtb = clamp (edges_c_lrtb + edginess, 0.0, 1.0);
+
+		float weight_tl = diag_weight * (edges_c_lrtb.x * edges_l_lrtb.z + edges_c_lrtb.z * edges_t_lrtb.x);
+		float weight_tr = diag_weight * (edges_c_lrtb.z * edges_t_lrtb.y + edges_c_lrtb.y * edges_r_lrtb.z);
+		float weight_bl = diag_weight * (edges_c_lrtb.w * edges_b_lrtb.x + edges_c_lrtb.x * edges_l_lrtb.w);
+		float weight_br = diag_weight * (edges_c_lrtb.y * edges_r_lrtb.w + edges_c_lrtb.w * edges_b_lrtb.y);
+
+		float ssao_value = (side == 0) ? (vis_q0[1]) : (vis_q1[0]);
+		float ssao_value_l = (side == 0) ? (vis_q0[0]) : (vis_q0[1]);
+		float ssao_value_t = (side == 0) ? (vis_q0[2]) : (vis_q1[3]);
+		float ssao_value_r = (side == 0) ? (vis_q1[0]) : (vis_q1[1]);
+		float ssao_value_b = (side == 0) ? (vis_q2[2]) : (vis_q3[3]);
+		float ssao_value_tl = (side == 0) ? (vis_q0[3]) : (vis_q0[2]);
+		float ssao_value_br = (side == 0) ? (vis_q3[3]) : (vis_q3[2]);
+		float ssao_value_tr = (side == 0) ? (vis_q1[3]) : (vis_q1[2]);
+		float ssao_value_bl = (side == 0) ? (vis_q2[3]) : (vis_q2[2]);
+
+		float sum_weight = blur_amount;
+		float sum = ssao_value * sum_weight;
+
+		add_sample (ssao_value_l, edges_c_lrtb.x, sum, sum_weight);
+		add_sample (ssao_value_r, edges_c_lrtb.y, sum, sum_weight);
+		add_sample (ssao_value_t, edges_c_lrtb.z, sum, sum_weight);
+		add_sample (ssao_value_b, edges_c_lrtb.w, sum, sum_weight);
+
+		add_sample (ssao_value_tl, weight_tl, sum, sum_weight);
+		add_sample (ssao_value_tr, weight_tr, sum, sum_weight);
+		add_sample (ssao_value_bl, weight_bl, sum, sum_weight);
+		add_sample (ssao_value_br, weight_br, sum, sum_weight);
+
+		float visibility = sum / sum_weight;
+		visibility *= final_apply ? 1.5 : 1.0;
+		imageStore (output_texture, pix_coord, uvec4 (uint (visibility * 255.0 + 0.5)));
+	}
+}

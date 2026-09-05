@@ -154,6 +154,9 @@
     <ClCompile Include="..\..\Quake\r_passes.c">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\r_ssao.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\gl_screen.c">
       <Filter>Renderer</Filter>
     </ClCompile>
@@ -388,6 +391,33 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\postprocess.frag.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_composite.frag.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_composite_debug.frag.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_prepare.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_prepare_msaa.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_evaluate.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_mip.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_filter.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_composite_msaa.frag.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_composite_msaa_debug.frag.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\postprocess.vert.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
@@ -500,6 +530,33 @@
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\postprocess.frag.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_composite.frag.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_composite_debug.frag.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_prepare.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_prepare_msaa.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_evaluate.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_mip.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_filter.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_composite_msaa.frag.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_composite_msaa_debug.frag.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\postprocess.vert.c">
@@ -949,6 +1006,9 @@
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\r_passes.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\r_ssao.h">
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\draw.h">
