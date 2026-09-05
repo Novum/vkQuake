@@ -503,8 +503,8 @@ VID_ValidMode
 */
 static qboolean VID_ValidMode (int width, int height, float refreshrate, qboolean fullscreen)
 {
-	// ignore width / height / bpp if vid_desktopfullscreen is enabled
-	if (fullscreen && vid_desktopfullscreen.value)
+	// Borderless desktop fullscreen uses the current desktop mode.
+	if (fullscreen && vid_fullscreen.value == 1 && vid_desktopfullscreen.value)
 		return true;
 
 	if (width < 320)
@@ -599,7 +599,7 @@ static qboolean VID_SetMode (int width, int height, float refreshrate, qboolean 
 
 #ifdef USE_SDL3
 	// Set fullscreen mode: NULL for desktop fullscreen, specific mode for exclusive fullscreen
-	if (vid_desktopfullscreen.value)
+	if (vid_fullscreen.value == 1 && vid_desktopfullscreen.value)
 		SDL_SetWindowFullscreenMode (draw_context, NULL);
 	else
 		SDL_SetWindowFullscreenMode (draw_context, VID_SDL_GetDisplayMode (width, height, refreshrate));
@@ -617,7 +617,7 @@ static qboolean VID_SetMode (int width, int height, float refreshrate, qboolean 
 		if (!SDL_SetWindowFullscreen (draw_context, true))
 			Sys_Error ("Couldn't set fullscreen state mode: %s", SDL_GetError ());
 #else
-		Uint32 fullscreen_flag = vid_desktopfullscreen.value ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+		Uint32 fullscreen_flag = (vid_fullscreen.value == 1 && vid_desktopfullscreen.value) ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
 		if (SDL_SetWindowFullscreen (draw_context, fullscreen_flag) != 0)
 			Sys_Error ("Couldn't set fullscreen state mode: %s", SDL_GetError ());
 #endif
@@ -4014,9 +4014,9 @@ void VID_SyncCvars (void)
 
 enum
 {
+	VID_OPT_FULLSCREEN,
 	VID_OPT_MODE,
 	VID_OPT_REFRESHRATE,
-	VID_OPT_FULLSCREEN,
 	VID_OPT_VSYNC,
 	VID_OPT_PADDING,
 	VID_OPT_TEST,
@@ -4037,6 +4037,15 @@ static int			 vid_menu_nummodes = 0;
 
 static float vid_menu_rates[MAX_RATES_LIST];
 static int	 vid_menu_numrates = 0;
+
+static qboolean VID_Menu_OptionSelectable (int option)
+{
+	if (option == VID_OPT_PADDING)
+		return false;
+	if (vid_fullscreen.value == 1 && vid_desktopfullscreen.value && (option == VID_OPT_MODE || option == VID_OPT_REFRESHRATE))
+		return false;
+	return true;
+}
 
 // common window sizes offered in addition to the display modes when windowed
 static const vid_menu_mode vid_menu_windowed_modes[] = {
@@ -4322,20 +4331,22 @@ void M_Video_Key (int key)
 
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
-		--video_options_cursor;
+		if (--video_options_cursor < 0)
+			video_options_cursor = VIDEO_OPTIONS_ITEMS - 1;
 		if (video_options_cursor == VID_OPT_PADDING)
 			--video_options_cursor;
-		if (video_options_cursor < 0)
-			video_options_cursor = VIDEO_OPTIONS_ITEMS - 1;
+		if (!VID_Menu_OptionSelectable (video_options_cursor))
+			video_options_cursor = VID_OPT_FULLSCREEN;
 		break;
 
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
-		++video_options_cursor;
+		if (++video_options_cursor >= VIDEO_OPTIONS_ITEMS)
+			video_options_cursor = 0;
 		if (video_options_cursor == VID_OPT_PADDING)
 			++video_options_cursor;
-		if (video_options_cursor >= VIDEO_OPTIONS_ITEMS)
-			video_options_cursor = 0;
+		if (!VID_Menu_OptionSelectable (video_options_cursor))
+			video_options_cursor = VID_OPT_VSYNC;
 		break;
 
 	case K_LEFTARROW:
@@ -4438,6 +4449,11 @@ void M_Video_Draw (cb_context_t *cbx)
 	// options
 	for (int i = 0; i < VIDEO_OPTIONS_ITEMS; i++)
 	{
+		const qboolean selectable = VID_Menu_OptionSelectable (i);
+		const qboolean dimmed = i != VID_OPT_PADDING && !selectable;
+		if (dimmed)
+			GL_SetCanvasColor (1, 1, 1, 0.375f);
+
 		switch (i)
 		{
 		case VID_OPT_MODE:
@@ -4464,10 +4480,11 @@ void M_Video_Draw (cb_context_t *cbx)
 			break;
 		}
 
-		if (i != VID_OPT_PADDING)
+		if (dimmed)
+			GL_SetCanvasColor (1, 1, 1, 1);
+
+		if (selectable)
 			M_Mouse_UpdateCursor (&video_options_cursor, 12, 400, y, 8, i);
-		if (video_options_cursor == VID_OPT_PADDING)
-			video_options_cursor = VID_OPT_VSYNC;
 		if (video_options_cursor == i)
 			Draw_Character (cbx, MENU_CURSOR_X, y, 12 + ((int)(realtime * 4) & 1));
 
@@ -4490,6 +4507,8 @@ void M_Menu_Video_f (void)
 
 	// set all the cvars to match the current mode when entering the menu
 	VID_SyncCvars ();
+	if (!VID_Menu_OptionSelectable (video_options_cursor))
+		video_options_cursor = VID_OPT_FULLSCREEN;
 
 	// set up mode and rate lists based on current cvars
 	VID_Menu_RebuildModeList ();
