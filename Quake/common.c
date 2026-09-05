@@ -2262,7 +2262,11 @@ static qfilesize_t COM_FindFile (const char *filename, int *handle, FILE **file,
 	char		  netpath[MAX_OSPATH];
 	pack_t		 *pak;
 	int			  i;
-	qboolean	  is_config = !q_strcasecmp (filename, "config.cfg"), found = false;
+
+	// Stock quake.rc executes config.cfg. Treat that name as an alias for
+	// vkQuake.cfg, even when vkQuake.cfg does not exist.
+	if (!q_strcasecmp (filename, "config.cfg"))
+		filename = CONFIG_NAME;
 
 	if (file && handle)
 		Sys_Error ("COM_FindFile: both handle and file set");
@@ -2318,19 +2322,9 @@ static qfilesize_t COM_FindFile (const char *filename, int *handle, FILE **file,
 					continue;
 			}
 
-			if (is_config)
-			{
-				q_snprintf (netpath, sizeof (netpath), "%s/" CONFIG_NAME, search->filename);
-				if (Sys_FileType (netpath) & FS_ENT_FILE)
-					found = true;
-			}
-
-			if (!found)
-			{
-				q_snprintf (netpath, sizeof (netpath), "%s/%s", search->filename, filename);
-				if (!(Sys_FileType (netpath) & FS_ENT_FILE))
-					continue;
-			}
+			q_snprintf (netpath, sizeof (netpath), "%s/%s", search->filename, filename);
+			if (!(Sys_FileType (netpath) & FS_ENT_FILE))
+				continue;
 
 			if (path_id)
 				*path_id = search->path_id;
