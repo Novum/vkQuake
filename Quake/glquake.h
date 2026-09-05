@@ -161,6 +161,10 @@ typedef struct vulkan_pipeline_s
 	VkPipeline					handle;
 	vulkan_pipeline_layout_t	layout;
 	struct pipeline_instance_s *alternatives;
+#ifndef NDEBUG
+	VkRenderPass base_render_pass;
+	uint32_t	 base_subpass;
+#endif
 } vulkan_pipeline_t;
 
 typedef struct vulkan_desc_set_layout_s

@@ -102,5 +102,8 @@ void R_ConfigureRenderContext (struct cb_context_s *cbx, int context, main_rende
 const render_pass_binding_t *R_RenderPassBinding (subpass_type_t stage, main_render_pass_variant_t variant);
 
 const render_pass_binding_t *R_RenderPassAlternative (VkRenderPass pass, uint32_t subpass, uint32_t index);
+#ifndef NDEBUG
+bool R_DebugRenderPassCompatible (VkRenderPass first, VkRenderPass second);
+#endif
 
 #endif /* R_PASSES_H */

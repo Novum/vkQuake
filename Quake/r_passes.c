@@ -135,6 +135,7 @@ static frame_step_t *R_AddFrameStep (frame_builder_t *builder, frame_step_type_t
 
 static void R_AddSubpass (frame_builder_t *builder, subpass_type_t type)
 {
+	assert (type >= 0 && type < SUBPASS_COUNT);
 	graphics_pass_desc_t *pass = &builder->desc->passes[builder->desc->pass_count - 1];
 	if (pass->subpass_count == countof (pass->subpasses))
 		Sys_Error ("Too many subpasses");
@@ -163,6 +164,14 @@ static void R_NextSubpass (frame_builder_t *builder, subpass_type_t type)
 static void R_AddGraphicsWork (frame_builder_t *builder, draw_stage_t stage, int first, int last)
 {
 	assert (builder->graphics_active);
+	assert (first >= 0 && first <= last && last < SCBX_NUM);
+#ifndef NDEBUG
+	for (uint32_t i = 0; i < builder->desc->step_count; ++i)
+	{
+		const frame_step_t *previous = &builder->desc->steps[i];
+		assert (previous->type != FRAME_GRAPHICS_WORK || last < previous->first_context || first > previous->last_context);
+	}
+#endif
 	for (uint32_t i = 0; i < builder->desc->step_count; ++i)
 		if (builder->desc->steps[i].type == FRAME_GRAPHICS_WORK && builder->desc->steps[i].draw_stage == stage)
 			Sys_Error ("Draw stage %d declared twice", stage);
@@ -189,6 +198,7 @@ static void R_AddRecordWork (frame_builder_t *builder, frame_recorder_t recorder
 static void R_AddPreparedCommands (frame_builder_t *builder, int context)
 {
 	assert (!builder->graphics_active);
+	assert (context >= 0 && context < PCBX_NUM);
 	R_AddFrameStep (builder, FRAME_PREPARED_COMMANDS)->first_context = context;
 }
 
@@ -1149,6 +1159,31 @@ const render_pass_binding_t *R_RenderPassBinding (subpass_type_t type, main_rend
 		Sys_Error ("Missing subpass type %d in variant %d", type, variant);
 	return binding;
 }
+
+#ifndef NDEBUG
+// Compare the pass definitions we own, allowing distinct handles for the same UI
+// layout and the two stencil-load variants. This is not a general Vulkan comparator.
+bool R_DebugRenderPassCompatible (VkRenderPass first, VkRenderPass second)
+{
+	if (first == second)
+		return true;
+	const graphics_pass_desc_t *descs[2] = {NULL, NULL};
+	int							variants[2] = {0, 0};
+	const VkRenderPass			handles[2] = {first, second};
+	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+		for (uint32_t pass = 0; pass < current_layout.variants[variant].pass_count; ++pass)
+			for (int stencil = 0; stencil < MAIN_RENDER_PASS_STENCIL_COUNT; ++stencil)
+				for (int i = 0; i < 2; ++i)
+					if (physical_passes[variant][pass].handles[stencil] == handles[i])
+					{
+						descs[i] = &current_layout.variants[variant].passes[pass];
+						variants[i] = variant;
+					}
+	return descs[0] && descs[1] && descs[0]->target == descs[1]->target && (descs[0]->target == FRAME_TARGET_UI || variants[0] == variants[1]) &&
+		   descs[0]->subpass_count == descs[1]->subpass_count &&
+		   memcmp (descs[0]->subpasses, descs[1]->subpasses, descs[0]->subpass_count * sizeof (*descs[0]->subpasses)) == 0;
+}
+#endif
 
 // Enumerate other occurrences of the same subpass type, not other draw stages.
 // A pipeline is created once for a shared subpass, and again only for a new binding.

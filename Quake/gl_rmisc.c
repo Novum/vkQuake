@@ -2959,6 +2959,7 @@ VkPipeline R_ResolvePipelineInstance (const cb_context_t *cbx, vulkan_pipeline_t
 		if (instance->binding.subpass == cbx->subpass && (instance->binding.render_pass[MAIN_RENDER_PASS_STENCIL_CLEAR] == cbx->render_pass ||
 														  instance->binding.render_pass[MAIN_RENDER_PASS_NO_STENCIL] == cbx->render_pass))
 			return instance->handle;
+	assert (pipeline.base_subpass == cbx->subpass && R_DebugRenderPassCompatible (pipeline.base_render_pass, cbx->render_pass));
 	return pipeline.handle;
 }
 
@@ -2971,6 +2972,10 @@ static void R_CreateGraphicsPipeline (vulkan_pipeline_t *pipeline, pipeline_crea
 		Sys_Error ("vkCreateGraphicsPipelines failed (%s) with code %i", name, (int)err);
 	pipeline->layout = layout;
 	pipeline->alternatives = NULL;
+#ifndef NDEBUG
+	pipeline->base_render_pass = infos->graphics_pipeline.renderPass;
+	pipeline->base_subpass = infos->graphics_pipeline.subpass;
+#endif
 	GL_SetObjectName ((uint64_t)pipeline->handle, VK_OBJECT_TYPE_PIPELINE, name);
 	for (uint32_t i = 1;; ++i)
 	{
