@@ -265,10 +265,8 @@ void Cmd_StuffCmds_f (void)
 
 void Cmd_Exec_f (void)
 {
-	char	   *buf = NULL;
-	const char *display_path;
 	const char *path;
-	qboolean	legacy_config_alias;
+	char	   *buf;
 
 	if (Cmd_Argc () != 2)
 	{
@@ -277,80 +275,16 @@ void Cmd_Exec_f (void)
 	}
 
 	path = Cmd_Argv (1);
-	display_path = path;
-	legacy_config_alias = !q_strcasecmp (path, "config.cfg") || !q_strcasecmp (path, CONFIG_NAME);
-
-	if (legacy_config_alias)
-	{
-		FILE	   *f;
-		char	   *game_buf;
-		qfilesize_t length;
-
-		f = COM_FOpenConfigFile (true, "rb");
-		if (f)
-		{
-			length = Sys_filelength (f);
-			buf = Mem_Alloc (length + 1);
-			if (fread (buf, 1, length, f) != length)
-			{
-				Mem_Free (buf);
-				buf = NULL;
-			}
-			else
-				buf[length] = 0;
-			fclose (f);
-		}
-		game_buf = (char *)COM_LoadFile (path, NULL);
-		// The portable compatibility fallback and the game search can resolve
-		// to the same old id1 config. Execute it only once.
-		if (buf && game_buf && !strcmp (buf, game_buf))
-		{
-			Mem_Free (game_buf);
-			game_buf = NULL;
-		}
-		if (!buf && !game_buf)
-		{
-			if (cmd_warncmd.value)
-				Con_Printf ("couldn't exec %s\n", path);
-			return;
-		}
-
-		if (cmd_warncmd.value)
-		{
-			if (buf)
-				Con_Printf ("execing %s\n", CONFIG_NAME);
-			if (game_buf)
-				Con_Printf ("execing %s\n", path);
-		}
-
-		Cbuf_InsertText ("\n"); // just in case there was no trailing \n.
-		// InsertText prepends, so insert the game config first to execute the
-		// global config before it.
-		if (game_buf)
-			Cbuf_InsertText (game_buf);
-		if (buf)
-			Cbuf_InsertText (buf);
-
-		Mem_Free (game_buf);
-		Mem_Free (buf);
-		return;
-	}
-	else
-		buf = (char *)COM_LoadFile (path, NULL);
-
+	buf = COM_LoadConfigFile (path);
 	if (!buf)
 	{
 		if (cmd_warncmd.value)
 			Con_Printf ("couldn't exec %s\n", path);
 		return;
 	}
-
 	if (cmd_warncmd.value)
-		Con_Printf ("execing %s\n", display_path);
-
-	Cbuf_InsertText ("\n"); // just in case there was no trailing \n.
+		Con_Printf ("execing %s\n", path);
 	Cbuf_InsertText (buf);
-
 	Mem_Free (buf);
 }
 

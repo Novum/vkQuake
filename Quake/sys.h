@@ -39,6 +39,7 @@ int Sys_fseek (FILE *file, qfileofs_t ofs, int origin);
 
 qfileofs_t	Sys_ftell (FILE *file);
 qfilesize_t Sys_filelength (FILE *f);
+qboolean	Sys_SameFile (FILE *a, FILE *b);
 
 int Sys_fgetc (int handle);
 

@@ -348,6 +348,7 @@ qboolean	COM_GetLegacySaveDir (char *dst, size_t dstsize);
 
 // opens a file in the per-user preferences dir (%APPDATA%\vkQuake on Windows)
 FILE *COM_FOpenPrefFile (const char *filename, const char *mode);
+char *COM_LoadConfigFile (const char *path);
 FILE *COM_FOpenConfigFile (qboolean global, const char *mode);
 
 const char *COM_SkipPath (const char *pathname);

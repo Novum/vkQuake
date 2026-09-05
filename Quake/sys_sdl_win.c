@@ -42,6 +42,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 qboolean isDedicated;
 
+qboolean Sys_SameFile (FILE *a, FILE *b)
+{
+	BY_HANDLE_FILE_INFORMATION ainfo, binfo;
+	if (!GetFileInformationByHandle ((HANDLE)_get_osfhandle (_fileno (a)), &ainfo) ||
+		!GetFileInformationByHandle ((HANDLE)_get_osfhandle (_fileno (b)), &binfo))
+		return false;
+	return ainfo.dwVolumeSerialNumber == binfo.dwVolumeSerialNumber && ainfo.nFileIndexHigh == binfo.nFileIndexHigh &&
+		   ainfo.nFileIndexLow == binfo.nFileIndexLow;
+}
+
 #ifndef INVALID_FILE_ATTRIBUTES
 #define INVALID_FILE_ATTRIBUTES ((DWORD) - 1)
 #endif

@@ -47,6 +47,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 qboolean isDedicated;
 
+qboolean Sys_SameFile (FILE *a, FILE *b)
+{
+	struct stat ainfo, binfo;
+	if (fstat (fileno (a), &ainfo) || fstat (fileno (b), &binfo))
+		return false;
+	return ainfo.st_dev == binfo.st_dev && ainfo.st_ino == binfo.st_ino;
+}
+
 static double counter_freq;
 
 COMPILE_TIME_ASSERT (CHECK_LARGE_FILE_SUPPORT, sizeof (off_t) >= sizeof (qfileofs_t));

@@ -2263,11 +2263,6 @@ static qfilesize_t COM_FindFile (const char *filename, int *handle, FILE **file,
 	pack_t		 *pak;
 	int			  i;
 
-	// Stock quake.rc executes config.cfg. Treat that name as an alias for
-	// vkQuake.cfg, even when vkQuake.cfg does not exist.
-	if (!q_strcasecmp (filename, "config.cfg"))
-		filename = CONFIG_NAME;
-
 	if (file && handle)
 		Sys_Error ("COM_FindFile: both handle and file set");
 
@@ -3058,6 +3053,76 @@ FILE *COM_FOpenConfigFile (qboolean global, const char *mode)
 	if (!f && mode[0] == 'r' && !strchr (mode, '+') && host_parms->userdir == host_parms->basedir)
 		f = Sys_fopen (va ("%s/%s/" CONFIG_NAME, com_basedir, GAMENAME), mode);
 	return f;
+}
+
+/*
+=================
+COM_LoadConfigFile
+
+Loads an exec script. The default config aliases expand to the global config
+followed by the game config; other scripts use the normal search path.
+The caller owns the returned text.
+=================
+*/
+char *COM_LoadConfigFile (const char *path)
+{
+	const char *name = path;
+	FILE	   *files[2] = {NULL, NULL};
+	qfilesize_t lengths[2] = {0, 0};
+	char	   *buf;
+	size_t		used = 0;
+	qboolean	loaded = false;
+	int			i;
+
+	while (name[0] == '.' && (name[1] == '/' || name[1] == '\\'))
+		name += 2;
+	if (q_strcasecmp (name, "config.cfg") && q_strcasecmp (name, CONFIG_NAME))
+		return (char *)COM_LoadFile (path, NULL);
+
+	files[0] = COM_FOpenConfigFile (true, "rb");
+	if (files[0])
+		lengths[0] = Sys_filelength (files[0]);
+	lengths[1] = COM_FOpenFile (CONFIG_NAME, &files[1], NULL);
+	// The portable fallback may also be found by the game search.
+	if (files[0] && files[1] && !file_from_pak && Sys_SameFile (files[0], files[1]))
+	{
+		fclose (files[1]);
+		files[1] = NULL;
+	}
+	for (i = 0; i < 2; ++i)
+	{
+		if (files[i] && lengths[i] < 0)
+		{
+			fclose (files[i]);
+			files[i] = NULL;
+		}
+		if (!files[i])
+			lengths[i] = 0;
+	}
+	if (!files[0] && !files[1])
+		return NULL;
+
+	buf = Mem_Alloc (lengths[0] + lengths[1] + 3);
+	for (i = 0; i < 2; ++i)
+	{
+		if (!files[i])
+			continue;
+		if (fread (buf + used, 1, lengths[i], files[i]) == lengths[i])
+		{
+			buf[used + lengths[i]] = 0;
+			used += strlen (buf + used);
+			buf[used++] = '\n';
+			loaded = true;
+		}
+		fclose (files[i]);
+	}
+	buf[used] = 0;
+	if (!loaded)
+	{
+		Mem_Free (buf);
+		return NULL;
+	}
+	return buf;
 }
 
 /*
