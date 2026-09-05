@@ -60,8 +60,8 @@ cvar_t v_ipitch_level = {"v_ipitch_level", "0.3", CVAR_NONE};
 cvar_t v_idlescale = {"v_idlescale", "0", CVAR_NONE};
 
 cvar_t crosshair = {"crosshair", "1", CVAR_ARCHIVE_GAME};
-cvar_t crosshair_def = {"crosshair_def", "1", CVAR_ARCHIVE_GAME};
-cvar_t crosshair_size = {"crosshair_size", "18", CVAR_ARCHIVE_GAME};
+cvar_t crosshair_def = {"crosshair_def", "0", CVAR_ARCHIVE_GAME};
+cvar_t crosshair_size = {"crosshair_size", "20", CVAR_ARCHIVE_GAME};
 cvar_t crosshair_color = {"crosshair_color", "0", CVAR_ARCHIVE_GAME};
 cvar_t crosshair_alpha = {"crosshair_alpha", "1", CVAR_ARCHIVE_GAME};
 

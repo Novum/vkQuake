@@ -102,18 +102,18 @@ extern VkAccelerationStructureKHR bmodel_tlas;
 //====================================
 
 // johnfitz -- new cvars
-static cvar_t vid_fullscreen = {"vid_fullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
+static cvar_t vid_fullscreen = {"vid_fullscreen", "1", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
 static cvar_t vid_width = {"vid_width", "1280", CVAR_ARCHIVE};		  // QuakeSpasm, was 640
 static cvar_t vid_height = {"vid_height", "720", CVAR_ARCHIVE};		  // QuakeSpasm, was 480
 static cvar_t vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
-static cvar_t vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
+static cvar_t vid_vsync = {"vid_vsync", "1", CVAR_ARCHIVE};
 static cvar_t vid_maxframelatency = {"vid_maxframelatency", "2", CVAR_ARCHIVE};		// max frames queued for display under vsync, 0 = uncapped
-static cvar_t vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
+static cvar_t vid_desktopfullscreen = {"vid_desktopfullscreen", "1", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE};				// QuakeSpasm
 cvar_t		  vid_palettize = {"vid_palettize", "0", CVAR_ARCHIVE};
-cvar_t		  vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
-cvar_t		  vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
-cvar_t		  vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
+cvar_t		  vid_filter = {"vid_filter", "1", CVAR_ARCHIVE};
+cvar_t		  vid_anisotropic = {"vid_anisotropic", "1", CVAR_ARCHIVE};
+cvar_t		  vid_fsaa = {"vid_fsaa", "4", CVAR_ARCHIVE};
 cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t		  vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
 cvar_t		  vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
