@@ -1131,7 +1131,7 @@ void Sky_DrawSkyBox (cb_context_t *cbx, int *skypolys)
 		if (skymins[0][i] >= skymaxs[0][i] || skymins[1][i] >= skymaxs[1][i])
 			continue;
 
-		const main_render_pass_variant_t variant = R_MainPassPipelineVariant (cbx->render_pass_index);
+		const main_render_pass_variant_t variant = cbx->pipeline_variant;
 		vkCmdBindDescriptorSets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[variant][indirect].layout.handle, 0, 1,
 			&skybox.textures[skytexorder[i]]->descriptor_set, 0, NULL);
@@ -1210,7 +1210,7 @@ called once per frame after opaques before transparents, handles world + entitie
 void Sky_DrawSky (cb_context_t *cbx)
 {
 	int								 i;
-	const main_render_pass_variant_t variant = R_MainPassPipelineVariant (cbx->render_pass_index);
+	const main_render_pass_variant_t variant = cbx->pipeline_variant;
 
 	if (r_lightmap_cheatsafe)
 		return;

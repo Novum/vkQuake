@@ -230,6 +230,7 @@ srcs = [
     'Quake/gl_rlight.c',
     'Quake/gl_rmain.c',
     'Quake/gl_rmisc.c',
+    'Quake/r_passes.c',
     'Quake/gl_screen.c',
     'Quake/gl_sky.c',
     'Quake/gl_texmgr.c',

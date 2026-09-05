@@ -151,6 +151,9 @@
     <ClCompile Include="..\..\Quake\gl_rmisc.c">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\r_passes.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\gl_screen.c">
       <Filter>Renderer</Filter>
     </ClCompile>
@@ -943,6 +946,9 @@
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\glquake.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\r_passes.h">
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\draw.h">

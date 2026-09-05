@@ -105,8 +105,7 @@ static void GL_DrawAliasFrame (
 	else
 		pipeline_index = (showtris >= 2) ? MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST : MODEL_PIPELINE_SHOWTRIS;
 
-	const qboolean oit_pass = cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT || cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_MOMENTS ||
-							  cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE;
+	const qboolean oit_pass = cbx->subpass_type == SUBPASS_WBOIT || cbx->subpass_type == SUBPASS_MBOIT_MOMENTS || cbx->subpass_type == SUBPASS_MBOIT_COMPOSITE;
 	if (oit_pass && (showtris != 0 || !has_alpha))
 		return;
 
@@ -120,15 +119,14 @@ static void GL_DrawAliasFrame (
 		vulkan_pipeline_t *mboit_composite_pipelines =
 			(paliashdr->poseverttype == PV_MD5_8) ? vulkan_globals.md5_8_mboit_composite_pipelines : vulkan_globals.md5_mboit_composite_pipelines;
 
-		pipeline = R_PipelineForRenderPass (
-			cbx->render_pass_index, pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index], wboit_pipelines[pipeline_index],
-			mboit_moment_pipelines[pipeline_index], mboit_composite_pipelines[pipeline_index]);
+		pipeline = R_PipelineForSubpassType (
+			cbx->subpass_type, pipelines[cbx->pipeline_variant][pipeline_index], wboit_pipelines[pipeline_index], mboit_moment_pipelines[pipeline_index],
+			mboit_composite_pipelines[pipeline_index]);
 	}
 	else
-		pipeline = R_PipelineForRenderPass (
-			cbx->render_pass_index, vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
-			vulkan_globals.alias_wboit_pipelines[pipeline_index], vulkan_globals.alias_mboit_moment_pipelines[pipeline_index],
-			vulkan_globals.alias_mboit_composite_pipelines[pipeline_index]);
+		pipeline = R_PipelineForSubpassType (
+			cbx->subpass_type, vulkan_globals.alias_pipelines[cbx->pipeline_variant][pipeline_index], vulkan_globals.alias_wboit_pipelines[pipeline_index],
+			vulkan_globals.alias_mboit_moment_pipelines[pipeline_index], vulkan_globals.alias_mboit_composite_pipelines[pipeline_index]);
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
@@ -726,7 +724,7 @@ void R_DrawAliasModel_ShowSkel (cb_context_t *cbx, entity_t *e)
 	ubo->joints_offsets[0] = lerpdata.pose1 * paliashdr->numjoints;
 	ubo->joints_offsets[1] = lerpdata.pose2 * paliashdr->numjoints;
 
-	vulkan_pipeline_t pipeline = vulkan_globals.md5_debug_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)];
+	vulkan_pipeline_t pipeline = vulkan_globals.md5_debug_pipeline[cbx->pipeline_variant];
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	VkDescriptorSet descriptor_sets[2] = {ubo_set, paliashdr->joints_set};

@@ -1398,7 +1398,7 @@ static void SCR_DrawGUI (void *unused)
 	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_GUI];
 
 	GL_SetCanvas (cbx, CANVAS_DEFAULT);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+	R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_BLEND);
 
 	// FIXME: only call this when needed
 	R_BeginDebugUtilsLabel (cbx, "2D");

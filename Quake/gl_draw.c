@@ -653,13 +653,9 @@ static void Draw_BindPicState (cb_context_t *cbx, gltexture_t *texture, qboolean
 {
 	const qboolean xbr = !force_linear && (int)scr_guifilter.value == 2;
 	if (xbr)
-		R_BindPipeline (
-			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			alpha_blend ? vulkan_globals.menu_xbr_blend_pipeline[cbx->render_pass_index] : vulkan_globals.menu_xbr_pipeline[cbx->render_pass_index]);
+		R_BindGraphicsPipeline (cbx, alpha_blend ? PIPELINE_MENU_XBR_BLEND : PIPELINE_MENU_XBR);
 	else
-		R_BindPipeline (
-			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			alpha_blend ? vulkan_globals.gui_blend_pipeline[cbx->render_pass_index] : vulkan_globals.gui_pipeline[cbx->render_pass_index]);
+		R_BindGraphicsPipeline (cbx, alpha_blend ? PIPELINE_GUI_BLEND : PIPELINE_GUI);
 
 	VkDescriptorSet descriptor_sets[2] = {
 		texture->descriptor_set, vulkan_globals.gui_sampler_descriptor_sets[force_linear || (int)scr_guifilter.value == 1 ? 1 : 0]};
@@ -1031,7 +1027,7 @@ void Draw_TileClear (cb_context_t *cbx, float x, float y, float w, float h)
 	vertices[4] = corner_verts[3];
 	vertices[5] = corner_verts[0];
 
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+	R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_BLEND);
 	vkCmdBindDescriptorSets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0, NULL);
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
@@ -1085,7 +1081,7 @@ void Draw_Fill (cb_context_t *cbx, float x, float y, float w, float h, int c, fl
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
+	R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_NOTEX_BLEND);
 	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
@@ -1130,7 +1126,7 @@ void Draw_FadeScreen (cb_context_t *cbx)
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
+	R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_NOTEX_BLEND);
 	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
@@ -1359,7 +1355,7 @@ void Draw_String_3D (cb_context_t *cbx, vec3_t coords, float size, const char *s
 		xoff += 1.0f;
 	}
 
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
+	R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_ALPHATEST);
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);

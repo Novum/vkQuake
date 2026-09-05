@@ -4848,9 +4848,9 @@ static void			DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, int num
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	if (alpha_blend)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+		R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_BLEND);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
+		R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_ALPHATEST);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
 	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
@@ -5087,7 +5087,7 @@ static void PF_cl_drawfill (void)
 
 	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_GUI];
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
+	R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_NOTEX_BLEND);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
 	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);

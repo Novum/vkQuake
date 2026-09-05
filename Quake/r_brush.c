@@ -866,9 +866,9 @@ void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	MatrixMultiply (mvp, model_matrix);
 
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline[cbx->pipeline_variant]);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline[cbx->pipeline_variant]);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
 
 	//
@@ -979,10 +979,9 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 			const qboolean alpha_blend = alpha < 1.0f;
 			int			   pipeline_index =
 				(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-			vulkan_pipeline_t pipeline = R_PipelineForRenderPass (
-				cbx->render_pass_index, vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
-				vulkan_globals.world_wboit_pipelines[pipeline_index], vulkan_globals.world_mboit_moment_pipelines[pipeline_index],
-				vulkan_globals.world_mboit_composite_pipelines[pipeline_index]);
+			vulkan_pipeline_t pipeline = R_PipelineForSubpassType (
+				cbx->subpass_type, vulkan_globals.world_pipelines[cbx->pipeline_variant][pipeline_index], vulkan_globals.world_wboit_pipelines[pipeline_index],
+				vulkan_globals.world_mboit_moment_pipelines[pipeline_index], vulkan_globals.world_mboit_composite_pipelines[pipeline_index]);
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 			const qboolean is_decal = indirect_draws[i].is_decal;
@@ -1032,8 +1031,8 @@ void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx)
 {
 	R_BindPipeline (
 		cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		r_showtris.value == 1 ? vulkan_globals.showtris_indirect_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]
-							  : vulkan_globals.showtris_indirect_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		r_showtris.value == 1 ? vulkan_globals.showtris_indirect_pipeline[cbx->pipeline_variant]
+							  : vulkan_globals.showtris_indirect_depth_test_pipeline[cbx->pipeline_variant]);
 
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 4, 1, &vulkan_globals.bmodel_instances_desc_set, 0, NULL);

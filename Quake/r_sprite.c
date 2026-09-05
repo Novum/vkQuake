@@ -28,8 +28,8 @@ extern cvar_t r_showtris;
 
 static vulkan_pipeline_t R_SpritePipelineForRenderPass (cb_context_t *cbx)
 {
-	return R_PipelineForRenderPass (
-		cbx->render_pass_index, vulkan_globals.sprite_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)], vulkan_globals.sprite_oit_pipeline,
+	return R_PipelineForSubpassType (
+		cbx->subpass_type, vulkan_globals.sprite_pipeline[cbx->pipeline_variant], vulkan_globals.sprite_oit_pipeline,
 		vulkan_globals.sprite_mboit_moment_pipeline, vulkan_globals.sprite_mboit_composite_pipeline);
 }
 
@@ -248,9 +248,9 @@ void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, R_SpritePipelineForRenderPass (cbx));
 
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline[cbx->pipeline_variant]);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline[cbx->pipeline_variant]);
 
 	vkCmdBindDescriptorSets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0, NULL);

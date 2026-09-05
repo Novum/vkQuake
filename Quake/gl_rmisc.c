@@ -2813,6 +2813,8 @@ static void R_InitVertexAttributes ()
 R_InitDefaultStates
 ===============
 */
+static void R_SetPipelineRenderPassVariant (pipeline_create_infos_t *infos, subpass_type_t stage, main_render_pass_variant_t variant);
+
 static void R_InitDefaultStates (pipeline_create_infos_t *infos)
 {
 	memset (infos, 0, sizeof (pipeline_create_infos_t));
@@ -2901,7 +2903,7 @@ static void R_InitDefaultStates (pipeline_create_infos_t *infos)
 	infos->graphics_pipeline.pColorBlendState = &infos->color_blend_state;
 	infos->graphics_pipeline.pDynamicState = &infos->dynamic_state;
 	infos->graphics_pipeline.layout = vulkan_globals.basic_pipeline_layout.handle;
-	infos->graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	R_SetPipelineRenderPassVariant (infos, SUBPASS_MAIN, MAIN_RENDER_PASS_STANDARD);
 }
 
 /*
@@ -2929,11 +2931,37 @@ static void R_CopyPipelineCreateInfos (pipeline_create_infos_t *dst, const pipel
 	dst->graphics_pipeline.pDynamicState = &dst->dynamic_state;
 }
 
+static void R_SetPipelineRenderPassVariant (pipeline_create_infos_t *infos, subpass_type_t stage, main_render_pass_variant_t variant)
+{
+	const render_pass_binding_t *binding = R_RenderPassBinding (stage, variant);
+	infos->graphics_pipeline.renderPass = binding->render_pass[MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos->graphics_pipeline.subpass = binding->subpass;
+}
+
 /*
 ===============
 R_CreateGraphicsPipeline
 ===============
 */
+typedef struct pipeline_instance_s
+{
+	VkPipeline					handle;
+	render_pass_binding_t		binding;
+	struct pipeline_instance_s *next;
+	struct pipeline_instance_s *allocation_next;
+} pipeline_instance_t;
+
+static pipeline_instance_t *pipeline_instances;
+
+VkPipeline R_ResolvePipelineInstance (const cb_context_t *cbx, vulkan_pipeline_t pipeline)
+{
+	for (const pipeline_instance_t *instance = pipeline.alternatives; instance; instance = instance->next)
+		if (instance->binding.subpass == cbx->subpass && (instance->binding.render_pass[MAIN_RENDER_PASS_STENCIL_CLEAR] == cbx->render_pass ||
+														  instance->binding.render_pass[MAIN_RENDER_PASS_NO_STENCIL] == cbx->render_pass))
+			return instance->handle;
+	return pipeline.handle;
+}
+
 static void R_CreateGraphicsPipeline (vulkan_pipeline_t *pipeline, pipeline_create_infos_t *infos, vulkan_pipeline_layout_t layout, const char *name)
 {
 	assert (pipeline->handle == VK_NULL_HANDLE);
@@ -2942,7 +2970,27 @@ static void R_CreateGraphicsPipeline (vulkan_pipeline_t *pipeline, pipeline_crea
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (%s) with code %i", name, (int)err);
 	pipeline->layout = layout;
+	pipeline->alternatives = NULL;
 	GL_SetObjectName ((uint64_t)pipeline->handle, VK_OBJECT_TYPE_PIPELINE, name);
+	for (uint32_t i = 1;; ++i)
+	{
+		const render_pass_binding_t *binding = R_RenderPassAlternative (infos->graphics_pipeline.renderPass, infos->graphics_pipeline.subpass, i);
+		if (!binding)
+			break;
+		pipeline_instance_t			*instance = Mem_Alloc (sizeof (*instance));
+		VkGraphicsPipelineCreateInfo create_info = infos->graphics_pipeline;
+		create_info.renderPass = binding->render_pass[MAIN_RENDER_PASS_STENCIL_CLEAR];
+		create_info.subpass = binding->subpass;
+		const VkResult instance_err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &create_info, NULL, &instance->handle);
+		if (instance_err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (%s instance) with code %i", name, (int)instance_err);
+		instance->binding = *binding;
+		instance->next = pipeline->alternatives;
+		pipeline->alternatives = instance;
+		instance->allocation_next = pipeline_instances;
+		pipeline_instances = instance;
+		GL_SetObjectName ((uint64_t)instance->handle, VK_OBJECT_TYPE_PIPELINE, name);
+	}
 }
 
 /*
@@ -2975,91 +3023,108 @@ static void R_CreateComputePipeline (
 	GL_SetObjectName ((uint64_t)pipeline->handle, VK_OBJECT_TYPE_PIPELINE, name);
 }
 
-/*
-===============
-R_CreateBasicPipelines
-===============
-*/
+// Compatible instances are owned here; draw sites only name the logical pipeline.
+static vulkan_pipeline_t graphics_pipelines[GRAPHICS_PIPELINE_COUNT][SUBPASS_COUNT][MAIN_RENDER_PASS_VARIANT_COUNT];
+
+static vulkan_pipeline_t R_ResolveGraphicsPipeline (const cb_context_t *cbx, graphics_pipeline_t pipeline)
+{
+	assert (pipeline >= 0 && pipeline < GRAPHICS_PIPELINE_COUNT);
+	assert (cbx->subpass_type >= 0 && cbx->subpass_type < SUBPASS_COUNT);
+	assert (cbx->pipeline_variant >= 0 && cbx->pipeline_variant < MAIN_RENDER_PASS_VARIANT_COUNT);
+	return graphics_pipelines[pipeline][cbx->subpass_type][cbx->pipeline_variant];
+}
+
+bool R_HasGraphicsPipeline (const cb_context_t *cbx, graphics_pipeline_t pipeline)
+{
+	return R_ResolveGraphicsPipeline (cbx, pipeline).handle != VK_NULL_HANDLE;
+}
+
+void R_BindGraphicsPipeline (cb_context_t *cbx, graphics_pipeline_t pipeline)
+{
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, R_ResolveGraphicsPipeline (cbx, pipeline));
+}
+
 static void R_CreateBasicPipelines ()
 {
 	pipeline_create_infos_t base;
 	R_InitDefaultStates (&base);
 
-	const VkRenderPass main_render_pass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	const VkRenderPass main_oit_render_pass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	const VkRenderPass main_mboit_render_pass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	VkRenderPass	   ui_render_pass = vulkan_globals.secondary_cb_contexts[SCBX_GUI]->render_pass;
 	const struct
 	{
-		render_pass_index_t	  index;
-		VkRenderPass		  render_pass;
-		VkSampleCountFlagBits rasterization_samples;
-		uint32_t			  attachment_count;
-		uint32_t			  subpass;
-	} render_pass_variants[] = {
-		{RENDER_PASS_INDEX_MAIN, main_render_pass, vulkan_globals.sample_count, MAIN_COLOR_ATTACHMENT_COUNT, 0},
-		{RENDER_PASS_INDEX_UI, ui_render_pass, VK_SAMPLE_COUNT_1_BIT, 1, 0},
-		{RENDER_PASS_INDEX_MAIN_OIT, main_oit_render_pass, vulkan_globals.sample_count, MAIN_COLOR_ATTACHMENT_COUNT, 0},
-		{RENDER_PASS_INDEX_MAIN_MBOIT, main_mboit_render_pass, vulkan_globals.sample_count, MAIN_COLOR_ATTACHMENT_COUNT, 0},
-		{RENDER_PASS_INDEX_WBOIT, main_oit_render_pass, vulkan_globals.sample_count, WBOIT_COLOR_ATTACHMENT_COUNT, 1},
-		{RENDER_PASS_INDEX_MBOIT_MOMENTS, main_mboit_render_pass, vulkan_globals.sample_count, MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT, 1},
-		{RENDER_PASS_INDEX_MBOIT_COMPOSITE, main_mboit_render_pass, vulkan_globals.sample_count, MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT, 2},
+		subpass_type_t			   stage;
+		main_render_pass_variant_t variant;
+		VkSampleCountFlagBits	   rasterization_samples;
+		uint32_t				   attachment_count;
+	} pipeline_variants[] = {
+		{SUBPASS_MAIN, MAIN_RENDER_PASS_STANDARD, vulkan_globals.sample_count, MAIN_COLOR_ATTACHMENT_COUNT},
+		{SUBPASS_UI, MAIN_RENDER_PASS_STANDARD, VK_SAMPLE_COUNT_1_BIT, 1},
+		{SUBPASS_UI, MAIN_RENDER_PASS_OIT, VK_SAMPLE_COUNT_1_BIT, 1},
+		{SUBPASS_UI, MAIN_RENDER_PASS_MBOIT, VK_SAMPLE_COUNT_1_BIT, 1},
+		{SUBPASS_MAIN, MAIN_RENDER_PASS_OIT, vulkan_globals.sample_count, MAIN_COLOR_ATTACHMENT_COUNT},
+		{SUBPASS_MAIN, MAIN_RENDER_PASS_MBOIT, vulkan_globals.sample_count, MAIN_COLOR_ATTACHMENT_COUNT},
+		{SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT, vulkan_globals.sample_count, WBOIT_COLOR_ATTACHMENT_COUNT},
+		{SUBPASS_MBOIT_MOMENTS, MAIN_RENDER_PASS_MBOIT, vulkan_globals.sample_count, MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT},
+		{SUBPASS_MBOIT_COMPOSITE, MAIN_RENDER_PASS_MBOIT, vulkan_globals.sample_count, MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT},
+		{SUBPASS_OIT_RESOLVE, MAIN_RENDER_PASS_OIT, vulkan_globals.sample_count, 1},
+		{SUBPASS_OIT_RESOLVE, MAIN_RENDER_PASS_MBOIT, vulkan_globals.sample_count, 1},
 	};
 
 	pipeline_create_infos_t infos;
-	for (int render_pass = 0; render_pass < countof (render_pass_variants); ++render_pass)
+	for (int entry = 0; entry < countof (pipeline_variants); ++entry)
 	{
-		const int index = render_pass_variants[render_pass].index;
+		const subpass_type_t			 stage = pipeline_variants[entry].stage;
+		const main_render_pass_variant_t variant = pipeline_variants[entry].variant;
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass_variants[render_pass].render_pass;
-		infos.graphics_pipeline.subpass = render_pass_variants[render_pass].subpass;
-		infos.multisample_state.rasterizationSamples = render_pass_variants[render_pass].rasterization_samples;
-		infos.color_blend_state.attachmentCount = render_pass_variants[render_pass].attachment_count;
+		R_SetPipelineRenderPassVariant (&infos, stage, variant);
+		infos.multisample_state.rasterizationSamples = pipeline_variants[entry].rasterization_samples;
+		infos.color_blend_state.attachmentCount = pipeline_variants[entry].attachment_count;
 		infos.shader_stages[1].module = basic_alphatest_frag_module;
-		R_CreateGraphicsPipeline (&vulkan_globals.basic_alphatest_pipeline[index], &infos, vulkan_globals.basic_pipeline_layout, "basic_alphatest");
+		R_CreateGraphicsPipeline (
+			&graphics_pipelines[PIPELINE_BASIC_ALPHATEST][stage][variant], &infos, vulkan_globals.basic_pipeline_layout, "basic_alphatest");
 
 		infos.shader_stages[1].module = draw_pic_alphatest_frag_module;
 		infos.vertex_input_state.pVertexBindingDescriptions = &draw_pic_vertex_binding_description;
-		R_CreateGraphicsPipeline (&vulkan_globals.gui_pipeline[index], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic_alphatest");
+		R_CreateGraphicsPipeline (&graphics_pipelines[PIPELINE_GUI][stage][variant], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic_alphatest");
 		infos.shader_stages[1].module = draw_pic_frag_module;
 		infos.blend_attachment_states[0].blendEnable = VK_TRUE;
-		R_CreateGraphicsPipeline (&vulkan_globals.gui_blend_pipeline[index], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic");
+		R_CreateGraphicsPipeline (&graphics_pipelines[PIPELINE_GUI_BLEND][stage][variant], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic");
 
 		infos.shader_stages[0].module = draw_pic_xbr_vert_module;
 		infos.shader_stages[1].module = draw_pic_xbr_alphatest_frag_module;
 		infos.vertex_input_state.vertexAttributeDescriptionCount = countof (draw_pic_vertex_input_attribute_descriptions);
 		infos.vertex_input_state.pVertexAttributeDescriptions = draw_pic_vertex_input_attribute_descriptions;
 		infos.blend_attachment_states[0].blendEnable = VK_FALSE;
-		R_CreateGraphicsPipeline (&vulkan_globals.menu_xbr_pipeline[index], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic_xbr_alphatest");
+		R_CreateGraphicsPipeline (&graphics_pipelines[PIPELINE_MENU_XBR][stage][variant], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic_xbr_alphatest");
 		infos.shader_stages[1].module = draw_pic_xbr_frag_module;
 		infos.blend_attachment_states[0].blendEnable = VK_TRUE;
-		R_CreateGraphicsPipeline (&vulkan_globals.menu_xbr_blend_pipeline[index], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic_xbr");
+		R_CreateGraphicsPipeline (&graphics_pipelines[PIPELINE_MENU_XBR_BLEND][stage][variant], &infos, vulkan_globals.gui_pipeline_layout, "draw_pic_xbr");
 	}
 
-	for (int render_pass = 0; render_pass < countof (render_pass_variants); ++render_pass)
+	for (int entry = 0; entry < countof (pipeline_variants); ++entry)
 	{
-		const int index = render_pass_variants[render_pass].index;
+		const subpass_type_t			 stage = pipeline_variants[entry].stage;
+		const main_render_pass_variant_t variant = pipeline_variants[entry].variant;
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass_variants[render_pass].render_pass;
-		infos.graphics_pipeline.subpass = render_pass_variants[render_pass].subpass;
-		infos.multisample_state.rasterizationSamples = render_pass_variants[render_pass].rasterization_samples;
-		infos.color_blend_state.attachmentCount = render_pass_variants[render_pass].attachment_count;
+		R_SetPipelineRenderPassVariant (&infos, stage, variant);
+		infos.multisample_state.rasterizationSamples = pipeline_variants[entry].rasterization_samples;
+		infos.color_blend_state.attachmentCount = pipeline_variants[entry].attachment_count;
 		infos.shader_stages[1].module = basic_notex_frag_module;
 		infos.blend_attachment_states[0].blendEnable = VK_TRUE;
-		R_CreateGraphicsPipeline (&vulkan_globals.basic_notex_blend_pipeline[index], &infos, vulkan_globals.basic_pipeline_layout, "basic_notex_blend");
+		R_CreateGraphicsPipeline (
+			&graphics_pipelines[PIPELINE_BASIC_NOTEX_BLEND][stage][variant], &infos, vulkan_globals.basic_pipeline_layout, "basic_notex_blend");
 	}
 
-	for (int render_pass = 0; render_pass < countof (render_pass_variants); ++render_pass)
+	for (int entry = 0; entry < countof (pipeline_variants); ++entry)
 	{
-		const int	   index = render_pass_variants[render_pass].index;
-		const qboolean wboit_pass = (index == RENDER_PASS_INDEX_WBOIT);
-		const qboolean mboit_moment_pass = (index == RENDER_PASS_INDEX_MBOIT_MOMENTS);
-		const qboolean mboit_composite_pass = (index == RENDER_PASS_INDEX_MBOIT_COMPOSITE);
+		const subpass_type_t			 stage = pipeline_variants[entry].stage;
+		const main_render_pass_variant_t variant = pipeline_variants[entry].variant;
+		const qboolean					 wboit_pass = (stage == SUBPASS_WBOIT);
+		const qboolean					 mboit_moment_pass = (stage == SUBPASS_MBOIT_MOMENTS);
+		const qboolean					 mboit_composite_pass = (stage == SUBPASS_MBOIT_COMPOSITE);
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass_variants[render_pass].render_pass;
-		infos.graphics_pipeline.subpass = render_pass_variants[render_pass].subpass;
-		infos.multisample_state.rasterizationSamples = render_pass_variants[render_pass].rasterization_samples;
-		infos.color_blend_state.attachmentCount = render_pass_variants[render_pass].attachment_count;
+		R_SetPipelineRenderPassVariant (&infos, stage, variant);
+		infos.multisample_state.rasterizationSamples = pipeline_variants[entry].rasterization_samples;
+		infos.color_blend_state.attachmentCount = pipeline_variants[entry].attachment_count;
 		infos.shader_stages[1].module =
 			wboit_pass			? basic_oit_frag_module
 			: mboit_moment_pass ? basic_mboit_moment_frag_module
@@ -3074,7 +3139,7 @@ static void R_CreateBasicPipelines ()
 			R_SetMBOITCompositeBlend (infos.blend_attachment_states);
 		else
 			infos.blend_attachment_states[0].blendEnable = VK_TRUE;
-		R_CreateGraphicsPipeline (&vulkan_globals.basic_blend_pipeline[index], &infos, vulkan_globals.basic_pipeline_layout, "basic_blend");
+		R_CreateGraphicsPipeline (&graphics_pipelines[PIPELINE_BASIC_BLEND][stage][variant], &infos, vulkan_globals.basic_pipeline_layout, "basic_blend");
 	}
 }
 
@@ -3119,32 +3184,28 @@ static void R_CreateParticlesPipelines ()
 	for (int variant = MAIN_RENDER_PASS_OIT; variant <= MAIN_RENDER_PASS_MBOIT; ++variant)
 	{
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
-		infos.graphics_pipeline.subpass = (variant == MAIN_RENDER_PASS_MBOIT) ? 3 : 2;
+		R_SetPipelineRenderPassVariant (&infos, SUBPASS_OIT_RESOLVE, variant);
 		R_CreateGraphicsPipeline (
 			&vulkan_globals.particle_post_oit_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout,
 			variant == MAIN_RENDER_PASS_MBOIT ? "particles_post_mboit" : "particles_post_oit");
 	}
 
 	R_CopyPipelineCreateInfos (&infos, &base);
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	infos.graphics_pipeline.subpass = 1;
+	R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
 	infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 	infos.shader_stages[1].module = basic_oit_frag_module;
 	R_SetWBOITBlend (infos.blend_attachment_states);
 	R_CreateGraphicsPipeline (&vulkan_globals.particle_oit_pipeline, &infos, vulkan_globals.basic_pipeline_layout, "particles_oit");
 
 	R_CopyPipelineCreateInfos (&infos, &base);
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	infos.graphics_pipeline.subpass = 1;
+	R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_MOMENTS, MAIN_RENDER_PASS_MBOIT);
 	infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
 	infos.shader_stages[1].module = basic_mboit_moment_frag_module;
 	R_SetMBOITMomentBlend (infos.blend_attachment_states);
 	R_CreateGraphicsPipeline (&vulkan_globals.particle_mboit_moment_pipeline, &infos, vulkan_globals.basic_pipeline_layout, "particles_mboit_moment");
 
 	R_CopyPipelineCreateInfos (&infos, &base);
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	infos.graphics_pipeline.subpass = 2;
+	R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_COMPOSITE, MAIN_RENDER_PASS_MBOIT);
 	infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
 	infos.shader_stages[1].module =
 		(vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? basic_mboit_composite_frag_module : basic_mboit_composite_msaa_frag_module;
@@ -3268,7 +3329,7 @@ static void R_CreateFTEParticlesPipelines ()
 			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 			{
 				R_CopyPipelineCreateInfos (&infos, &mode_base);
-				infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
+				R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 				R_SetFTEParticleBlend (&infos.blend_attachment_states[0], i);
 				R_CreateGraphicsPipeline (
 					&vulkan_globals.fte_particle_pipelines[variant][mode], &infos, vulkan_globals.basic_pipeline_layout,
@@ -3276,8 +3337,7 @@ static void R_CreateFTEParticlesPipelines ()
 			}
 
 			R_CopyPipelineCreateInfos (&infos, &mode_base);
-			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-			infos.graphics_pipeline.subpass = 1;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
 			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 			infos.shader_stages[1].module = basic_oit_frag_module;
 			R_SetWBOITBlend (infos.blend_attachment_states);
@@ -3288,8 +3348,7 @@ static void R_CreateFTEParticlesPipelines ()
 			for (int variant = MAIN_RENDER_PASS_OIT; variant <= MAIN_RENDER_PASS_MBOIT; ++variant)
 			{
 				R_CopyPipelineCreateInfos (&infos, &mode_base);
-				infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
-				infos.graphics_pipeline.subpass = (variant == MAIN_RENDER_PASS_MBOIT) ? 3 : 2;
+				R_SetPipelineRenderPassVariant (&infos, SUBPASS_OIT_RESOLVE, variant);
 				R_SetFTEParticleBlend (&infos.blend_attachment_states[0], i);
 				R_CreateGraphicsPipeline (
 					&vulkan_globals.fte_particle_post_oit_pipelines[variant][mode], &infos, vulkan_globals.basic_pipeline_layout,
@@ -3319,30 +3378,27 @@ static void R_CreateSpritesPipelines ()
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 	{
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 		R_CreateGraphicsPipeline (
 			&vulkan_globals.sprite_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, variant ? "sprite_main_oit" : "sprite");
 	}
 
 	R_CopyPipelineCreateInfos (&infos, &base);
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	infos.graphics_pipeline.subpass = 1;
+	R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
 	infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 	infos.shader_stages[1].module = basic_oit_frag_module;
 	R_SetWBOITBlend (infos.blend_attachment_states);
 	R_CreateGraphicsPipeline (&vulkan_globals.sprite_oit_pipeline, &infos, vulkan_globals.basic_pipeline_layout, "sprite_oit");
 
 	R_CopyPipelineCreateInfos (&infos, &base);
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	infos.graphics_pipeline.subpass = 1;
+	R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_MOMENTS, MAIN_RENDER_PASS_MBOIT);
 	infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
 	infos.shader_stages[1].module = basic_mboit_moment_frag_module;
 	R_SetMBOITMomentBlend (infos.blend_attachment_states);
 	R_CreateGraphicsPipeline (&vulkan_globals.sprite_mboit_moment_pipeline, &infos, vulkan_globals.basic_pipeline_layout, "sprite_mboit_moment");
 
 	R_CopyPipelineCreateInfos (&infos, &base);
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	infos.graphics_pipeline.subpass = 2;
+	R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_COMPOSITE, MAIN_RENDER_PASS_MBOIT);
 	infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
 	infos.shader_stages[1].module =
 		(vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? basic_mboit_composite_frag_module : basic_mboit_composite_msaa_frag_module;
@@ -3376,11 +3432,11 @@ static void R_CreateSkyPipelines ()
 		pipeline_create_infos_t infos;
 		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		{
-			const VkRenderPass render_pass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
-			const char		  *pass_suffix = (variant == MAIN_RENDER_PASS_MBOIT) ? "_main_mboit" : ((variant == MAIN_RENDER_PASS_OIT) ? "_main_oit" : "");
+
+			const char *pass_suffix = (variant == MAIN_RENDER_PASS_MBOIT) ? "_main_mboit" : ((variant == MAIN_RENDER_PASS_OIT) ? "_main_oit" : "");
 
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = render_pass;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.graphics_pipeline.stageCount = 1;
 			infos.shader_stages[1].module = VK_NULL_HANDLE;
 			infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
@@ -3397,14 +3453,14 @@ static void R_CreateSkyPipelines ()
 				va (i ? "sky_stencil_indirect%s" : "sky_stencil%s", pass_suffix));
 
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = render_pass;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[1].module = basic_notex_frag_module;
 			R_CreateGraphicsPipeline (
 				&vulkan_globals.sky_color_pipeline[variant][i], &infos, vulkan_globals.sky_pipeline_layout[0],
 				va (i ? "sky_color_indirect%s" : "sky_color%s", pass_suffix));
 
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = render_pass;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[0].module = sky_cube_vert_module;
 			infos.shader_stages[1].module = sky_cube_frag_module;
 			R_CreateGraphicsPipeline (
@@ -3412,7 +3468,7 @@ static void R_CreateSkyPipelines ()
 				va (i ? "sky_cube_indirect%s" : "sky_cube%s", pass_suffix));
 
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = render_pass;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[0].module = sky_layer_vert_module;
 			infos.shader_stages[1].module = sky_layer_frag_module;
 			R_CreateGraphicsPipeline (
@@ -3422,7 +3478,7 @@ static void R_CreateSkyPipelines ()
 			if (i == 0)
 			{
 				R_CopyPipelineCreateInfos (&infos, &base);
-				infos.graphics_pipeline.renderPass = render_pass;
+				R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 				infos.depth_stencil_state.depthTestEnable = VK_FALSE;
 				infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 				infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
@@ -3462,17 +3518,17 @@ static void R_CreateShowTrisPipelines ()
 	pipeline_create_infos_t infos;
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 	{
-		const VkRenderPass render_pass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
-		const char		  *pass_suffix = (variant == MAIN_RENDER_PASS_MBOIT) ? "_main_mboit" : ((variant == MAIN_RENDER_PASS_OIT) ? "_main_oit" : "");
+
+		const char *pass_suffix = (variant == MAIN_RENDER_PASS_MBOIT) ? "_main_mboit" : ((variant == MAIN_RENDER_PASS_OIT) ? "_main_oit" : "");
 
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass;
+		R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 		infos.blend_attachment_states[0].blendEnable = VK_TRUE;
 		R_CreateGraphicsPipeline (
 			&vulkan_globals.debug_lines_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va ("debug_lines%s", pass_suffix));
 
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass;
+		R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 		infos.vertex_input_state.vertexAttributeDescriptionCount = 0;
 		infos.vertex_input_state.pVertexAttributeDescriptions = NULL;
 		infos.vertex_input_state.vertexBindingDescriptionCount = 0;
@@ -3512,15 +3568,15 @@ static void R_CreateShowTrisPipelines ()
 
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 	{
-		const VkRenderPass render_pass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
-		const char		  *pass_suffix = (variant == MAIN_RENDER_PASS_MBOIT) ? "_main_mboit" : ((variant == MAIN_RENDER_PASS_OIT) ? "_main_oit" : "");
+
+		const char *pass_suffix = (variant == MAIN_RENDER_PASS_MBOIT) ? "_main_mboit" : ((variant == MAIN_RENDER_PASS_OIT) ? "_main_oit" : "");
 
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass;
+		R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 		R_CreateGraphicsPipeline (&vulkan_globals.showtris_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va ("showtris%s", pass_suffix));
 
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass;
+		R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasConstantFactor = 500.0f;
@@ -3530,7 +3586,7 @@ static void R_CreateShowTrisPipelines ()
 
 		// indirect showtris uses the world vertex shader so moved submodels get their instance transform applied
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass;
+		R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 		infos.shader_stages[0].module = world_vert_module;
 		infos.vertex_input_state.vertexAttributeDescriptionCount = 3;
 		infos.vertex_input_state.pVertexAttributeDescriptions = world_vertex_input_attribute_descriptions;
@@ -3540,7 +3596,7 @@ static void R_CreateShowTrisPipelines ()
 			&vulkan_globals.showtris_indirect_pipeline[variant], &infos, vulkan_globals.world_pipeline_layout, va ("showtris_indirect%s", pass_suffix));
 
 		R_CopyPipelineCreateInfos (&infos, &base);
-		infos.graphics_pipeline.renderPass = render_pass;
+		R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 		infos.shader_stages[0].module = world_vert_module;
 		infos.vertex_input_state.vertexAttributeDescriptionCount = 3;
 		infos.vertex_input_state.pVertexAttributeDescriptions = world_vertex_input_attribute_descriptions;
@@ -3627,7 +3683,7 @@ static void R_CreateWorldPipelines ()
 					for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 					{
 						R_CopyPipelineCreateInfos (&infos, &base);
-						infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
+						R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 						infos.shader_stages[1].module = world_frag_module;
 						infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
 						infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
@@ -3639,8 +3695,7 @@ static void R_CreateWorldPipelines ()
 					if (alpha_blend)
 					{
 						R_CopyPipelineCreateInfos (&infos, &base);
-						infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-						infos.graphics_pipeline.subpass = 1;
+						R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
 						infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 						infos.shader_stages[1].module = world_oit_frag_module;
 						infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
@@ -3650,8 +3705,7 @@ static void R_CreateWorldPipelines ()
 							va ("world_wboit %d", pipeline_index));
 
 						R_CopyPipelineCreateInfos (&infos, &base);
-						infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-						infos.graphics_pipeline.subpass = 1;
+						R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_MOMENTS, MAIN_RENDER_PASS_MBOIT);
 						infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
 						infos.shader_stages[1].module = world_mboit_moment_frag_module;
 						infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
@@ -3661,8 +3715,7 @@ static void R_CreateWorldPipelines ()
 							va ("world_mboit_moment %d", pipeline_index));
 
 						R_CopyPipelineCreateInfos (&infos, &base);
-						infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-						infos.graphics_pipeline.subpass = 2;
+						R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_COMPOSITE, MAIN_RENDER_PASS_MBOIT);
 						infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
 						infos.shader_stages[1].module =
 							(vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? world_mboit_composite_frag_module : world_mboit_composite_msaa_frag_module;
@@ -3709,7 +3762,7 @@ static void R_CreateAliasPipelines ()
 		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		{
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_frag_module : alias_frag_module;
 			infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
 			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
@@ -3720,8 +3773,7 @@ static void R_CreateAliasPipelines ()
 		if (alpha_blend)
 		{
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-			infos.graphics_pipeline.subpass = 1;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
 			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_oit_frag_module : alias_oit_frag_module;
 			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
@@ -3729,8 +3781,7 @@ static void R_CreateAliasPipelines ()
 			R_CreateGraphicsPipeline (&vulkan_globals.alias_wboit_pipelines[pipeline_index], &infos, layout, va ("alias_wboit %d", pipeline_index));
 
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-			infos.graphics_pipeline.subpass = 1;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_MOMENTS, MAIN_RENDER_PASS_MBOIT);
 			infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_mboit_moment_frag_module : alias_mboit_moment_frag_module;
 			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
@@ -3739,8 +3790,7 @@ static void R_CreateAliasPipelines ()
 				&vulkan_globals.alias_mboit_moment_pipelines[pipeline_index], &infos, layout, va ("alias_mboit_moment %d", pipeline_index));
 
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-			infos.graphics_pipeline.subpass = 2;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_COMPOSITE, MAIN_RENDER_PASS_MBOIT);
 			infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
 			infos.shader_stages[1].module = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT)
 												? (alpha_test ? alias_alphatest_mboit_composite_frag_module : alias_mboit_composite_frag_module)
@@ -3760,7 +3810,7 @@ static void R_CreateAliasPipelines ()
 			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 			{
 				R_CopyPipelineCreateInfos (&infos, &base);
-				infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
+				R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 				infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
 				infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
 				infos.depth_stencil_state.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
@@ -3812,7 +3862,7 @@ static void R_CreateMD5PipelineSet (
 		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		{
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_frag_module : alias_frag_module;
 			infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
 			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
@@ -3822,8 +3872,7 @@ static void R_CreateMD5PipelineSet (
 		if (alpha_blend)
 		{
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-			infos.graphics_pipeline.subpass = 1;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
 			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_oit_frag_module : alias_oit_frag_module;
 			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
@@ -3831,8 +3880,7 @@ static void R_CreateMD5PipelineSet (
 			R_CreateGraphicsPipeline (&wboit_pipelines[pipeline_index], &infos, layout, va ("%s_wboit %d", name, pipeline_index));
 
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-			infos.graphics_pipeline.subpass = 1;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_MOMENTS, MAIN_RENDER_PASS_MBOIT);
 			infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_mboit_moment_frag_module : alias_mboit_moment_frag_module;
 			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
@@ -3840,8 +3888,7 @@ static void R_CreateMD5PipelineSet (
 			R_CreateGraphicsPipeline (&mboit_moment_pipelines[pipeline_index], &infos, layout, va ("%s_mboit_moment %d", name, pipeline_index));
 
 			R_CopyPipelineCreateInfos (&infos, &base);
-			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-			infos.graphics_pipeline.subpass = 2;
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_COMPOSITE, MAIN_RENDER_PASS_MBOIT);
 			infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
 			// the composite shader reads the moment input attachments, which the md5 layout binds
 			// at set 4 because the joints occupy set 3, so it needs its own MBOIT_INPUT_SET variant
@@ -3862,7 +3909,7 @@ static void R_CreateMD5PipelineSet (
 			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 			{
 				R_CopyPipelineCreateInfos (&infos, &base);
-				infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
+				R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 				infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
 				infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
 				infos.depth_stencil_state.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
@@ -3916,8 +3963,7 @@ static void R_CreatePostprocessPipelines ()
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
 	infos.shader_stages[1].module = postprocess_frag_module;
-	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI]->render_pass;
-	infos.graphics_pipeline.subpass = 1;
+	R_SetPipelineRenderPassVariant (&infos, SUBPASS_POST_PROCESS, MAIN_RENDER_PASS_STANDARD);
 	R_CreateGraphicsPipeline (&vulkan_globals.postprocess_pipeline, &infos, vulkan_globals.postprocess_pipeline.layout, "postprocess");
 
 	R_CopyPipelineCreateInfos (&infos, &base);
@@ -3927,8 +3973,7 @@ static void R_CreatePostprocessPipelines ()
 	infos.blend_attachment_states[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 	infos.blend_attachment_states[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 	infos.shader_stages[1].module = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? wboit_resolve_frag_module : wboit_resolve_msaa_frag_module;
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	infos.graphics_pipeline.subpass = 2;
+	R_SetPipelineRenderPassVariant (&infos, SUBPASS_OIT_RESOLVE, MAIN_RENDER_PASS_OIT);
 	R_CreateGraphicsPipeline (&vulkan_globals.wboit_resolve_pipeline, &infos, vulkan_globals.wboit_resolve_pipeline.layout, "wboit_resolve");
 
 	R_CopyPipelineCreateInfos (&infos, &base);
@@ -3938,8 +3983,7 @@ static void R_CreatePostprocessPipelines ()
 	infos.blend_attachment_states[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 	infos.blend_attachment_states[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 	infos.shader_stages[1].module = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? mboit_resolve_frag_module : mboit_resolve_msaa_frag_module;
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-	infos.graphics_pipeline.subpass = 3;
+	R_SetPipelineRenderPassVariant (&infos, SUBPASS_OIT_RESOLVE, MAIN_RENDER_PASS_MBOIT);
 	R_CreateGraphicsPipeline (&vulkan_globals.mboit_resolve_pipeline, &infos, vulkan_globals.mboit_resolve_pipeline.layout, "mboit_resolve");
 }
 
@@ -4199,24 +4243,22 @@ R_DestroyPipelines
 */
 void R_DestroyPipelines (void)
 {
-	int i;
-	for (i = 0; i < RENDER_PASS_INDEX_COUNT; ++i)
+	while (pipeline_instances)
 	{
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.basic_alphatest_pipeline[i].handle, NULL);
-		vulkan_globals.basic_alphatest_pipeline[i].handle = VK_NULL_HANDLE;
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.basic_blend_pipeline[i].handle, NULL);
-		vulkan_globals.basic_blend_pipeline[i].handle = VK_NULL_HANDLE;
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gui_pipeline[i].handle, NULL);
-		vulkan_globals.gui_pipeline[i].handle = VK_NULL_HANDLE;
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.gui_blend_pipeline[i].handle, NULL);
-		vulkan_globals.gui_blend_pipeline[i].handle = VK_NULL_HANDLE;
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.basic_notex_blend_pipeline[i].handle, NULL);
-		vulkan_globals.basic_notex_blend_pipeline[i].handle = VK_NULL_HANDLE;
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.menu_xbr_pipeline[i].handle, NULL);
-		vulkan_globals.menu_xbr_pipeline[i].handle = VK_NULL_HANDLE;
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.menu_xbr_blend_pipeline[i].handle, NULL);
-		vulkan_globals.menu_xbr_blend_pipeline[i].handle = VK_NULL_HANDLE;
+		pipeline_instance_t *instance = pipeline_instances;
+		pipeline_instances = instance->allocation_next;
+		vkDestroyPipeline (vulkan_globals.device, instance->handle, NULL);
+		Mem_Free (instance);
 	}
+	int i;
+	for (int pipeline = 0; pipeline < GRAPHICS_PIPELINE_COUNT; ++pipeline)
+		for (int stage = 0; stage < SUBPASS_COUNT; ++stage)
+			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+			{
+				vulkan_pipeline_t *instance = &graphics_pipelines[pipeline][stage][variant];
+				vkDestroyPipeline (vulkan_globals.device, instance->handle, NULL);
+				instance->handle = VK_NULL_HANDLE;
+			}
 	for (i = 0; i < WORLD_PIPELINE_COUNT; ++i)
 	{
 		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)

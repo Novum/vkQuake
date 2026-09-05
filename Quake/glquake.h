@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define GLQUAKE_H
 
 #include "atomics.h"
+#include "r_passes.h"
 #include "tasks.h"
 
 void		  GL_WaitForDeviceIdle (void);
@@ -157,8 +158,9 @@ typedef struct vulkan_pipeline_layout_s
 
 typedef struct vulkan_pipeline_s
 {
-	VkPipeline				 handle;
-	vulkan_pipeline_layout_t layout;
+	VkPipeline					handle;
+	vulkan_pipeline_layout_t	layout;
+	struct pipeline_instance_s *alternatives;
 } vulkan_pipeline_t;
 
 typedef struct vulkan_desc_set_layout_s
@@ -240,33 +242,6 @@ typedef enum
 
 typedef enum
 {
-	RENDER_PASS_INDEX_MAIN,
-	RENDER_PASS_INDEX_UI,
-	RENDER_PASS_INDEX_MAIN_OIT,
-	RENDER_PASS_INDEX_MAIN_MBOIT,
-	RENDER_PASS_INDEX_WBOIT,
-	RENDER_PASS_INDEX_MBOIT_MOMENTS,
-	RENDER_PASS_INDEX_MBOIT_COMPOSITE,
-	RENDER_PASS_INDEX_COUNT,
-} render_pass_index_t;
-
-typedef enum
-{
-	MAIN_RENDER_PASS_STANDARD,
-	MAIN_RENDER_PASS_OIT,
-	MAIN_RENDER_PASS_MBOIT,
-	MAIN_RENDER_PASS_VARIANT_COUNT,
-} main_render_pass_variant_t;
-
-typedef enum
-{
-	MAIN_RENDER_PASS_STENCIL_CLEAR,
-	MAIN_RENDER_PASS_NO_STENCIL,
-	MAIN_RENDER_PASS_STENCIL_COUNT,
-} main_render_pass_stencil_t;
-
-typedef enum
-{
 	OIT_MODE_NONE,
 	OIT_MODE_WBOIT,
 	OIT_MODE_MBOIT,
@@ -289,33 +264,36 @@ static inline qboolean R_UseMBOIT (void)
 	return frame_oit_mode == OIT_MODE_MBOIT;
 }
 
-static inline main_render_pass_variant_t R_MainPassPipelineVariant (int render_pass_index)
-{
-	if (render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
-		return MAIN_RENDER_PASS_OIT;
-	if (render_pass_index == RENDER_PASS_INDEX_MAIN_MBOIT)
-		return MAIN_RENDER_PASS_MBOIT;
-	return MAIN_RENDER_PASS_STANDARD;
-}
-
 // selects between the standard, WBOIT accumulation, MBOIT moment and MBOIT composite
-// pipelines of a shader family based on the render pass a context records into
-static inline vulkan_pipeline_t R_PipelineForRenderPass (
-	int render_pass_index, vulkan_pipeline_t main_pipeline, vulkan_pipeline_t wboit_pipeline, vulkan_pipeline_t mboit_moment_pipeline,
+// pipelines of a shader family based on the subpass interface, independent of draw-stage identity
+static inline vulkan_pipeline_t R_PipelineForSubpassType (
+	subpass_type_t stage, vulkan_pipeline_t main_pipeline, vulkan_pipeline_t wboit_pipeline, vulkan_pipeline_t mboit_moment_pipeline,
 	vulkan_pipeline_t mboit_composite_pipeline)
 {
-	switch (render_pass_index)
+	switch (stage)
 	{
-	case RENDER_PASS_INDEX_WBOIT:
+	case SUBPASS_WBOIT:
 		return wboit_pipeline;
-	case RENDER_PASS_INDEX_MBOIT_MOMENTS:
+	case SUBPASS_MBOIT_MOMENTS:
 		return mboit_moment_pipeline;
-	case RENDER_PASS_INDEX_MBOIT_COMPOSITE:
+	case SUBPASS_MBOIT_COMPOSITE:
 		return mboit_composite_pipeline;
 	default:
 		return main_pipeline;
 	}
 }
+
+typedef enum
+{
+	PIPELINE_BASIC_ALPHATEST,
+	PIPELINE_BASIC_BLEND,
+	PIPELINE_GUI,
+	PIPELINE_GUI_BLEND,
+	PIPELINE_BASIC_NOTEX_BLEND,
+	PIPELINE_MENU_XBR,
+	PIPELINE_MENU_XBR_BLEND,
+	GRAPHICS_PIPELINE_COUNT,
+} graphics_pipeline_t;
 
 static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 	NUM_WORLD_CBX,	  // SCBX_WORLD,
@@ -338,14 +316,15 @@ static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 
 typedef struct cb_context_s
 {
-	VkCommandBuffer	  cb;
-	canvastype		  current_canvas;
-	VkRenderPass	  render_pass;
-	int				  render_pass_index;
-	int				  subpass;
-	vulkan_pipeline_t current_pipeline;
-	uint32_t		  vbo_indices[MAX_BATCH_SIZE];
-	unsigned int	  num_vbo_indices;
+	VkCommandBuffer			   cb;
+	canvastype				   current_canvas;
+	VkRenderPass			   render_pass;
+	subpass_type_t			   subpass_type;
+	main_render_pass_variant_t pipeline_variant;
+	int						   subpass;
+	vulkan_pipeline_t		   current_pipeline;
+	uint32_t				   vbo_indices[MAX_BATCH_SIZE];
+	unsigned int			   num_vbo_indices;
 } cb_context_t;
 
 typedef struct
@@ -401,17 +380,9 @@ typedef struct
 	int staging_buffer_size;
 
 	// Render passes
-	VkRenderPass main_render_pass[MAIN_RENDER_PASS_VARIANT_COUNT][MAIN_RENDER_PASS_STENCIL_COUNT];
 	VkRenderPass warp_render_pass;
 
 	// Pipelines
-	vulkan_pipeline_t		 basic_alphatest_pipeline[RENDER_PASS_INDEX_COUNT];
-	vulkan_pipeline_t		 basic_blend_pipeline[RENDER_PASS_INDEX_COUNT];
-	vulkan_pipeline_t		 gui_pipeline[RENDER_PASS_INDEX_COUNT];
-	vulkan_pipeline_t		 gui_blend_pipeline[RENDER_PASS_INDEX_COUNT];
-	vulkan_pipeline_t		 basic_notex_blend_pipeline[RENDER_PASS_INDEX_COUNT];
-	vulkan_pipeline_t		 menu_xbr_pipeline[RENDER_PASS_INDEX_COUNT];
-	vulkan_pipeline_t		 menu_xbr_blend_pipeline[RENDER_PASS_INDEX_COUNT];
 	vulkan_pipeline_layout_t basic_pipeline_layout;
 	vulkan_pipeline_layout_t gui_pipeline_layout;
 	vulkan_pipeline_t		 world_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][WORLD_PIPELINE_COUNT];
@@ -543,7 +514,8 @@ typedef struct
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
-extern qboolean		   indirect;
+
+extern qboolean indirect;
 
 //====================================================
 
@@ -856,9 +828,13 @@ void R_DestroyPipelines ();
 
 #define MAX_PUSH_CONSTANT_SIZE 128 // Vulkan guaranteed minimum maxPushConstantsSize
 
+VkPipeline R_ResolvePipelineInstance (const cb_context_t *cbx, vulkan_pipeline_t pipeline);
+
 static inline void R_BindPipeline (cb_context_t *cbx, VkPipelineBindPoint bind_point, vulkan_pipeline_t pipeline)
 {
 	static byte zeroes[MAX_PUSH_CONSTANT_SIZE];
+	if (bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS && pipeline.alternatives)
+		pipeline.handle = R_ResolvePipelineInstance (cbx, pipeline);
 	assert (pipeline.handle != VK_NULL_HANDLE);
 	assert (pipeline.layout.handle != VK_NULL_HANDLE);
 	assert (cbx->current_pipeline.layout.push_constant_range.size <= MAX_PUSH_CONSTANT_SIZE);
@@ -871,7 +847,7 @@ static inline void R_BindPipeline (cb_context_t *cbx, VkPipelineBindPoint bind_p
 			vulkan_globals.vk_cmd_push_constants (
 				cbx->cb, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0, pipeline.layout.push_constant_range.size, zeroes);
 		cbx->current_pipeline = pipeline;
-		if (cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE && pipeline.layout.mboit_input_attachment_set >= 0)
+		if (cbx->subpass_type == SUBPASS_MBOIT_COMPOSITE && pipeline.layout.mboit_input_attachment_set >= 0)
 		{
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
 				cbx->cb, bind_point, pipeline.layout.handle, pipeline.layout.mboit_input_attachment_set, 1,
@@ -879,6 +855,9 @@ static inline void R_BindPipeline (cb_context_t *cbx, VkPipelineBindPoint bind_p
 		}
 	}
 }
+
+void R_BindGraphicsPipeline (cb_context_t *cbx, graphics_pipeline_t pipeline);
+bool R_HasGraphicsPipeline (const cb_context_t *cbx, graphics_pipeline_t pipeline);
 
 static inline void R_PushConstants (cb_context_t *cbx, VkShaderStageFlags stage_flags, int offset, int size, const void *data)
 {

@@ -365,7 +365,7 @@ R_SetupContext
 static void R_SetupContext (cb_context_t *cbx)
 {
 	GL_Viewport (cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+	R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_BLEND);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
 
@@ -1040,7 +1040,7 @@ static void R_ShowBoundingBoxes (cb_context_t *cbx)
 		return;
 
 	R_BeginDebugUtilsLabel (cbx, "show bboxes");
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.debug_lines_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.debug_lines_pipeline[cbx->pipeline_variant]);
 
 	VkBuffer	 box_index_buffer;
 	VkDeviceSize box_index_buffer_offset;
@@ -1148,7 +1148,7 @@ static void R_ShowPointFile (cb_context_t *cbx)
 		return;
 
 	R_BeginDebugUtilsLabel (cbx, "pointfile");
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.debug_lines_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.debug_lines_pipeline[cbx->pipeline_variant]);
 	for (i = 1; i < VEC_SIZE (r_pointfile); i++)
 		R_EmitArrow (cbx, r_pointfile[i - 1], r_pointfile[i], 0xff3f3f7fu);
 	R_EndDebugUtilsLabel (cbx);

@@ -1034,8 +1034,8 @@ void R_DrawParticles (cb_context_t *cbx)
 	R_BeginDebugUtilsLabel (cbx, "Particles");
 	R_BindPipeline (
 		cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		R_PipelineForRenderPass (
-			cbx->render_pass_index, vulkan_globals.particle_pipeline, vulkan_globals.particle_oit_pipeline, vulkan_globals.particle_mboit_moment_pipeline,
+		R_PipelineForSubpassType (
+			cbx->subpass_type, vulkan_globals.particle_pipeline, vulkan_globals.particle_oit_pipeline, vulkan_globals.particle_mboit_moment_pipeline,
 			vulkan_globals.particle_mboit_composite_pipeline));
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &particletexture->descriptor_set, 0, NULL);
@@ -1052,9 +1052,9 @@ R_DrawParticles_ShowTris -- johnfitz
 void R_DrawParticles_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline[cbx->pipeline_variant]);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline[cbx->pipeline_variant]);
 
 	R_DrawParticlesFaces (cbx);
 }
