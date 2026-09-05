@@ -2976,12 +2976,24 @@ static void M_Help_Key (int key)
 
 #define MAX_MODS_ON_SCREEN MAX_MENU_LINES
 
-static int			num_mods = 0;
-static int			first_mod = 0;
-static int			mods_cursor = 0;
-int					mods_prev_cursor = 0;
-static int			mod_loaded_from_menu = 0;
-static menuticker_t m_mods_ticker;
+static int				 num_mods = 0;
+static int				 first_mod = 0;
+static int				 mods_cursor = 0;
+int						 mods_prev_cursor = 0;
+static int				 mod_loaded_from_menu = 0;
+static menuticker_t		 m_mods_ticker;
+static filelist_item_t **mods_sorted;
+
+static int M_Mods_Compare (const void *a, const void *b)
+{
+	const filelist_item_t *left = *(filelist_item_t *const *)a;
+	const filelist_item_t *right = *(filelist_item_t *const *)b;
+	const char			  *left_name = Modlist_GetFullName (left);
+	const char			  *right_name = Modlist_GetFullName (right);
+	int					   result = q_strcasecmp (left_name ? left_name : left->name, right_name ? right_name : right->name);
+
+	return result ? result : q_strcasecmp (left->name, right->name);
+}
 
 static void M_Menu_Mods_f (void)
 {
@@ -2991,8 +3003,14 @@ static void M_Menu_Mods_f (void)
 	m_state = m_mods;
 	m_entersound = true;
 	num_mods = 0;
+	VEC_CLEAR (mods_sorted);
 	for (filelist_item_t *item = modlist; item; item = item->next)
+	{
+		VEC_PUSH (mods_sorted, item);
 		++num_mods;
+	}
+	if (num_mods > 1)
+		qsort (mods_sorted, num_mods, sizeof (*mods_sorted), M_Mods_Compare);
 	first_mod = 0;
 	mods_cursor = 0;
 	mods_prev_cursor = 0;
@@ -3019,8 +3037,9 @@ static void M_Mods_Draw (cb_context_t *cbx)
 	// to trigger scroll faster
 	M_Ticker_Update (&m_mods_ticker);
 
-	for (filelist_item_t *item = modlist; item; item = item->next)
+	for (int i = 0; i < num_mods; ++i)
 	{
+		filelist_item_t *item = mods_sorted[i];
 		if (mod_index >= MAX_MODS_ON_SCREEN)
 			break;
 		if (mod_index >= 0)
@@ -3044,8 +3063,6 @@ static void M_Mods_Draw (cb_context_t *cbx)
 
 static void M_Mods_Key (int key)
 {
-	int mod_index = 0;
-
 	if (M_Ticker_Key (&m_mods_ticker, key))
 		return;
 
@@ -3064,15 +3081,14 @@ static void M_Mods_Key (int key)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
-		for (filelist_item_t *item = modlist; item; item = item->next)
-			if (mod_index++ == mods_cursor)
-			{
-				Cbuf_AddText ("game \"");
-				Cbuf_AddText (item->name);
-				Cbuf_AddText ("\"\n");
-				mod_loaded_from_menu = 1;
-				m_state = m_main;
-			}
+		if (mods_cursor < num_mods)
+		{
+			Cbuf_AddText ("game \"");
+			Cbuf_AddText (mods_sorted[mods_cursor]->name);
+			Cbuf_AddText ("\"\n");
+			mod_loaded_from_menu = 1;
+			m_state = m_main;
+		}
 		break;
 	}
 }
