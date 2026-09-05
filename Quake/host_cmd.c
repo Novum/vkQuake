@@ -577,6 +577,7 @@ static const char *const knownmods[][2] = {
 	{"ctf",			"Capture The Flag"},
 	{"udob",		"Underdark Overbright"},
 	{"ad",			"Arcane Dimensions"},
+	{"alk",			"Alkaline"},
 };
 // clang-format on
 
