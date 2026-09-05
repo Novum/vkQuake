@@ -216,6 +216,7 @@ GLOBJS = \
 	gl_rmain.o \
 	gl_fog.o \
 	gl_rmisc.o \
+	r_passes.o \
 	r_part.o \
 	r_part_fte.o \
 	r_world.o \
