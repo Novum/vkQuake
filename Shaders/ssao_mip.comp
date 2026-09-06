@@ -91,28 +91,56 @@ void main ()
 		 texelFetch (source, min (q + ivec2 (0, 1), last), 0).xy, texelFetch (source, min (q + ivec2 (1, 1), last), 0).xy);
 	if (all (lessThan (p, imageSize (mip1))))
 		imageStore (mip1, p, vec4 (depth, 0, 0));
-	uint lane = gl_SubgroupInvocationID & ~3u;
-	vec2 a = subgroupShuffle (depth, lane);
-	vec2 b = subgroupShuffle (depth, lane + 1);
-	vec2 c = subgroupShuffle (depth, lane + 2);
-	vec2 d = subgroupShuffle (depth, lane + 3);
+	vec2 a = depth;
+	vec2 b = subgroupShuffleXor (depth, 1);
+	vec2 c = subgroupShuffleXor (depth, 2);
+	vec2 d = subgroupShuffleXor (depth, 3);
+	depth = reduce (a, b, c, d);
 	if ((index & 3u) == 0)
 	{
-		depth = reduce (a, b, c, d);
-		depths2[(local.y / 2) * 4 + local.x / 2] = depth;
+		if (gl_SubgroupSize < 16)
+			depths2[(local.y / 2) * 4 + local.x / 2] = depth;
 		if (all (lessThan (p / 2, imageSize (mip2))))
 			imageStore (mip2, p / 2, vec4 (depth, 0, 0));
 	}
-	barrier ();
-	if (gl_LocalInvocationIndex < 4)
+	if (gl_SubgroupSize >= 16)
 	{
-		ivec2 pos = ivec2 (gl_LocalInvocationIndex & 1u, gl_LocalInvocationIndex >> 1u);
-		q = pos * 2;
-		depth = reduce (read2 (q), read2 (q + ivec2 (1, 0)), read2 (q + ivec2 (0, 1)), read2 (q + ivec2 (1, 1)));
-		depths3[gl_LocalInvocationIndex] = depth;
-		p = ivec2 (gl_WorkGroupID.xy) * 2 + pos;
-		if (all (lessThan (p, imageSize (mip3))))
-			imageStore (mip3, p, vec4 (depth, 0, 0));
+		a = depth;
+		b = subgroupShuffleXor (depth, 4);
+		c = subgroupShuffleXor (depth, 8);
+		d = subgroupShuffleXor (depth, 12);
+		depth = reduce (a, b, c, d);
+		if ((index & 15u) == 0)
+		{
+			if (gl_SubgroupSize < 64)
+				depths3[(local.y / 4) * 2 + local.x / 4] = depth;
+			if (all (lessThan (p / 4, imageSize (mip3))))
+				imageStore (mip3, p / 4, vec4 (depth, 0, 0));
+		}
+		if (gl_SubgroupSize >= 64)
+		{
+			a = depth;
+			b = subgroupShuffleXor (depth, 16);
+			c = subgroupShuffleXor (depth, 32);
+			d = subgroupShuffleXor (depth, 48);
+			if (index == 0 && all (lessThan (ivec2 (gl_WorkGroupID.xy), imageSize (mip4))))
+				imageStore (mip4, ivec2 (gl_WorkGroupID.xy), vec4 (reduce (a, b, c, d), 0, 0));
+			return;
+		}
+	}
+	else
+	{
+		barrier ();
+		if (gl_LocalInvocationIndex < 4)
+		{
+			ivec2 pos = ivec2 (gl_LocalInvocationIndex & 1u, gl_LocalInvocationIndex >> 1u);
+			q = pos * 2;
+			depth = reduce (read2 (q), read2 (q + ivec2 (1, 0)), read2 (q + ivec2 (0, 1)), read2 (q + ivec2 (1, 1)));
+			depths3[gl_LocalInvocationIndex] = depth;
+			p = ivec2 (gl_WorkGroupID.xy) * 2 + pos;
+			if (all (lessThan (p, imageSize (mip3))))
+				imageStore (mip3, p, vec4 (depth, 0, 0));
+		}
 	}
 	barrier ();
 	if (gl_LocalInvocationIndex == 0 && all (lessThan (ivec2 (gl_WorkGroupID.xy), imageSize (mip4))))
