@@ -880,19 +880,19 @@ static void R_FlushPendingBLASBuilds (cb_context_t *cbx, int num_pending, qboole
 	ZEROED_STRUCT (VkMemoryBarrier, as_barrier);
 	as_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 	as_barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+	as_barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
 
 	if (more_entities)
 	{
-		// More batches coming: need AS_READ for TLAS + SHADER_WRITE for next compute batch
-		as_barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_SHADER_WRITE_BIT;
+		// Reuse scratch memory for the next compute and BLAS build batch.
+		as_barrier.dstAccessMask |= VK_ACCESS_SHADER_WRITE_BIT;
 		vulkan_globals.vk_cmd_pipeline_barrier (
 			cbx->cb, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
 			VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &as_barrier, 0, NULL, 0, NULL);
 	}
 	else
 	{
-		// Final batch: only need AS_READ for TLAS build
-		as_barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+		// TLAS reads the BLASes and reuses their scratch memory.
 		vulkan_globals.vk_cmd_pipeline_barrier (
 			cbx->cb, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &as_barrier, 0, NULL,
 			0, NULL);
