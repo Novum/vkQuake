@@ -3534,6 +3534,7 @@ static void R_CreateSkyPipelines ()
 			R_CopyPipelineCreateInfos (&infos, &base);
 			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[0].module = sky_cube_vert_module;
+			infos.vertex_input_state.vertexAttributeDescriptionCount = 1;
 			infos.shader_stages[1].module = sky_cube_frag_module;
 			infos.multisample_state.sampleShadingEnable = vulkan_globals.supersampling;
 			R_CreateGraphicsPipeline (
@@ -3543,6 +3544,7 @@ static void R_CreateSkyPipelines ()
 			R_CopyPipelineCreateInfos (&infos, &base);
 			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[0].module = sky_layer_vert_module;
+			infos.vertex_input_state.vertexAttributeDescriptionCount = 1;
 			infos.shader_stages[1].module = sky_layer_frag_module;
 			infos.multisample_state.sampleShadingEnable = vulkan_globals.supersampling;
 			R_CreateGraphicsPipeline (
