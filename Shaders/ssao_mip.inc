@@ -28,24 +28,24 @@ layout (set = 0, binding = 0) uniform sampler2DMS scene_depth;
 #else
 layout (set = 0, binding = 0) uniform sampler2D scene_depth;
 #endif
-layout (rg32f, set = 0, binding = 1) uniform image2D mip0;
-layout (rg32f, set = 0, binding = 2) uniform writeonly image2D mip1;
-layout (rg32f, set = 0, binding = 3) uniform writeonly image2D mip2;
-layout (rg32f, set = 0, binding = 4) uniform writeonly image2D mip3;
-layout (rg32f, set = 0, binding = 5) uniform writeonly image2D mip4;
+layout (rg16f, set = 0, binding = 1) uniform image2D mip0;
+layout (rg16f, set = 0, binding = 2) uniform writeonly image2D mip1;
+layout (rg16f, set = 0, binding = 3) uniform writeonly image2D mip2;
+layout (rg16f, set = 0, binding = 4) uniform writeonly image2D mip3;
+layout (rg16f, set = 0, binding = 5) uniform writeonly image2D mip4;
 shared vec2 depths1[64];
 shared vec2 depths2[16];
 shared vec2 depths3[4];
 
 float reduce_depth (float a, float b, float c, float d)
 {
-	float farthest = max (max (a < 1e8 ? a : 0.0, b < 1e8 ? b : 0.0), max (c < 1e8 ? c : 0.0, d < 1e8 ? d : 0.0));
+	float farthest = max (max (a < 65504.0 ? a : 0.0, b < 65504.0 ? b : 0.0), max (c < 65504.0 ? c : 0.0, d < 65504.0 ? d : 0.0));
 	if (farthest == 0.0)
-		return 1e9;
-	a = a < 1e8 ? a : farthest;
-	b = b < 1e8 ? b : farthest;
-	c = c < 1e8 ? c : farthest;
-	d = d < 1e8 ? d : farthest;
+		return 65504.0;
+	a = a < 65504.0 ? a : farthest;
+	b = b < 65504.0 ? b : farthest;
+	c = c < 65504.0 ? c : farthest;
+	d = d < 65504.0 ? d : farthest;
 
 	float effect_radius = 0.75 * pc.settings.x * 1.457;
 	float falloff_range = 0.615 * effect_radius;
@@ -84,7 +84,7 @@ vec2 read3 (ivec2 p)
 vec2 prepare_depth (ivec2 p)
 {
 	if (any (greaterThanEqual (p, imageSize (mip0))))
-		return vec2 (1e9);
+		return vec2 (65504.0);
 	float depth = 0.0;
 	if (all (greaterThanEqual (vec2 (p), pc.viewport.xy)) && all (lessThan (vec2 (p), pc.viewport.xy + round (1.0 / pc.viewport.zw))))
 	{
@@ -95,7 +95,9 @@ vec2 prepare_depth (ivec2 p)
 		depth = texelFetch (scene_depth, p, 0).r;
 #endif
 	}
-	vec2 depths = vec2 (imageLoad (mip0, p).x, depth > 0.0 ? pc.projection.z / depth : 1e9);
+	vec2 depths = vec2 (imageLoad (mip0, p).x, depth > 0.0 ? min (pc.projection.z / depth, 65472.0) : 65504.0);
+	// Match the already stored world depth before reducing the two channels together.
+	depths = unpackHalf2x16 (packHalf2x16 (depths));
 	imageStore (mip0, p, vec4 (depths, 0, 0));
 	return depths;
 }

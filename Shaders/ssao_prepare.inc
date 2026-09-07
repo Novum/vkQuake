@@ -16,7 +16,7 @@ layout (set = 1, binding = 0) uniform sampler2DMS scene_depth;
 layout (set = 1, binding = 0) uniform sampler2D scene_depth;
 #define DEPTH(image, p, s) texelFetch (image, p, 0).r
 #endif
-layout (rg32f, set = 2, binding = 0) uniform writeonly image2D prepared;
+layout (rg16f, set = 2, binding = 0) uniform writeonly image2D prepared;
 void main ()
 {
 	ivec2 output_pixel = ivec2 (gl_GlobalInvocationID.xy);
@@ -32,6 +32,7 @@ void main ()
 #endif
 			depth = max (depth, DEPTH (scene_depth, output_pixel, s));
 	}
-	float view_depth = depth > 0.0 ? pc.projection.z / depth : 1e9;
-	imageStore (prepared, output_pixel, vec4 (view_depth, 1e9, 0.0, 0.0));
+	// Reserve the largest finite half value for missing depth.
+	float view_depth = depth > 0.0 ? min (pc.projection.z / depth, 65472.0) : 65504.0;
+	imageStore (prepared, output_pixel, vec4 (view_depth, 65504.0, 0.0, 0.0));
 }

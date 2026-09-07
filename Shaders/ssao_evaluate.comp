@@ -92,7 +92,7 @@ void main ()
 	gtao_constants c = get_gtao_constants ();
 	if (any (greaterThanEqual (pixel, uvec2 (c.viewport_size))))
 		return;
-	if (texelFetch (world_depth, ivec2 (pixel), 0).x >= 1e8)
+	if (texelFetch (world_depth, ivec2 (pixel), 0).x >= 65504.0)
 	{
 		imageStore (out_working_ao_term, ivec2 (pixel), vec4 (2.0 / 3.0));
 		imageStore (out_working_edges, ivec2 (pixel), vec4 (0));
@@ -126,7 +126,8 @@ void main ()
 	vec3 bottom = compute_viewspace_position (normalized_screen_pos + vec2 (0, 1) * c.viewport_pixel_size, pix_bz);
 	vec3 viewspace_normal = calculate_normal (edges_lrtb, center, left, right, top, bottom);
 
-	viewspace_z *= 0.99999;
+	// XeGTAO bias for FP16 depth storage.
+	viewspace_z *= 0.99920;
 
 	vec3 pix_center_pos = compute_viewspace_position (normalized_screen_pos, viewspace_z);
 	vec3 view_vec = normalize (-pix_center_pos);
@@ -236,10 +237,10 @@ void main ()
 			float scene_weight1 = clamp (scene_sample_dist1 * falloff_mul + falloff_add, 0.0, 1.0);
 			bool  in_bounds0 = all (greaterThanEqual (sample_screen_pos0, vec2 (0))) && all (lessThanEqual (sample_screen_pos0, vec2 (1)));
 			bool  in_bounds1 = all (greaterThanEqual (sample_screen_pos1, vec2 (0))) && all (lessThanEqual (sample_screen_pos1, vec2 (1)));
-			world_weight0 *= sample_depth0.x < 1e8 && in_bounds0 ? 1 : 0;
-			world_weight1 *= sample_depth1.x < 1e8 && in_bounds1 ? 1 : 0;
-			scene_weight0 *= sample_depth0.y < 1e8 && in_bounds0 ? 1 : 0;
-			scene_weight1 *= sample_depth1.y < 1e8 && in_bounds1 ? 1 : 0;
+			world_weight0 *= sample_depth0.x < 65504.0 && in_bounds0 ? 1 : 0;
+			world_weight1 *= sample_depth1.x < 65504.0 && in_bounds1 ? 1 : 0;
+			scene_weight0 *= sample_depth0.y < 65504.0 && in_bounds0 ? 1 : 0;
+			scene_weight1 *= sample_depth1.y < 65504.0 && in_bounds1 ? 1 : 0;
 
 			float world_shc0 = mix (low_horizon_cos0, dot (world_sample_delta0 / world_sample_dist0, view_vec), world_weight0);
 			float world_shc1 = mix (low_horizon_cos1, dot (world_sample_delta1 / world_sample_dist1, view_vec), world_weight1);

@@ -135,7 +135,7 @@ void R_CreateSSAO (VkImage depth)
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 			.imageType = VK_IMAGE_TYPE_2D,
 			.format = !working							  ? vulkan_globals.depth_format
-					  : image_index == SSAO_DEPTH_PYRAMID ? VK_FORMAT_R32G32_SFLOAT
+					  : image_index == SSAO_DEPTH_PYRAMID ? VK_FORMAT_R16G16_SFLOAT
 					  : image_index == SSAO_EDGES		  ? VK_FORMAT_R8_UNORM
 					  : image_index == SSAO_HILBERT		  ? VK_FORMAT_R16_UINT
 														  : VK_FORMAT_R8_UNORM,
@@ -207,7 +207,7 @@ void R_CreateSSAO (VkImage depth)
 			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.image = working_images[SSAO_DEPTH_PYRAMID],
 			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = VK_FORMAT_R32G32_SFLOAT,
+			.format = VK_FORMAT_R16G16_SFLOAT,
 			.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, mip, 1, 0, 1}};
 		if (vkCreateImageView (vulkan_globals.device, &info, NULL, &mip_views[mip]) != VK_SUCCESS)
 			Sys_Error ("Couldn't create GTAO mip view");
