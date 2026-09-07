@@ -205,42 +205,53 @@ void Cvar_Toggle_f (void)
 Cvar_Cycle_f -- johnfitz
 ============
 */
+static qboolean Cvar_HasValue (const cvar_t *var, const char *value)
+{
+	float f;
+	if (sscanf (value, "%f", &f) == 1)
+		return f == var->value;
+	return !strcmp (value, var->string);
+}
+
 void Cvar_Cycle_f (void)
 {
-	int i;
+	int		i;
+	cvar_t *var;
 
 	if (Cmd_Argc () < 3)
 	{
-		Con_Printf ("cycle <cvar> <value list>: cycle cvar through a list of values\n");
+		Con_Printf ("%s <cvar> <value list>: cycle cvar through a list of values\n", Cmd_Argv (0));
+		return;
+	}
+
+	var = Cvar_FindVar (Cmd_Argv (1));
+	if (!var)
+	{
+		Con_Printf ("Cvar \"%s\" not found\n", Cmd_Argv (1));
 		return;
 	}
 
 	// loop through the args until you find one that matches the current cvar value.
 	// yes, this will get stuck on a list that contains the same value twice.
 	// it's not worth dealing with, and i'm not even sure it can be dealt with.
-	for (i = 2; i < Cmd_Argc (); i++)
+	if (!q_strcasecmp (Cmd_Argv (0), "cycle")) // forward
 	{
-		// zero is assumed to be a string, even though it could actually be zero.  The worst case
-		// is that the first time you call this command, it won't match on zero when it should, but after that,
-		// it will be comparing strings that all had the same source (the user) so it will work.
-		if (atof (Cmd_Argv (i)) == 0)
-		{
-			if (!strcmp (Cmd_Argv (i), Cvar_VariableString (Cmd_Argv (1))))
+		for (i = 2; i < Cmd_Argc (); i++)
+			if (Cvar_HasValue (var, Cmd_Argv (i)))
 				break;
-		}
-		else
-		{
-			if (atof (Cmd_Argv (i)) == Cvar_VariableValue (Cmd_Argv (1)))
+		if (++i >= Cmd_Argc ())
+			i = 2;
+	}
+	else // backward
+	{
+		for (i = Cmd_Argc () - 1; i >= 2; i--)
+			if (Cvar_HasValue (var, Cmd_Argv (i)))
 				break;
-		}
+		if (--i < 2)
+			i = Cmd_Argc () - 1;
 	}
 
-	if (i == Cmd_Argc ())
-		Cvar_Set (Cmd_Argv (1), Cmd_Argv (2)); // no match
-	else if (i + 1 == Cmd_Argc ())
-		Cvar_Set (Cmd_Argv (1), Cmd_Argv (2)); // matched last value in list
-	else
-		Cvar_Set (Cmd_Argv (1), Cmd_Argv (i + 1)); // matched earlier in list
+	Cvar_SetQuick (var, Cmd_Argv (i));
 }
 
 /*
@@ -306,6 +317,7 @@ void Cvar_Init (void)
 	Cmd_AddCommand ("cvarlist", Cvar_List_f);
 	Cmd_AddCommand ("toggle", Cvar_Toggle_f);
 	Cmd_AddCommand ("cycle", Cvar_Cycle_f);
+	Cmd_AddCommand ("cycleback", Cvar_Cycle_f);
 	Cmd_AddCommand ("inc", Cvar_Inc_f);
 	Cmd_AddCommand ("reset", Cvar_Reset_f);
 	Cmd_AddCommand ("resetall", Cvar_ResetAll_f);
