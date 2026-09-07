@@ -977,8 +977,7 @@ static void GL_InitInstance (void)
 			ZEROED_STRUCT (VkDebugUtilsMessengerCreateInfoEXT, debug_utils_messenger_create_info);
 			debug_utils_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 			debug_utils_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
-			debug_utils_messenger_create_info.messageType =
-				VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+			debug_utils_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
 			debug_utils_messenger_create_info.pfnUserCallback = DebugMessageCallback;
 
 			err = fpCreateDebugUtilsMessengerEXT (vulkan_instance, &debug_utils_messenger_create_info, NULL, &debug_utils_messenger);
