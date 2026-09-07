@@ -108,6 +108,9 @@ cvar_t scr_showpause = {"showpause", "1", CVAR_NONE};
 cvar_t scr_printspeed = {"scr_printspeed", "8", CVAR_NONE};
 
 cvar_t cl_gun_fovscale = {"cl_gun_fovscale", "1", CVAR_ARCHIVE_GAME}; // Qrack
+cvar_t cl_gun_x = {"cl_gun_x", "0", CVAR_ARCHIVE_GAME};
+cvar_t cl_gun_y = {"cl_gun_y", "0", CVAR_ARCHIVE_GAME};
+cvar_t cl_gun_z = {"cl_gun_z", "0", CVAR_ARCHIVE_GAME};
 
 // All scaling is done relative to resolution with scr_relativescale
 cvar_t scr_relativescale = {"scr_relativescale", "2", CVAR_ARCHIVE};
@@ -580,6 +583,9 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_printspeed);
 	Cvar_RegisterVariable (&scr_style);
 	Cvar_RegisterVariable (&cl_gun_fovscale);
+	Cvar_RegisterVariable (&cl_gun_x);
+	Cvar_RegisterVariable (&cl_gun_y);
+	Cvar_RegisterVariable (&cl_gun_z);
 
 	Cvar_RegisterVariable (&scr_relativescale);
 	Cvar_RegisterVariable (&scr_relmenuscale);

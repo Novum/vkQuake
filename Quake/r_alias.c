@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove, r_showtris; // johnfitz
 extern cvar_t r_lerpturn;
-extern cvar_t cl_gun_fovscale;
+extern cvar_t cl_gun_fovscale, cl_gun_x, cl_gun_y, cl_gun_z;
 
 // up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; // johnfitz -- changed to an array of pointers
@@ -480,6 +480,36 @@ static void R_SetupAliasLighting (entity_t *e, vec3_t *shadevector, vec3_t *ligh
 R_DrawAliasModel -- johnfitz -- almost completely rewritten
 =================
 */
+static void R_AliasModelMatrix (entity_t *e, const aliashdr_t *paliashdr, lerpdata_t *lerpdata, float model_matrix[16])
+{
+	IdentityMatrix (model_matrix);
+
+	float fovscale = 1.0f;
+	if (e == &cl.viewent && r_refdef.basefov > 90.f && cl_gun_fovscale.value)
+	{
+		fovscale = tan (r_refdef.basefov * (0.5f * M_PI / 180.f));
+		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+	}
+
+	vec3_t origin;
+	VectorCopy (lerpdata->origin, origin);
+	if (e == &cl.viewent)
+	{
+		VectorMA (origin, cl_gun_x.value * paliashdr->scale[0] * fovscale, vright, origin);
+		VectorMA (origin, cl_gun_y.value * paliashdr->scale[1] * fovscale, vup, origin);
+		VectorMA (origin, cl_gun_z.value * paliashdr->scale[2], vpn, origin);
+	}
+	R_RotateForEntity (model_matrix, origin, lerpdata->angles, e->netstate.scale);
+
+	float translation_matrix[16];
+	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
+	MatrixMultiply (model_matrix, translation_matrix);
+
+	float scale_matrix[16];
+	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
+	MatrixMultiply (model_matrix, scale_matrix);
+}
+
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 {
 	aliashdr_t	*paliashdr;
@@ -507,23 +537,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	// transform it
 	//
 	float model_matrix[16];
-	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles, e->netstate.scale);
-
-	float fovscale = 1.0f;
-	if (e == &cl.viewent && r_refdef.basefov > 90.f && cl_gun_fovscale.value)
-	{
-		fovscale = tan (r_refdef.basefov * (0.5f * M_PI / 180.f));
-		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
-	}
-
-	float translation_matrix[16];
-	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
-	MatrixMultiply (model_matrix, translation_matrix);
-
-	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
-	MatrixMultiply (model_matrix, scale_matrix);
+	R_AliasModelMatrix (e, paliashdr, &lerpdata, model_matrix);
 
 	//
 	// set up for alpha blending
@@ -635,23 +649,7 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	// transform it
 	//
 	float model_matrix[16];
-	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles, e->netstate.scale);
-
-	float fovscale = 1.0f;
-	if (e == &cl.viewent && r_refdef.basefov > 90.f)
-	{
-		fovscale = tan (r_refdef.basefov * (0.5f * M_PI / 180.f));
-		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
-	}
-
-	float translation_matrix[16];
-	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
-	MatrixMultiply (model_matrix, translation_matrix);
-
-	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
-	MatrixMultiply (model_matrix, scale_matrix);
+	R_AliasModelMatrix (e, paliashdr, &lerpdata, model_matrix);
 
 	vec3_t shadevector = {0.0f, 0.0f, 0.0f};
 	vec3_t lightcolor = {0.0f, 0.0f, 0.0f};
@@ -684,23 +682,7 @@ void R_DrawAliasModel_ShowSkel (cb_context_t *cbx, entity_t *e)
 		return;
 
 	float model_matrix[16];
-	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles, e->netstate.scale);
-
-	float fovscale = 1.0f;
-	if (e == &cl.viewent && r_refdef.basefov > 90.f)
-	{
-		fovscale = tan (r_refdef.basefov * (0.5f * M_PI / 180.f));
-		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
-	}
-
-	float translation_matrix[16];
-	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
-	MatrixMultiply (model_matrix, translation_matrix);
-
-	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
-	MatrixMultiply (model_matrix, scale_matrix);
+	R_AliasModelMatrix (e, paliashdr, &lerpdata, model_matrix);
 
 	float blend = 0.0f;
 	if (lerpdata.pose1 != lerpdata.pose2)
