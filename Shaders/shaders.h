@@ -75,6 +75,7 @@ DECLARE_SHADER_SPV (ssao_prepare_comp);
 DECLARE_SHADER_SPV (ssao_prepare_msaa_comp);
 DECLARE_SHADER_SPV (ssao_evaluate_comp);
 DECLARE_SHADER_SPV (ssao_mip_comp);
+DECLARE_SHADER_SPV (ssao_mip_msaa_comp);
 DECLARE_SHADER_SPV (ssao_filter_comp);
 DECLARE_SHADER_SPV (ssao_composite_msaa_frag);
 DECLARE_SHADER_SPV (wboit_resolve_frag);

@@ -46,6 +46,9 @@
     <CustomBuild Include="..\..\Shaders\ssao_mip.comp">
       <Filter>Shaders\SSAO</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_mip_msaa.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ssao_filter.comp">
       <Filter>Shaders\SSAO</Filter>
     </CustomBuild>
@@ -175,6 +178,9 @@
       <Filter>Shaders\SSAO</Filter>
     </None>
     <None Include="..\..\Shaders\gtao.inc">
+      <Filter>Shaders\SSAO</Filter>
+    </None>
+    <None Include="..\..\Shaders\ssao_mip.inc">
       <Filter>Shaders\SSAO</Filter>
     </None>
     <None Include="..\..\Shaders\ssao_prepare.inc">

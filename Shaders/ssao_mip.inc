@@ -1,0 +1,181 @@
+// MIT License
+//
+// Copyright (c) 2016-2021 Intel Corporation
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#include "gtao.inc"
+
+layout (local_size_x = 64) in;
+#ifdef MULTISAMPLED
+layout (set = 0, binding = 0) uniform sampler2DMS scene_depth;
+#else
+layout (set = 0, binding = 0) uniform sampler2D scene_depth;
+#endif
+layout (rg32f, set = 0, binding = 1) uniform image2D mip0;
+layout (rg32f, set = 0, binding = 2) uniform writeonly image2D mip1;
+layout (rg32f, set = 0, binding = 3) uniform writeonly image2D mip2;
+layout (rg32f, set = 0, binding = 4) uniform writeonly image2D mip3;
+layout (rg32f, set = 0, binding = 5) uniform writeonly image2D mip4;
+shared vec2 depths1[64];
+shared vec2 depths2[16];
+shared vec2 depths3[4];
+
+float reduce_depth (float a, float b, float c, float d)
+{
+	float farthest = max (max (a < 1e8 ? a : 0.0, b < 1e8 ? b : 0.0), max (c < 1e8 ? c : 0.0, d < 1e8 ? d : 0.0));
+	if (farthest == 0.0)
+		return 1e9;
+	a = a < 1e8 ? a : farthest;
+	b = b < 1e8 ? b : farthest;
+	c = c < 1e8 ? c : farthest;
+	d = d < 1e8 ? d : farthest;
+
+	float effect_radius = 0.75 * pc.settings.x * 1.457;
+	float falloff_range = 0.615 * effect_radius;
+	float falloff_mul = -1.0 / falloff_range;
+	float falloff_add = effect_radius * (1.0 - 0.615) / falloff_range + 1.0;
+
+	vec4 weights = clamp ((farthest - vec4 (a, b, c, d)) * falloff_mul + falloff_add, 0.0, 1.0);
+	return dot (weights, vec4 (a, b, c, d)) / dot (weights, vec4 (1.0));
+}
+
+vec2 reduce (vec2 a, vec2 b, vec2 c, vec2 d)
+{
+	return vec2 (reduce_depth (a.x, b.x, c.x, d.x), reduce_depth (a.y, b.y, c.y, d.y));
+}
+
+uint morton_x (uint i)
+{
+	return (i & 1u) | ((i >> 1u) & 2u) | ((i >> 2u) & 4u);
+}
+
+vec2 read2 (ivec2 p)
+{
+	ivec2 last = max (ivec2 (0), min (ivec2 (3), imageSize (mip2) - ivec2 (gl_WorkGroupID.xy) * 4 - 1));
+	p = clamp (p, ivec2 (0), last);
+	return depths2[p.y * 4 + p.x];
+}
+
+vec2 read3 (ivec2 p)
+{
+	ivec2 last = max (ivec2 (0), min (ivec2 (1), imageSize (mip3) - ivec2 (gl_WorkGroupID.xy) * 2 - 1));
+	p = clamp (p, ivec2 (0), last);
+	return depths3[p.y * 2 + p.x];
+}
+
+// Each pixel has one owner: preserve world depth and resolve scene depth in registers.
+vec2 prepare_depth (ivec2 p)
+{
+	if (any (greaterThanEqual (p, imageSize (mip0))))
+		return vec2 (1e9);
+	float depth = 0.0;
+	if (all (greaterThanEqual (vec2 (p), pc.viewport.xy)) && all (lessThan (vec2 (p), pc.viewport.xy + round (1.0 / pc.viewport.zw))))
+	{
+#ifdef MULTISAMPLED
+		for (int s = 0; s < int (pc.projection.w); ++s)
+			depth = max (depth, texelFetch (scene_depth, p, s).r);
+#else
+		depth = texelFetch (scene_depth, p, 0).r;
+#endif
+	}
+	vec2 depths = vec2 (imageLoad (mip0, p).x, depth > 0.0 ? pc.projection.z / depth : 1e9);
+	imageStore (mip0, p, vec4 (depths, 0, 0));
+	return depths;
+}
+
+void main ()
+{
+	// Full subgroups, as in screen_effects: each four adjacent lanes form a 2x2 quad.
+	// No early return: even edge lanes must participate in shuffles and barriers.
+	uint  index = gl_SubgroupID * gl_SubgroupSize + gl_SubgroupInvocationID;
+	ivec2 local = ivec2 (morton_x (index), morton_x (index >> 1));
+	ivec2 p = ivec2 (gl_WorkGroupID.xy) * 8 + local;
+	ivec2 q = p * 2;
+	vec2  depth = reduce (prepare_depth (q), prepare_depth (q + ivec2 (1, 0)), prepare_depth (q + ivec2 (0, 1)), prepare_depth (q + ivec2 (1, 1)));
+	// An odd trailing row/column still needs mip 0, even when it contributes to no higher mip.
+	ivec2 origin = ivec2 (gl_WorkGroupID.xy) * 8;
+	if (any (greaterThanEqual (origin, imageSize (mip1))))
+		return;
+	// Replicate the last valid mip-1 value for partial tiles, matching the existing reduction.
+	// Full tiles stay entirely in registers and use the subgroup reduction below.
+	if (any (greaterThan (origin + 8, imageSize (mip1))))
+	{
+		depths1[local.y * 8 + local.x] = depth;
+		barrier ();
+		ivec2 clamped = min (local, imageSize (mip1) - origin - 1);
+		depth = depths1[clamped.y * 8 + clamped.x];
+	}
+	if (all (lessThan (p, imageSize (mip1))))
+		imageStore (mip1, p, vec4 (depth, 0, 0));
+	vec2 a = depth;
+	vec2 b = subgroupShuffleXor (depth, 1);
+	vec2 c = subgroupShuffleXor (depth, 2);
+	vec2 d = subgroupShuffleXor (depth, 3);
+	depth = reduce (a, b, c, d);
+	if ((index & 3u) == 0)
+	{
+		if (gl_SubgroupSize < 16)
+			depths2[(local.y / 2) * 4 + local.x / 2] = depth;
+		if (all (lessThan (p / 2, imageSize (mip2))))
+			imageStore (mip2, p / 2, vec4 (depth, 0, 0));
+	}
+	if (gl_SubgroupSize >= 16)
+	{
+		a = depth;
+		b = subgroupShuffleXor (depth, 4);
+		c = subgroupShuffleXor (depth, 8);
+		d = subgroupShuffleXor (depth, 12);
+		depth = reduce (a, b, c, d);
+		if ((index & 15u) == 0)
+		{
+			if (gl_SubgroupSize < 64)
+				depths3[(local.y / 4) * 2 + local.x / 4] = depth;
+			if (all (lessThan (p / 4, imageSize (mip3))))
+				imageStore (mip3, p / 4, vec4 (depth, 0, 0));
+		}
+		if (gl_SubgroupSize >= 64)
+		{
+			a = depth;
+			b = subgroupShuffleXor (depth, 16);
+			c = subgroupShuffleXor (depth, 32);
+			d = subgroupShuffleXor (depth, 48);
+			if (index == 0 && all (lessThan (ivec2 (gl_WorkGroupID.xy), imageSize (mip4))))
+				imageStore (mip4, ivec2 (gl_WorkGroupID.xy), vec4 (reduce (a, b, c, d), 0, 0));
+			return;
+		}
+	}
+	else
+	{
+		barrier ();
+		if (gl_LocalInvocationIndex < 4)
+		{
+			ivec2 pos = ivec2 (gl_LocalInvocationIndex & 1u, gl_LocalInvocationIndex >> 1u);
+			q = pos * 2;
+			depth = reduce (read2 (q), read2 (q + ivec2 (1, 0)), read2 (q + ivec2 (0, 1)), read2 (q + ivec2 (1, 1)));
+			depths3[gl_LocalInvocationIndex] = depth;
+			p = ivec2 (gl_WorkGroupID.xy) * 2 + pos;
+			if (all (lessThan (p, imageSize (mip3))))
+				imageStore (mip3, p, vec4 (depth, 0, 0));
+		}
+	}
+	barrier ();
+	if (gl_LocalInvocationIndex == 0 && all (lessThan (ivec2 (gl_WorkGroupID.xy), imageSize (mip4))))
+		imageStore (mip4, ivec2 (gl_WorkGroupID.xy), vec4 (reduce (read3 (ivec2 (0)), read3 (ivec2 (1, 0)), read3 (ivec2 (0, 1)), read3 (ivec2 (1))), 0, 0));
+}

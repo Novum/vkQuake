@@ -1,4 +1,5 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 #extension GL_KHR_shader_subgroup_shuffle : require
+#define MULTISAMPLED
 #include "ssao_mip.inc"

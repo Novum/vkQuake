@@ -228,16 +228,18 @@ void R_CreateSSAO (VkImage depth)
 		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
 	}
 	mip_descriptors = R_AllocateDescriptorSet (&ssao_mip_set_layout);
-	for (int mip = 0; mip < 5; ++mip)
+	for (int binding = 0; binding < 6; ++binding)
 	{
-		const VkDescriptorImageInfo image = {sampler, mip_views[mip], VK_IMAGE_LAYOUT_GENERAL};
-		const VkWriteDescriptorSet	write = {
-			 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			 .dstSet = mip_descriptors,
-			 .dstBinding = mip,
-			 .descriptorCount = 1,
-			 .descriptorType = mip == 0 ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-			 .pImageInfo = &image};
+		const VkDescriptorImageInfo image = {
+			sampler, binding == 0 ? views[SSAO_SCENE_DEPTH] : mip_views[binding - 1],
+			binding == 0 ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL};
+		const VkWriteDescriptorSet write = {
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = mip_descriptors,
+			.dstBinding = binding,
+			.descriptorCount = 1,
+			.descriptorType = binding == 0 ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+			.pImageInfo = &image};
 		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
 	}
 }
@@ -328,8 +330,7 @@ void R_PrepareSSAOWorldDepth (cb_context_t *cbx)
 		 .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 5, 0, 1}}};
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, countof (barriers), barriers);
-	ssao_constants_t constants = R_SSAOConstants ();
-	constants.settings[2] = 0; // Initialize world depth before entities overwrite it.
+	ssao_constants_t	  constants = R_SSAOConstants ();
 	const VkDescriptorSet sets[] = {descriptors[SSAO_ENTITY_MASK], descriptors[SSAO_SCENE_DEPTH], prepared_write};
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_prepare_pipeline.handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_prepare_pipeline.layout.handle, 0, countof (sets), sets, 0, NULL);
@@ -378,19 +379,16 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL,
 		countof (barriers), barriers);
-	const uint32_t width = vid.width, height = vid.height;
-	const uint32_t groups_x = (width + 7) / 8, groups_y = (height + 7) / 8;
-	constants.settings[2] = 1; // Fill combined scene depth while preserving prepared world depth.
+	const uint32_t		  width = vid.width, height = vid.height;
+	const uint32_t		  groups_x = (width + 7) / 8, groups_y = (height + 7) / 8;
 	const VkMemoryBarrier read_barrier = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER, .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT, .dstAccessMask = VK_ACCESS_SHADER_READ_BIT};
 
-	// Prepare combined world and entity depth.
-	const VkDescriptorSet prepare_sets[] = {descriptors[SSAO_ENTITY_MASK], descriptors[SSAO_SCENE_DEPTH], prepared_write};
-	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_prepare_pipeline.handle);
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_prepare_pipeline.layout.handle, 0, countof (prepare_sets), prepare_sets, 0, NULL);
-	vulkan_globals.vk_cmd_push_constants (cb, ssao_prepare_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-	vulkan_globals.vk_cmd_dispatch (cb, groups_x, groups_y, 1);
+	// Resolve combined depth and build all depth levels in one dispatch.
+	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_mip_pipeline.handle);
+	vulkan_globals.vk_cmd_bind_descriptor_sets (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_mip_pipeline.layout.handle, 0, 1, &mip_descriptors, 0, NULL);
+	vulkan_globals.vk_cmd_push_constants (cb, ssao_mip_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
+	vulkan_globals.vk_cmd_dispatch (cb, (width + 15) / 16, (height + 15) / 16, 1);
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &read_barrier, 0, NULL, 0, NULL);
 
@@ -402,14 +400,6 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	constants.viewport[3] = 2.0f * height / r_refdef.vrect.height / vulkan_globals.projection_matrix[5];
 	constants.projection[0] = (-1.0f - 2.0f * r_refdef.vrect.x / r_refdef.vrect.width) / vulkan_globals.projection_matrix[0];
 	constants.projection[1] = (-1.0f - 2.0f * (vid.height - glheight + r_refdef.vrect.y) / r_refdef.vrect.height) / vulkan_globals.projection_matrix[5];
-
-	// Build the remaining depth levels in one dispatch.
-	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_mip_pipeline.handle);
-	vulkan_globals.vk_cmd_bind_descriptor_sets (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_mip_pipeline.layout.handle, 0, 1, &mip_descriptors, 0, NULL);
-	vulkan_globals.vk_cmd_push_constants (cb, ssao_mip_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-	vulkan_globals.vk_cmd_dispatch (cb, (width / 2 + 7) / 8, (height / 2 + 7) / 8, 1);
-	vulkan_globals.vk_cmd_pipeline_barrier (
-		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &read_barrier, 0, NULL, 0, NULL);
 
 	// Evaluate AO and receiver edges.
 	const VkDescriptorSet evaluate_sets[] = {working_read[SSAO_DEPTH_PYRAMID], working_read[SSAO_HILBERT], working_write[SSAO_AO], working_write[SSAO_EDGES]};

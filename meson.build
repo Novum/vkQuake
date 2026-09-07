@@ -50,6 +50,7 @@ shaders = [
     'Shaders/ssao_prepare_msaa.comp',
     'Shaders/ssao_evaluate.comp',
     'Shaders/ssao_mip.comp',
+    'Shaders/ssao_mip_msaa.comp',
     'Shaders/ssao_filter.comp',
     'Shaders/ssao_composite_msaa.frag',
     'Shaders/postprocess.vert',
@@ -180,7 +181,7 @@ fs = import('fs')
 
 shader_jobs = []
 foreach shader : shaders
-    target_env = (shader.contains('sops') or shader.endswith('ssao_mip.comp')) ? ['--target-env', 'vulkan1.1'] : []
+    target_env = (shader.contains('sops') or shader.contains('ssao_mip')) ? ['--target-env', 'vulkan1.1'] : []
     shader_jobs += [[shader, fs.name(shader), target_env]]
 endforeach
 foreach variant : shader_variants

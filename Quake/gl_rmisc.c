@@ -1969,8 +1969,8 @@ void R_CreatePipelineLayouts ()
 		ssao_prepare_pipeline.layout = ssao_compute_layout;
 		ssao_evaluate_pipeline.layout = ssao_compute_layout;
 		ssao_filter_pipeline.layout = ssao_compute_layout;
-		VkDescriptorSetLayoutBinding bindings[5];
-		for (int i = 0; i < 5; ++i)
+		VkDescriptorSetLayoutBinding bindings[6];
+		for (int i = 0; i < 6; ++i)
 			bindings[i] = (VkDescriptorSetLayoutBinding){
 				.binding = i,
 				.descriptorCount = 1,
@@ -1979,7 +1979,7 @@ void R_CreatePipelineLayouts ()
 		const VkDescriptorSetLayoutCreateInfo set_info = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = countof (bindings), .pBindings = bindings};
 		ssao_mip_set_layout.num_combined_image_samplers = 1;
-		ssao_mip_set_layout.num_storage_images = 4;
+		ssao_mip_set_layout.num_storage_images = 5;
 		if (vkCreateDescriptorSetLayout (vulkan_globals.device, &set_info, NULL, &ssao_mip_set_layout.handle) != VK_SUCCESS)
 			Sys_Error ("Couldn't create entity GTAO mip descriptor layout");
 		info.setLayoutCount = 1;
@@ -2583,6 +2583,7 @@ DECLARE_SHADER_MODULE (ssao_prepare_msaa_comp);
 DECLARE_SHADER_MODULE (ssao_evaluate_comp);
 DECLARE_SHADER_MODULE (ssao_filter_comp);
 DECLARE_SHADER_MODULE (ssao_mip_comp);
+DECLARE_SHADER_MODULE (ssao_mip_msaa_comp);
 DECLARE_SHADER_MODULE (wboit_resolve_frag);
 DECLARE_SHADER_MODULE (wboit_resolve_msaa_frag);
 DECLARE_SHADER_MODULE (mboit_resolve_frag);
@@ -4034,7 +4035,7 @@ static void R_CreatePostprocessPipelines ()
 			"ssao_prepare");
 		R_CreateComputePipeline (&ssao_evaluate_pipeline, ssao_evaluate_comp_module, 0, NULL, "ssao_evaluate");
 		R_CreateComputePipeline (
-			&ssao_mip_pipeline, ssao_mip_comp_module,
+			&ssao_mip_pipeline, vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? ssao_mip_comp_module : ssao_mip_msaa_comp_module,
 			VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT | VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT, NULL,
 			"ssao_mip");
 		R_CreateComputePipeline (&ssao_filter_pipeline, ssao_filter_comp_module, 0, NULL, "ssao_filter");
@@ -4214,7 +4215,8 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE_COND (ssao_prepare_comp, r_ssao.value > 0 && vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE_COND (ssao_prepare_msaa_comp, r_ssao.value > 0 && vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE_COND (ssao_evaluate_comp, r_ssao.value > 0);
-	CREATE_SHADER_MODULE_COND (ssao_mip_comp, r_ssao.value > 0);
+	CREATE_SHADER_MODULE_COND (ssao_mip_comp, r_ssao.value > 0 && vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT);
+	CREATE_SHADER_MODULE_COND (ssao_mip_msaa_comp, r_ssao.value > 0 && vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE_COND (ssao_filter_comp, r_ssao.value > 0);
 	CREATE_SHADER_MODULE (wboit_resolve_frag);
 	CREATE_SHADER_MODULE_COND (wboit_resolve_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
@@ -4300,6 +4302,7 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (ssao_prepare_msaa_comp);
 	DESTROY_SHADER_MODULE (ssao_evaluate_comp);
 	DESTROY_SHADER_MODULE (ssao_mip_comp);
+	DESTROY_SHADER_MODULE (ssao_mip_msaa_comp);
 	DESTROY_SHADER_MODULE (ssao_filter_comp);
 	DESTROY_SHADER_MODULE (wboit_resolve_frag);
 	DESTROY_SHADER_MODULE (wboit_resolve_msaa_frag);
