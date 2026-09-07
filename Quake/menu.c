@@ -2753,6 +2753,9 @@ void M_Menu_Keys_f (void)
 		while (COM_ParseMutableLine (&text, &line))
 		{
 			Cmd_TokenizeString (line);
+			// Ignore blank/comment-only lines; separators must use "-".
+			if (!Cmd_Argv (0)[0])
+				continue;
 			M_Keys_AddCustomEntry (Cmd_Argv (0), Cmd_Argv (1));
 		}
 		Mem_Free (file);
