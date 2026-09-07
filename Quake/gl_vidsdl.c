@@ -801,14 +801,14 @@ static void GL_InitInstance (void)
 	if (!sdl_extensions)
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
 
-	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 3));
+	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 4));
 	for (i = 0; i < sdl_extension_count; i++)
 		instance_extensions[i] = sdl_extensions[i];
 #else
 	if (!SDL_Vulkan_GetInstanceExtensions (draw_context, &sdl_extension_count, NULL))
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
 
-	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 3));
+	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 4));
 	if (!SDL_Vulkan_GetInstanceExtensions (draw_context, &sdl_extension_count, instance_extensions))
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
 #endif
@@ -831,7 +831,7 @@ static void GL_InitInstance (void)
 				vulkan_globals.get_surface_capabilities_2 = true;
 			if (strcmp (VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, extension_props[i].extensionName) == 0)
 				vulkan_globals.get_physical_device_properties_2 = true;
-#if _DEBUG
+#ifdef _DEBUG
 			if (strcmp (VK_EXT_DEBUG_UTILS_EXTENSION_NAME, extension_props[i].extensionName) == 0)
 				vulkan_globals.debug_utils = true;
 #endif
@@ -876,12 +876,45 @@ static void GL_InitInstance (void)
 	if (vulkan_globals.debug_utils)
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 
+	const VkValidationFeatureEnableEXT sync_validation_enables[] = {
+		VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+	};
+	const VkValidationFeatureEnableEXT gpu_validation_enables[] = {
+		VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+		VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+	};
+	const VkValidationFeatureDisableEXT gpu_validation_disables[] = {
+		VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT,
+		VK_VALIDATION_FEATURE_DISABLE_API_PARAMETERS_EXT,
+		VK_VALIDATION_FEATURE_DISABLE_OBJECT_LIFETIMES_EXT,
+		VK_VALIDATION_FEATURE_DISABLE_THREAD_SAFETY_EXT,
+	};
+
+	ZEROED_STRUCT (VkValidationFeaturesEXT, validation_features);
 	const char *const layer_names[] = {"VK_LAYER_KHRONOS_validation"};
 	if (vulkan_globals.validation)
 	{
 		Con_Printf ("Using VK_LAYER_KHRONOS_validation\n");
 		instance_create_info.enabledLayerCount = 1;
 		instance_create_info.ppEnabledLayerNames = layer_names;
+		if (vulkan_globals.validation >= 2)
+		{
+			instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME;
+			validation_features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+			if (vulkan_globals.validation == 2)
+			{
+				validation_features.enabledValidationFeatureCount = countof (sync_validation_enables);
+				validation_features.pEnabledValidationFeatures = sync_validation_enables;
+			}
+			else
+			{
+				validation_features.enabledValidationFeatureCount = countof (gpu_validation_enables);
+				validation_features.pEnabledValidationFeatures = gpu_validation_enables;
+				validation_features.disabledValidationFeatureCount = countof (gpu_validation_disables);
+				validation_features.pDisabledValidationFeatures = gpu_validation_disables;
+			}
+			instance_create_info.pNext = &validation_features;
+		}
 	}
 #endif
 
@@ -890,6 +923,20 @@ static void GL_InitInstance (void)
 	err = vkCreateInstance (&instance_create_info, NULL, &vulkan_instance);
 	if (err != VK_SUCCESS)
 		Sys_Error ("Couldn't create Vulkan instance with code %i", (int)err);
+
+#ifdef _DEBUG
+	if (vulkan_globals.validation == 2)
+		Con_Printf (" VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT\n");
+	else if (vulkan_globals.validation == 3)
+	{
+		Con_Printf (" VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT\n");
+		Con_Printf (" VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT\n");
+		Con_Printf (" VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT\n");
+		Con_Printf (" VK_VALIDATION_FEATURE_DISABLE_API_PARAMETERS_EXT\n");
+		Con_Printf (" VK_VALIDATION_FEATURE_DISABLE_OBJECT_LIFETIMES_EXT\n");
+		Con_Printf (" VK_VALIDATION_FEATURE_DISABLE_THREAD_SAFETY_EXT\n");
+	}
+#endif
 
 #ifdef USE_SDL3
 	if (!SDL_Vulkan_CreateSurface (draw_context, vulkan_instance, NULL, &vulkan_surface))
@@ -921,7 +968,7 @@ static void GL_InitInstance (void)
 	Con_Printf ("\n");
 
 #ifdef _DEBUG
-	if (vulkan_globals.validation)
+	if (vulkan_globals.validation && vulkan_globals.debug_utils)
 	{
 		Con_Printf ("Creating debug report callback\n");
 		GET_INSTANCE_PROC_ADDR (CreateDebugUtilsMessengerEXT);
@@ -930,7 +977,8 @@ static void GL_InitInstance (void)
 			ZEROED_STRUCT (VkDebugUtilsMessengerCreateInfoEXT, debug_utils_messenger_create_info);
 			debug_utils_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 			debug_utils_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
-			debug_utils_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+			debug_utils_messenger_create_info.messageType =
+				VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 			debug_utils_messenger_create_info.pfnUserCallback = DebugMessageCallback;
 
 			err = fpCreateDebugUtilsMessengerEXT (vulkan_instance, &debug_utils_messenger_create_info, NULL, &debug_utils_messenger);

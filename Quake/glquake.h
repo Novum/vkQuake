@@ -337,7 +337,7 @@ typedef struct
 {
 	VkDevice						 device;
 	qboolean						 device_idle;
-	qboolean						 validation;
+	int								 validation; // 0: off, 1: standard, 2: standard + synchronization, 3: GPU-assisted only
 	qboolean						 debug_utils;
 	VkQueue							 queue;
 	SDL_Mutex						*queue_mutex;

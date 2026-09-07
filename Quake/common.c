@@ -2253,8 +2253,15 @@ void COM_Init (void)
 	if (bytes[0] != 0x78 || bytes[1] != 0x56 || bytes[2] != 0x34 || bytes[3] != 0x12)
 		Sys_Error ("Unsupported endianism. Only little endian is supported");
 
-	if (COM_CheckParm ("-validation"))
-		vulkan_globals.validation = true;
+	int validation_arg = COM_CheckParm ("-validation");
+	if (!validation_arg)
+		validation_arg = COM_CheckParm ("-v");
+	if (validation_arg)
+	{
+		vulkan_globals.validation = 1;
+		if (validation_arg < com_argc - 1 && q_isdigit (com_argv[validation_arg + 1][0]))
+			vulkan_globals.validation = CLAMP (0, atoi (com_argv[validation_arg + 1]), 3);
+	}
 
 	if (COM_CheckParm ("-multiuser"))
 		multiuser = true;
