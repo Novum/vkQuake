@@ -2914,11 +2914,8 @@ static void R_InitDefaultStates (pipeline_create_infos_t *infos)
 
 	infos->multisample_state.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	infos->multisample_state.rasterizationSamples = vulkan_globals.sample_count;
-	if (vulkan_globals.supersampling)
-	{
-		infos->multisample_state.sampleShadingEnable = VK_TRUE;
-		infos->multisample_state.minSampleShading = 1.0f;
-	}
+	// Only opaque geometry pipelines opt into supersampling.
+	infos->multisample_state.minSampleShading = 1.0f;
 
 	infos->depth_stencil_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	infos->depth_stencil_state.depthTestEnable = VK_FALSE;
@@ -3380,7 +3377,6 @@ static void R_CreateFTEParticlesPipelines ()
 	base.rasterization_state.depthBiasConstantFactor = OFFSET_DECAL;
 	base.rasterization_state.depthBiasSlopeFactor = 1.0f;
 	base.depth_stencil_state.depthTestEnable = VK_TRUE;
-	base.multisample_state.sampleShadingEnable = VK_FALSE;
 
 	pipeline_create_infos_t mode_base, infos;
 	for (int i = 0; i < 8; ++i)
@@ -3450,6 +3446,7 @@ static void R_CreateSpritesPipelines ()
 	{
 		R_CopyPipelineCreateInfos (&infos, &base);
 		R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
+		infos.multisample_state.sampleShadingEnable = vulkan_globals.supersampling;
 		R_CreateGraphicsPipeline (
 			&vulkan_globals.sprite_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, variant ? "sprite_main_oit" : "sprite");
 	}
@@ -3534,6 +3531,7 @@ static void R_CreateSkyPipelines ()
 			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[0].module = sky_cube_vert_module;
 			infos.shader_stages[1].module = sky_cube_frag_module;
+			infos.multisample_state.sampleShadingEnable = vulkan_globals.supersampling;
 			R_CreateGraphicsPipeline (
 				&vulkan_globals.sky_cube_pipeline[variant][i], &infos, vulkan_globals.sky_pipeline_layout[0],
 				va (i ? "sky_cube_indirect%s" : "sky_cube%s", pass_suffix));
@@ -3542,6 +3540,7 @@ static void R_CreateSkyPipelines ()
 			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[0].module = sky_layer_vert_module;
 			infos.shader_stages[1].module = sky_layer_frag_module;
+			infos.multisample_state.sampleShadingEnable = vulkan_globals.supersampling;
 			R_CreateGraphicsPipeline (
 				&vulkan_globals.sky_layer_pipeline[variant][i], &infos, vulkan_globals.sky_pipeline_layout[1],
 				va (i ? "sky_layer_indirect%s" : "sky_layer%s", pass_suffix));
@@ -3561,6 +3560,7 @@ static void R_CreateSkyPipelines ()
 				infos.depth_stencil_state.front.writeMask = 0x0;
 				infos.depth_stencil_state.front.reference = 0x1;
 				infos.shader_stages[1].module = sky_box_frag_module;
+				infos.multisample_state.sampleShadingEnable = vulkan_globals.supersampling;
 				R_CreateGraphicsPipeline (
 					&vulkan_globals.sky_box_pipeline[variant], &infos, vulkan_globals.sky_pipeline_layout[0], va ("sky_box%s", pass_suffix));
 			}
@@ -3757,6 +3757,7 @@ static void R_CreateWorldPipelines ()
 						R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 						infos.shader_stages[1].module = world_frag_module;
 						infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+						infos.multisample_state.sampleShadingEnable = (!alpha_blend && vulkan_globals.supersampling) ? VK_TRUE : VK_FALSE;
 						infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
 						R_CreateGraphicsPipeline (
 							&vulkan_globals.world_pipelines[variant][pipeline_index], &infos, vulkan_globals.world_pipeline_layout,
@@ -3836,6 +3837,7 @@ static void R_CreateAliasPipelines ()
 			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_frag_module : alias_frag_module;
 			infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+			infos.multisample_state.sampleShadingEnable = (!alpha_blend && vulkan_globals.supersampling) ? VK_TRUE : VK_FALSE;
 			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
 			R_CreateGraphicsPipeline (
 				&vulkan_globals.alias_pipelines[variant][pipeline_index], &infos, layout, va (variant ? "alias_main_oit %d" : "alias %d", pipeline_index));
@@ -3936,6 +3938,7 @@ static void R_CreateMD5PipelineSet (
 			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_frag_module : alias_frag_module;
 			infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+			infos.multisample_state.sampleShadingEnable = (!alpha_blend && vulkan_globals.supersampling) ? VK_TRUE : VK_FALSE;
 			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
 			R_CreateGraphicsPipeline (&pipelines[variant][pipeline_index], &infos, layout, va (variant ? "%s_main_oit %d" : "%s %d", name, pipeline_index));
 		}
@@ -4042,7 +4045,6 @@ static void R_CreatePostprocessPipelines ()
 		R_CopyPipelineCreateInfos (&ssao, &base);
 		ssao.depth_stencil_state.depthTestEnable = VK_FALSE;
 		ssao.depth_stencil_state.depthWriteEnable = VK_FALSE;
-		ssao.multisample_state.sampleShadingEnable = VK_FALSE;
 		ssao.blend_attachment_states[0].blendEnable = VK_TRUE;
 		ssao.blend_attachment_states[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 		ssao.blend_attachment_states[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
