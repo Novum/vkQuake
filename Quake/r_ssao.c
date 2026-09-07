@@ -440,6 +440,12 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	vulkan_globals.vk_cmd_push_constants (cb, ssao_filter_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
 	vulkan_globals.vk_cmd_dispatch (cb, filter_groups_x, groups_y, 1);
 	// The composite render pass external dependency makes the final AO visible to fragment shaders.
+#ifdef __APPLE__
+	// MoltenVK 1.4.2 records external dependency waits before closing the compute encoder.
+	// End it explicitly first so the composite waits for the final dispatch's fence.
+	vulkan_globals.vk_cmd_pipeline_barrier (
+		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &read_barrier, 0, NULL, 0, NULL);
+#endif
 }
 
 void R_DrawSSAOTask (void *unused)
