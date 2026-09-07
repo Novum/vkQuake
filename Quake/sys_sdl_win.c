@@ -829,8 +829,9 @@ void Sys_Printf (const char *fmt, ...)
 		/* SDL will put these into its own stdout log,
 		   so print to stdout even in graphical mode. */
 		fputs (output_buffer, stdout);
-		OutputDebugStringA (output_buffer);
 	}
+
+	OutputDebugStringA (output_buffer);
 
 	Mem_Free (output_buffer);
 }
