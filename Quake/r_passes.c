@@ -356,6 +356,7 @@ static void R_CreateGraphicsPasses (
 			pass_attachments[depth->attachment].initialLayout = depth->layout;
 
 		// External dependencies cover preceding graphics/compute/transfer work.
+		// ALL_COMMANDS means ALL_GRAPHICS here, so name compute and transfer explicitly.
 		// Internal dependencies cover every earlier subpass, including writers
 		// separated from their consumers by preserve-only subpasses.
 		VkSubpassDependency		   dependencies[MAX_PASS_SUBPASSES * (MAX_PASS_SUBPASSES + 1) / 2];
@@ -370,7 +371,7 @@ static void R_CreateGraphicsPasses (
 			dependencies[dependency_count++] = (VkSubpassDependency){
 				.srcSubpass = VK_SUBPASS_EXTERNAL,
 				.dstSubpass = dst,
-				.srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+				.srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
 				.dstStageMask = graphics_stages,
 				.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
 				.dstAccessMask = graphics_access,
