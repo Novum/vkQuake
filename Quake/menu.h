@@ -62,7 +62,7 @@ extern qboolean m_is_quitting;
 //
 void	 M_Init (void);
 void	 M_NewGame (void);
-void	 M_Keydown (int key);
+void	 M_Keydown (int key, qboolean repeat);
 void	 M_Charinput (int key);
 qboolean M_TextEntry (void);
 qboolean M_WaitingForKeyBinding (void);

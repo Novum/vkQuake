@@ -5027,7 +5027,7 @@ void M_UpdateMouse (void)
 	if (scrollbar_grab)
 	{
 		if (keydown[K_MOUSE1] && M_InScrollbar ())
-			M_Keydown (K_MOUSE1);
+			M_Keydown (K_MOUSE1, false);
 		else
 			scrollbar_grab = false;
 	}
@@ -5193,8 +5193,33 @@ static qboolean M_Mouse_ClickValid (void)
 	return bind_grab || m_state == m_help || m_mouse_hover_state == m_state || M_InScrollbar ();
 }
 
-void M_Keydown (int key)
+void M_Keydown (int key, qboolean repeat)
 {
+	// Repeat navigation and editing, but never menu activation or binding capture.
+	if (repeat)
+	{
+		if (bind_grab)
+			return;
+		switch (key)
+		{
+		case K_UPARROW:
+		case K_DOWNARROW:
+		case K_LEFTARROW:
+		case K_RIGHTARROW:
+		case K_PGUP:
+		case K_PGDN:
+		case K_HOME:
+		case K_END:
+		case K_MWHEELUP:
+		case K_MWHEELDOWN:
+		case K_BACKSPACE:
+		case K_DEL:
+			break;
+		default:
+			return;
+		}
+	}
+
 	if (key == K_MOUSE1 && !M_Mouse_ClickValid ())
 		return;
 	if (key == K_MOUSE1 && m_mouse_hover_state == m_state && m_mouse_hover_cursor)

@@ -1031,6 +1031,8 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		return;
 	}
 
+	qboolean repeat = keydown[key];
+
 	// handle autorepeats and stray key up events
 	if (down)
 	{
@@ -1074,7 +1076,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 			Key_Message (key);
 			break;
 		case key_menu:
-			M_Keydown (key);
+			M_Keydown (key, repeat);
 			break;
 		case key_game:
 		case key_console:
@@ -1169,7 +1171,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		Key_Message (key);
 		break;
 	case key_menu:
-		M_Keydown (key);
+		M_Keydown (key, repeat);
 		break;
 
 	case key_game:
