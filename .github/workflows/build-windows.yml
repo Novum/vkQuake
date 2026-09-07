@@ -62,7 +62,8 @@ jobs:
           DestinationPath = "Packaging\Windows\vkQuake-${version}_windows_${{ matrix.platform }}.zip"
         }
         Compress-Archive @compress
-        choco install nsis -y --no-progress
+        choco upgrade nsis --version=3.12.0 -y --no-progress
+        if (-not $?) { throw "NSIS upgrade failed" }
         Set-Location Packaging\Windows
         & "${env:ProgramFiles(x86)}\NSIS\makensis.exe" -V4 '-DSRCDIR=..\..\Windows\VisualStudio\Build-vkQuake\${{ matrix.platform }}\Release' '-DPLATFORM=windows_${{ matrix.platform }}' "-DVERSION=$version" vkQuake.nsi
         if (-not $?) { throw "makensis failed" }
