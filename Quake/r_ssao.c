@@ -347,9 +347,7 @@ void R_PrepareSSAOWorldDepth (cb_context_t *cbx)
 
 void R_ComputeSSAO (cb_context_t *cbx)
 {
-	const VkCommandBuffer cb = cbx->cb;
-	if (!r_refdef.vrect.width || !r_refdef.vrect.height)
-		return;
+	const VkCommandBuffer	   cb = cbx->cb;
 	// Read the live combined depth directly; the composite subpass keeps it read-only.
 	const VkImageMemoryBarrier depth_barrier = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -361,9 +359,15 @@ void R_ComputeSSAO (cb_context_t *cbx)
 		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 		.image = scene_depth,
 		.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1}};
+	// The following render pass expects read-only depth even when there is no view to shade.
+	vulkan_globals.vk_cmd_pipeline_barrier (
+		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1,
+		&depth_barrier);
+	if (!r_refdef.vrect.width || !r_refdef.vrect.height)
+		return;
 	ssao_constants_t	 constants = R_SSAOConstants ();
 	// Preserve prepared world depth; discard the other outputs after previous readers finish.
-	VkImageMemoryBarrier barriers[SSAO_HILBERT + 1];
+	VkImageMemoryBarrier barriers[SSAO_HILBERT];
 	for (int i = 0; i < SSAO_HILBERT; ++i)
 		barriers[i] = (VkImageMemoryBarrier){
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -375,7 +379,6 @@ void R_ComputeSSAO (cb_context_t *cbx)
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.image = working_images[i],
 			.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, i == SSAO_DEPTH_PYRAMID ? 5 : 1, 0, 1}};
-	barriers[SSAO_HILBERT] = depth_barrier;
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL,
 		countof (barriers), barriers);
