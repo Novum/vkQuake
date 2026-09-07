@@ -3030,6 +3030,61 @@ qboolean COM_ModForbiddenChars (const char *p)
 //==============================================================================
 // johnfitz -- dynamic gamedir stuff -- modified by QuakeSpasm team.
 //==============================================================================
+void COM_SwitchGame (const char *paths)
+{
+	if (!q_strcasecmp (paths, COM_GetGameNames (true)))
+	{
+		Con_Printf ("\"game\" is already \"%s\"\n", COM_GetGameNames (true));
+		return;
+	}
+
+	com_modified = true;
+
+	// Kill the server
+	CL_Disconnect ();
+	SCR_EndStartupLoadingPlaque ();
+	cls.demonum = -1;
+	Host_ShutdownServer (true);
+
+	SCR_CenterPrintClear ();
+
+	// Write config file
+	Host_WriteConfiguration ();
+
+	// stop parsing map files before changing file system search paths
+	ExtraMaps_Clear ();
+	LOC_Shutdown ();
+
+	COM_ResetGameDirectories (paths);
+
+	// clear out and reload appropriate data
+	Mod_ResetAll ();
+	Sky_ClearAll ();
+	if (!isDedicated)
+	{
+		TexMgr_NewGame ();
+		Draw_NewGame ();
+		R_NewGame ();
+		M_NewGame ();
+	}
+	ExtraMaps_NewGame ();
+	Host_Resetdemos ();
+	DemoList_Rebuild ();
+	SaveList_Rebuild ();
+	M_CheckMods ();
+	S_ClearAll ();
+
+	// 2026 update compat: enable scr_usekfont (for word wrapping) in case mg3 is used with original id1 data.
+	Cvar_SetValueQuick (&scr_usekfont, mg3 ? 1.0f : 0.0f);
+
+	Con_Printf ("\"game\" changed to \"%s\"\n", COM_GetGameNames (true));
+
+	LOC_Load ();
+	VID_Lock ();
+	Cbuf_AddText ("exec quake.rc\n");
+	Cbuf_AddText ("vid_unlock\n");
+}
+
 static void COM_Game_f (void)
 {
 	if (Cmd_Argc () > 1)
@@ -3076,57 +3131,7 @@ static void COM_Game_f (void)
 			}
 		}
 
-		if (!q_strcasecmp (paths, COM_GetGameNames (true)))
-		{
-			Con_Printf ("\"game\" is already \"%s\"\n", COM_GetGameNames (true));
-			return;
-		}
-
-		com_modified = true;
-
-		// Kill the server
-		CL_Disconnect ();
-		SCR_EndStartupLoadingPlaque ();
-		cls.demonum = -1;
-		Host_ShutdownServer (true);
-
-		SCR_CenterPrintClear ();
-
-		// Write config file
-		Host_WriteConfiguration ();
-
-		// stop parsing map files before changing file system search paths
-		ExtraMaps_Clear ();
-		LOC_Shutdown ();
-
-		COM_ResetGameDirectories (paths);
-
-		// clear out and reload appropriate data
-		Mod_ResetAll ();
-		Sky_ClearAll ();
-		if (!isDedicated)
-		{
-			TexMgr_NewGame ();
-			Draw_NewGame ();
-			R_NewGame ();
-			M_NewGame ();
-		}
-		ExtraMaps_NewGame ();
-		Host_Resetdemos ();
-		DemoList_Rebuild ();
-		SaveList_Rebuild ();
-		M_CheckMods ();
-		S_ClearAll ();
-
-		// 2026 update compat: enable scr_usekfont (for word wrapping) in case mg3 is used with original id1 data.
-		Cvar_SetValueQuick (&scr_usekfont, mg3 ? 1.0f : 0.0f);
-
-		Con_Printf ("\"game\" changed to \"%s\"\n", COM_GetGameNames (true));
-
-		LOC_Load ();
-		VID_Lock ();
-		Cbuf_AddText ("exec quake.rc\n");
-		Cbuf_AddText ("vid_unlock\n");
+		COM_SwitchGame (paths);
 	}
 	else // Diplay the current gamedir
 		Con_Printf ("\"game\" is \"%s\"\n", COM_GetGameNames (true));

@@ -1653,7 +1653,8 @@ LOAD / SAVE GAME
 ===============================================================================
 */
 
-#define SAVEGAME_VERSION 5
+#define SAVEGAME_VERSION	 5
+#define SAVEGAME_VERSION_KEX 6
 
 /*
 ===============
@@ -1939,6 +1940,7 @@ static void Host_Loadgame_f (void)
 
 	char		name[MAX_OSPATH];
 	char		legacy_dir[MAX_OSPATH];
+	char		savename[MAX_OSPATH];
 	char		mapname[MAX_QPATH];
 	float		time, tfloat;
 	const char *data;
@@ -1966,6 +1968,8 @@ static void Host_Loadgame_f (void)
 		return;
 	}
 
+	q_strlcpy (savename, Cmd_Argv (1), sizeof (savename));
+
 	if (nomonsters.value)
 	{
 		Con_Warning ("\"%s\" disabled automatically.\n", nomonsters.name);
@@ -1978,12 +1982,12 @@ static void Host_Loadgame_f (void)
 	if (start != NULL)
 		Mem_Free (start);
 
-	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
+	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, savename);
 	COM_AddExtension (name, ".sav", sizeof (name));
 	start = (char *)COM_LoadMallocFile_TextMode_OSPath (name, NULL);
 	if (!start && COM_GetLegacySaveDir (legacy_dir, sizeof (legacy_dir)))
 	{
-		q_snprintf (name, sizeof (name), "%s/%s", legacy_dir, Cmd_Argv (1));
+		q_snprintf (name, sizeof (name), "%s/%s", legacy_dir, savename);
 		COM_AddExtension (name, ".sav", sizeof (name));
 		start = (char *)COM_LoadMallocFile_TextMode_OSPath (name, NULL);
 	}
@@ -1998,11 +2002,68 @@ static void Host_Loadgame_f (void)
 
 	data = start;
 	data = COM_ParseIntNewline (data, &version);
-	if (version != SAVEGAME_VERSION)
+	if (version == SAVEGAME_VERSION_KEX)
+	{
+		char game[MAX_QPATH], paths[1024];
+		data = COM_ParseStringNewline (data);
+		if (COM_ModForbiddenChars (com_token) || strlen (com_token) >= sizeof (game))
+		{
+			Mem_Free (start);
+			start = NULL;
+			Host_Error ("Invalid game directory in KEX save");
+			return;
+		}
+		q_strlcpy (game, com_token, sizeof (game));
+		q_snprintf (paths, sizeof (paths), "%s%s%s", GAMENAME, q_strcasecmp (game, GAMENAME) ? ";" : "", q_strcasecmp (game, GAMENAME) ? game : "");
+		if (q_strcasecmp (paths, COM_GetGameNames (true)))
+		{
+			filelist_item_t *mod;
+			for (mod = modlist; mod; mod = mod->next)
+				if (!q_strcasecmp (mod->name, game))
+					break;
+			if ((!mod && q_strcasecmp (game, GAMENAME)) || !registered.value)
+			{
+				Con_Printf ("ERROR: cannot switch to mod \"%s\" for this save.\n", game);
+				Mem_Free (start);
+				start = NULL;
+				SCR_EndLoadingPlaque ();
+				return;
+			}
+			// Configuration scripts may load another save. Do not retain a parser
+			// pointer into the shared save buffer while executing them.
+			Mem_Free (start);
+			start = NULL;
+			COM_SwitchGame (paths);
+			Cbuf_Execute ();
+			if (key_dest == key_menu)
+				M_ToggleMenu_f ();
+			fastload = false;
+			was_recording = false;
+
+			Mem_Free (start);
+			start = (char *)COM_LoadMallocFile_TextMode_OSPath (name, NULL);
+			if (!start)
+			{
+				SCR_EndLoadingPlaque ();
+				Con_Printf ("ERROR: couldn't reopen %s.\n", name);
+				return;
+			}
+			data = COM_ParseIntNewline (start, &version);
+			data = COM_ParseStringNewline (data);
+			if (version != SAVEGAME_VERSION_KEX || strcmp (com_token, game))
+			{
+				Mem_Free (start);
+				start = NULL;
+				Host_Error ("Savegame changed while switching games");
+				return;
+			}
+		}
+	}
+	else if (version != SAVEGAME_VERSION)
 	{
 		Mem_Free (start);
 		start = NULL;
-		Host_Error ("Savegame is version %i, not %i", version, SAVEGAME_VERSION);
+		Host_Error ("Savegame is version %i, not %i or %i", version, SAVEGAME_VERSION, SAVEGAME_VERSION_KEX);
 		return;
 	}
 	data = COM_ParseStringNewline (data);
@@ -2280,8 +2341,8 @@ static void Host_Loadgame_f (void)
 	else
 		SCR_EndLoadingPlaque ();
 
-	if (strlen (Cmd_Argv (1)) < sizeof (sv.lastsave) - 1)
-		strcpy (sv.lastsave, Cmd_Argv (1));
+	if (strlen (savename) < sizeof (sv.lastsave) - 1)
+		strcpy (sv.lastsave, savename);
 }
 
 //============================================================================

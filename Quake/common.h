@@ -341,6 +341,7 @@ int COM_CheckParm (const char *parm);
 void COM_Init (void);
 void COM_InitArgv (int argc, char **argv);
 void COM_InitFilesystem (void);
+void COM_SwitchGame (const char *paths);
 void COM_WriteSelectedBaseDir (void);
 
 const char *COM_GetWriteRoot (void);

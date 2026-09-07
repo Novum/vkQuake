@@ -991,7 +991,8 @@ static qboolean M_ScanSave (const char *save_name, char *comment, size_t comment
 		f = Sys_fopen (path, "r");
 		if (!f)
 			continue;
-		if (fscanf (f, "%i\n", &version) != 1 || fscanf (f, "%" QS_STRINGIFY (SAVEGAME_COMMENT_LENGTH) "s\n", save_comment) != 1)
+		if (fscanf (f, "%i\n", &version) != 1 || (version != 5 && version != 6) || (version == 6 && fscanf (f, "%*1023s\n") == EOF) ||
+			fscanf (f, "%" QS_STRINGIFY (SAVEGAME_COMMENT_LENGTH) "s\n", save_comment) != 1)
 		{
 			fclose (f);
 			continue;
