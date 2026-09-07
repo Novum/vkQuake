@@ -133,6 +133,11 @@ void WriteMBOITComposite (vec4 frag_color, float b0, vec4 moments0, out vec4 out
 
 void MBOITWrite (vec4 frag_color)
 {
+	// Reject negligible alpha before loading moments or reconstructing transmittance.
+	// Both passes must omit the same fragments to keep their contributions consistent.
+	if (frag_color.a < (1.0f / 255.0f))
+		discard;
+
 #if MBOIT_COMPOSITE
 	WriteMBOITComposite (frag_color, MBOIT_LOAD (mboit_b0_input).r, MBOIT_LOAD (mboit_moments0_input), out_color);
 #else
