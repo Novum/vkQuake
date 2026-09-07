@@ -23,9 +23,9 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 layout (local_size_x = 8, local_size_y = 8) in;
-layout (set = 0, binding = 0) uniform usampler2D source;
+layout (set = 0, binding = 0) uniform sampler2D source;
 layout (set = 1, binding = 0) uniform sampler2D edges;
-layout (r32ui, set = 2, binding = 0) uniform writeonly uimage2D output_texture;
+layout (r8, set = 2, binding = 0) uniform writeonly image2D output_texture;
 #include "gtao.inc"
 
 vec4 unpack_edges (float _packed_val)
@@ -62,10 +62,10 @@ void main ()
 	vec4 edges_q1 = textureGatherOffset (edges, gather_center, ivec2 (2, 0), 0);
 	vec4 edges_q2 = textureGatherOffset (edges, gather_center, ivec2 (1, 2), 0);
 
-	vec4 vis_q0 = vec4 (textureGatherOffset (source, gather_center, ivec2 (0, 0), 0)) / 255.0;
-	vec4 vis_q1 = vec4 (textureGatherOffset (source, gather_center, ivec2 (2, 0), 0)) / 255.0;
-	vec4 vis_q2 = vec4 (textureGatherOffset (source, gather_center, ivec2 (0, 2), 0)) / 255.0;
-	vec4 vis_q3 = vec4 (textureGatherOffset (source, gather_center, ivec2 (2, 2), 0)) / 255.0;
+	vec4 vis_q0 = textureGatherOffset (source, gather_center, ivec2 (0, 0), 0);
+	vec4 vis_q1 = textureGatherOffset (source, gather_center, ivec2 (2, 0), 0);
+	vec4 vis_q2 = textureGatherOffset (source, gather_center, ivec2 (0, 2), 0);
+	vec4 vis_q3 = textureGatherOffset (source, gather_center, ivec2 (2, 2), 0);
 
 	for (int side = 0; side < 2; side++)
 	{
@@ -115,6 +115,6 @@ void main ()
 
 		float visibility = sum / sum_weight;
 		visibility *= final_apply ? 1.5 : 1.0;
-		imageStore (output_texture, pix_coord, uvec4 (uint (visibility * 255.0 + 0.5)));
+		imageStore (output_texture, pix_coord, vec4 (visibility));
 	}
 }

@@ -12,7 +12,7 @@ layout (set = 0, binding = 0) uniform usampler2D entity_mask;
 layout (set = 1, binding = 0) uniform sampler2D scene_depth;
 #define DEPTH(image, p, s) texelFetch (image, p, 0).r
 #endif
-layout (set = 2, binding = 0) uniform usampler2D filtered_ao;
+layout (set = 2, binding = 0) uniform sampler2D filtered_ao;
 layout (set = 3, binding = 0) uniform sampler2D prepared_depth;
 layout (location = 0) out vec4 out_color;
 
@@ -70,7 +70,7 @@ void main ()
 #endif
 #endif
 	float depth = world > 0.0 ? pc.projection.z / world : 1e9;
-	float visibility = clamp (float (texelFetch (filtered_ao, p, 0).x) / 255.0, 0.0, 1.0);
+	float visibility = texelFetch (filtered_ao, p, 0).x;
 	float occlusion = 1.0 - visibility;
 	// Match world_common.inc: fog uses view-space depth (clip W), not radial distance.
 	float fog_distance = pc.settings.z * depth;

@@ -22,38 +22,12 @@
 
 #version 450
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_control_flow_attributes : require
 layout (local_size_x = 8, local_size_y = 8) in;
 layout (set = 0, binding = 0) uniform sampler2D world_depth;
-layout (set = 1, binding = 0) uniform sampler2D entity_depth;
-layout (r32ui, set = 2, binding = 0) uniform writeonly uimage2D out_working_ao_term;
-layout (r32f, set = 3, binding = 0) uniform writeonly image2D out_working_edges;
+layout (set = 1, binding = 0) uniform usampler2D hilbert_lut;
+layout (r8, set = 2, binding = 0) uniform writeonly image2D out_working_ao_term;
+layout (r8, set = 3, binding = 0) uniform writeonly image2D out_working_edges;
 #include "gtao.inc"
-
-uint hilbert_index (uint pos_x, uint pos_y)
-{
-	uint index = 0U;
-	// Keep the Hilbert traversal unrolled: the NVIDIA compiler otherwise miscompiles it in the full AO shader.
-	[[unroll]] for (uint cur_level = (1U << 6U) / 2U; cur_level > 0U; cur_level /= 2U)
-	{
-		uint region_x = uint ((pos_x & cur_level) > 0U);
-		uint region_y = uint ((pos_y & cur_level) > 0U);
-		index += cur_level * cur_level * ((3U * region_x) ^ region_y);
-		if (region_y == 0U)
-		{
-			if (region_x == 1U)
-			{
-				pos_x = ((1U << 6U) - 1U) - pos_x;
-				pos_y = ((1U << 6U) - 1U) - pos_y;
-			}
-
-			uint temp = pos_x;
-			pos_x = pos_y;
-			pos_y = temp;
-		}
-	}
-	return index;
-}
 
 vec3 compute_viewspace_position (vec2 screen_pos, float viewspace_depth)
 {
@@ -120,11 +94,11 @@ void main ()
 		return;
 	if (texelFetch (world_depth, ivec2 (pixel), 0).x >= 1e8)
 	{
-		imageStore (out_working_ao_term, ivec2 (pixel), uvec4 (170));
+		imageStore (out_working_ao_term, ivec2 (pixel), vec4 (2.0 / 3.0));
 		imageStore (out_working_edges, ivec2 (pixel), vec4 (0));
 		return;
 	}
-	uint		index = hilbert_index (pixel.x, pixel.y);
+	uint		index = texelFetch (hilbert_lut, ivec2 (pixel & 63u), 0).r;
 	vec2		noise = fract (0.5 + float (index) * vec2 (0.75487766624669276, 0.56984029099805326));
 	const float slice_count = 3.0;
 	const float steps_per_slice = 3.0;
@@ -237,12 +211,12 @@ void main ()
 			sample_offset = round (sample_offset) * c.viewport_pixel_size;
 
 			vec2 sample_screen_pos0 = normalized_screen_pos + sample_offset;
-			vec2 sample_depth0 = textureLod (entity_depth, sample_screen_pos0, mip_level).xy;
+			vec2 sample_depth0 = textureLod (world_depth, sample_screen_pos0, mip_level).xy;
 			vec3 world_sample_pos0 = compute_viewspace_position (sample_screen_pos0, sample_depth0.x);
 			vec3 scene_sample_pos0 = compute_viewspace_position (sample_screen_pos0, sample_depth0.y);
 
 			vec2 sample_screen_pos1 = normalized_screen_pos - sample_offset;
-			vec2 sample_depth1 = textureLod (entity_depth, sample_screen_pos1, mip_level).xy;
+			vec2 sample_depth1 = textureLod (world_depth, sample_screen_pos1, mip_level).xy;
 			vec3 world_sample_pos1 = compute_viewspace_position (sample_screen_pos1, sample_depth1.x);
 			vec3 scene_sample_pos1 = compute_viewspace_position (sample_screen_pos1, sample_depth1.y);
 
@@ -297,5 +271,5 @@ void main ()
 	visibility = max (0.03, visibility);
 
 	visibility = clamp (visibility / 1.5, 0.0, 1.0);
-	imageStore (out_working_ao_term, ivec2 (pixel), uvec4 (uint (visibility * 255.0 + 0.5)));
+	imageStore (out_working_ao_term, ivec2 (pixel), vec4 (visibility));
 }

@@ -265,6 +265,11 @@ bool R_SetupRenderPasses (void)
 		Con_Printf ("Entity SSAO requires subgroup operations\n");
 		Cvar_SetValueQuick (&r_ssao, 0);
 	}
+	if (r_ssao.value > 0 && !vulkan_globals.device_features.shaderStorageImageExtendedFormats)
+	{
+		Con_Printf ("Entity SSAO requires extended storage image formats\n");
+		Cvar_SetValueQuick (&r_ssao, 0);
+	}
 	memset (&pending_layout, 0, sizeof (pending_layout));
 	pending_layout.color_format = vulkan_globals.color_format;
 	pending_layout.depth_format = vulkan_globals.depth_format;

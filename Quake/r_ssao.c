@@ -5,10 +5,10 @@
 typedef enum
 {
 	SSAO_DEPTH_PYRAMID,
-	SSAO_RAW,
+	SSAO_AO,
 	SSAO_FILTERED,
-	SSAO_FINAL,
 	SSAO_EDGES,
+	SSAO_HILBERT,
 	SSAO_IMAGE_COUNT
 } ssao_image_t;
 
@@ -55,6 +55,56 @@ void R_InitSSAO (void)
 #endif
 }
 
+// The spatial noise repeats every 64 pixels; build its index once per resource creation.
+static void R_UploadSSAOHilbert (void)
+{
+	VkBuffer			 buffer;
+	VkCommandBuffer		 cb;
+	int					 offset;
+	uint16_t			*data = (uint16_t *)R_StagingAllocate (64 * 64 * sizeof (*data), 4, &cb, &buffer, &offset);
+	VkImageMemoryBarrier barrier = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+		.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.image = working_images[SSAO_HILBERT],
+		.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+	vkCmdPipelineBarrier (cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+	const VkBufferImageCopy region = {.bufferOffset = offset, .imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, .imageExtent = {64, 64, 1}};
+	vkCmdCopyBufferToImage (cb, buffer, working_images[SSAO_HILBERT], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+	vkCmdPipelineBarrier (cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
+	R_StagingBeginCopy ();
+	for (uint32_t y = 0; y < 64; ++y)
+		for (uint32_t x = 0; x < 64; ++x)
+		{
+			uint32_t px = x, py = y, index = 0;
+			for (uint32_t level = 32; level; level /= 2)
+			{
+				uint32_t rx = (px & level) != 0, ry = (py & level) != 0;
+				index += level * level * ((3 * rx) ^ ry);
+				if (!ry)
+				{
+					if (rx)
+					{
+						px = 63 - px;
+						py = 63 - py;
+					}
+					uint32_t temp = px;
+					px = py;
+					py = temp;
+				}
+			}
+			data[y * 64 + x] = index;
+		}
+	R_StagingEndCopy ();
+}
+
 void R_CreateSSAO (VkImage depth)
 {
 	if (r_ssao.value <= 0)
@@ -86,14 +136,15 @@ void R_CreateSSAO (VkImage depth)
 			.imageType = VK_IMAGE_TYPE_2D,
 			.format = !working							  ? vulkan_globals.depth_format
 					  : image_index == SSAO_DEPTH_PYRAMID ? VK_FORMAT_R32G32_SFLOAT
-					  : image_index == SSAO_EDGES		  ? VK_FORMAT_R32_SFLOAT
-														  : VK_FORMAT_R32_UINT,
-			.extent = {vid.width, vid.height, 1},
+					  : image_index == SSAO_EDGES		  ? VK_FORMAT_R8_UNORM
+					  : image_index == SSAO_HILBERT		  ? VK_FORMAT_R16_UINT
+														  : VK_FORMAT_R8_UNORM,
+			.extent = {image_index == SSAO_HILBERT ? 64 : vid.width, image_index == SSAO_HILBERT ? 64 : vid.height, 1},
 			.mipLevels = image_index == SSAO_DEPTH_PYRAMID ? 5 : 1,
 			.arrayLayers = 1,
 			.samples = working ? VK_SAMPLE_COUNT_1_BIT : vulkan_globals.sample_count,
 			.tiling = VK_IMAGE_TILING_OPTIMAL,
-			.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+			.usage = VK_IMAGE_USAGE_SAMPLED_BIT | (image_index == SSAO_HILBERT ? VK_IMAGE_USAGE_TRANSFER_DST_BIT : VK_IMAGE_USAGE_STORAGE_BIT),
 		};
 		// Depth and stencil views both borrow the main attachment; only working images own memory.
 		if (working)
@@ -141,14 +192,15 @@ void R_CreateSSAO (VkImage depth)
 		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
 		if (working)
 		{
-			if (image_index == SSAO_DEPTH_PYRAMID)
-				continue; // Storage descriptors use the individual mip views below.
+			if (image_index == SSAO_DEPTH_PYRAMID || image_index == SSAO_HILBERT)
+				continue; // The LUT is read-only; depth storage uses the individual mip views below.
 			working_write[image_index] = R_AllocateDescriptorSet (&vulkan_globals.single_texture_cs_write_set_layout);
 			write.dstSet = working_write[image_index];
 			write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 			vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
 		}
 	}
+	R_UploadSSAOHilbert ();
 	for (int mip = 0; mip < 5; ++mip)
 	{
 		const VkImageViewCreateInfo info = {
@@ -200,10 +252,13 @@ void R_DestroySSAO (void)
 	if (prepared_write)
 		R_FreeDescriptorSet (prepared_write, &vulkan_globals.single_texture_cs_write_set_layout);
 	prepared_read = prepared_write = VK_NULL_HANDLE;
-	for (int i = 0; i < SSAO_IMAGE_COUNT; ++i)
+	for (int i = 0; i < countof (mip_views); ++i)
 	{
 		vkDestroyImageView (vulkan_globals.device, mip_views[i], NULL);
 		mip_views[i] = VK_NULL_HANDLE;
+	}
+	for (int i = 0; i < SSAO_IMAGE_COUNT; ++i)
+	{
 		if (working_read[i])
 			R_FreeDescriptorSet (working_read[i], &vulkan_globals.single_texture_set_layout);
 		if (working_write[i])
@@ -307,8 +362,8 @@ void R_ComputeSSAO (cb_context_t *cbx)
 		.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1}};
 	ssao_constants_t	 constants = R_SSAOConstants ();
 	// Preserve prepared world depth; discard the other outputs after previous readers finish.
-	VkImageMemoryBarrier barriers[SSAO_IMAGE_COUNT + 1];
-	for (int i = 0; i < SSAO_IMAGE_COUNT; ++i)
+	VkImageMemoryBarrier barriers[SSAO_HILBERT + 1];
+	for (int i = 0; i < SSAO_HILBERT; ++i)
 		barriers[i] = (VkImageMemoryBarrier){
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 			.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
@@ -319,7 +374,7 @@ void R_ComputeSSAO (cb_context_t *cbx)
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.image = working_images[i],
 			.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, i == SSAO_DEPTH_PYRAMID ? 5 : 1, 0, 1}};
-	barriers[SSAO_IMAGE_COUNT] = depth_barrier;
+	barriers[SSAO_HILBERT] = depth_barrier;
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL,
 		countof (barriers), barriers);
@@ -357,8 +412,7 @@ void R_ComputeSSAO (cb_context_t *cbx)
 		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &read_barrier, 0, NULL, 0, NULL);
 
 	// Evaluate AO and receiver edges.
-	const VkDescriptorSet evaluate_sets[] = {
-		working_read[SSAO_DEPTH_PYRAMID], working_read[SSAO_DEPTH_PYRAMID], working_write[SSAO_RAW], working_write[SSAO_EDGES]};
+	const VkDescriptorSet evaluate_sets[] = {working_read[SSAO_DEPTH_PYRAMID], working_read[SSAO_HILBERT], working_write[SSAO_AO], working_write[SSAO_EDGES]};
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_evaluate_pipeline.handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_evaluate_pipeline.layout.handle, 0, countof (evaluate_sets), evaluate_sets, 0, NULL);
@@ -369,16 +423,21 @@ void R_ComputeSSAO (cb_context_t *cbx)
 
 	// Each denoiser invocation writes two horizontal pixels.
 	const uint32_t		  filter_groups_x = (width + 15) / 16;
-	const VkDescriptorSet filter_sets[] = {working_read[SSAO_RAW], working_read[SSAO_EDGES], working_write[SSAO_FILTERED]};
+	const VkDescriptorSet filter_sets[] = {working_read[SSAO_AO], working_read[SSAO_EDGES], working_write[SSAO_FILTERED]};
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_filter_pipeline.handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_filter_pipeline.layout.handle, 0, countof (filter_sets), filter_sets, 0, NULL);
 	vulkan_globals.vk_cmd_push_constants (cb, ssao_filter_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
 	vulkan_globals.vk_cmd_dispatch (cb, filter_groups_x, groups_y, 1);
+	// Finish reading the raw AO before reusing its image for the final output.
+	const VkMemoryBarrier filter_barrier = {
+		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+		.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+		.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT};
 	vulkan_globals.vk_cmd_pipeline_barrier (
-		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &read_barrier, 0, NULL, 0, NULL);
+		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &filter_barrier, 0, NULL, 0, NULL);
 
-	const VkDescriptorSet final_sets[] = {working_read[SSAO_FILTERED], working_read[SSAO_EDGES], working_write[SSAO_FINAL]};
+	const VkDescriptorSet final_sets[] = {working_read[SSAO_FILTERED], working_read[SSAO_EDGES], working_write[SSAO_AO]};
 	constants.settings[2] = 1; // Apply the final visibility scale.
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_filter_pipeline.handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
@@ -400,7 +459,7 @@ void R_DrawSSAOTask (void *unused)
 	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
 	vkCmdSetScissor (cbx->cb, 0, 1, &rect);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, ssao_pipelines[cbx->pipeline_variant]);
-	const VkDescriptorSet sets[] = {descriptors[SSAO_ENTITY_MASK], descriptors[SSAO_SCENE_DEPTH], working_read[SSAO_FINAL], prepared_read};
+	const VkDescriptorSet sets[] = {descriptors[SSAO_ENTITY_MASK], descriptors[SSAO_SCENE_DEPTH], working_read[SSAO_AO], prepared_read};
 	vulkan_globals.vk_cmd_bind_descriptor_sets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ssao_layout.handle, 0, 4, sets, 0, NULL);
 	const ssao_constants_t constants = R_SSAOConstants ();
 	R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof (constants), &constants);
