@@ -2667,8 +2667,7 @@ void GL_BuildBModelAccelerationStructures (void)
 		buffer_create_info_t *create_info = &buffer_create_infos[1 + i];
 		create_info->buffer = &blas_models[i]->buffer;
 		create_info->size = blas_sizes_infos[i].accelerationStructureSize;
-		create_info->usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
-		create_info->address = &blas_models[i]->address;
+		create_info->usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		create_info->name = "BModel BLAS";
 	}
 
@@ -2728,6 +2727,11 @@ void GL_BuildBModelAccelerationStructures (void)
 		err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &blas_models[i]->blas);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateAccelerationStructure failed with code %i", (int)err);
+
+		ZEROED_STRUCT (VkAccelerationStructureDeviceAddressInfoKHR, address_info);
+		address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+		address_info.accelerationStructure = blas_models[i]->blas;
+		blas_models[i]->address = vulkan_globals.vk_get_acceleration_structure_device_address (vulkan_globals.device, &address_info);
 
 		ZEROED_STRUCT (VkAccelerationStructureBuildRangeInfoKHR, build_range_info);
 		build_range_info.primitiveCount = blas_num_tris[i];
