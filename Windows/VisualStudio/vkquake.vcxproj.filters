@@ -406,13 +406,25 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_evaluate.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_evaluate_fp16.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_mip.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_mip_fp16.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_mip_msaa.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_mip_msaa_fp16.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_filter.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_filter_fp16.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_composite_msaa.frag.c">
@@ -550,13 +562,25 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_evaluate.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_evaluate_fp16.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_mip.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_mip_fp16.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_mip_msaa.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_mip_msaa_fp16.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_filter.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_filter_fp16.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_composite_msaa.frag.c">

@@ -43,13 +43,25 @@
     <CustomBuild Include="..\..\Shaders\ssao_evaluate.comp">
       <Filter>Shaders\SSAO</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_evaluate_fp16.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ssao_mip.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_mip_fp16.comp">
       <Filter>Shaders\SSAO</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ssao_mip_msaa.comp">
       <Filter>Shaders\SSAO</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_mip_msaa_fp16.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ssao_filter.comp">
+      <Filter>Shaders\SSAO</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ssao_filter_fp16.comp">
       <Filter>Shaders\SSAO</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ssao_composite_msaa.frag">
@@ -178,6 +190,12 @@
       <Filter>Shaders\SSAO</Filter>
     </None>
     <None Include="..\..\Shaders\gtao.inc">
+      <Filter>Shaders\SSAO</Filter>
+    </None>
+    <None Include="..\..\Shaders\ssao_evaluate.inc">
+      <Filter>Shaders\SSAO</Filter>
+    </None>
+    <None Include="..\..\Shaders\ssao_filter.inc">
       <Filter>Shaders\SSAO</Filter>
     </None>
     <None Include="..\..\Shaders\ssao_mip.inc">

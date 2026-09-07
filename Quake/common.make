@@ -192,9 +192,13 @@ SHADER_OBJS = \
 	ssao_prepare_comp.o \
 	ssao_prepare_msaa_comp.o \
 	ssao_evaluate_comp.o \
+	ssao_evaluate_fp16_comp.o \
 	ssao_mip_comp.o \
+	ssao_mip_fp16_comp.o \
 	ssao_mip_msaa_comp.o \
+	ssao_mip_msaa_fp16_comp.o \
 	ssao_filter_comp.o \
+	ssao_filter_fp16_comp.o \
 	ssao_composite_msaa_frag.o \
 	postprocess_vert.o \
 	wboit_resolve_frag.o \
@@ -320,7 +324,12 @@ $(BINTOC_EXE): ../Shaders/bintoc.c
 ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv: ../Shaders/%.comp
 	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.d
 
-../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/ssao_mip_comp.spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/ssao_mip_msaa_comp.spv: GLSLANG_FLAGS += --target-env vulkan1.1
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/ssao_mip_comp.spv \
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/ssao_mip_msaa_comp.spv \
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/ssao_evaluate_fp16_comp.spv \
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/ssao_filter_fp16_comp.spv \
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/ssao_mip_fp16_comp.spv \
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/ssao_mip_msaa_fp16_comp.spv: GLSLANG_FLAGS += --target-env vulkan1.1
 
 %_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv $(BINTOC_EXE)
 	$(BINTOC_EXE) $< $*_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c

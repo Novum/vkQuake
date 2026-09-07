@@ -33,32 +33,53 @@ layout (rg16f, set = 0, binding = 2) uniform writeonly image2D mip1;
 layout (rg16f, set = 0, binding = 3) uniform writeonly image2D mip2;
 layout (rg16f, set = 0, binding = 4) uniform writeonly image2D mip3;
 layout (rg16f, set = 0, binding = 5) uniform writeonly image2D mip4;
-shared vec2 depths1[64];
-shared vec2 depths2[16];
-shared vec2 depths3[4];
+shared half2 depths1[64];
+shared half2 depths2[16];
+shared half2 depths3[4];
 
-float reduce_depth (float a, float b, float c, float d)
+// XeGTAO_DepthMIPFilter: all depth-filter arithmetic uses lpfloat.
+half reduce_depth (half a, half b, half c, half d)
 {
-	float farthest = max (max (a < 65504.0 ? a : 0.0, b < 65504.0 ? b : 0.0), max (c < 65504.0 ? c : 0.0, d < 65504.0 ? d : 0.0));
-	if (farthest == 0.0)
-		return 65504.0;
-	a = a < 65504.0 ? a : farthest;
-	b = b < 65504.0 ? b : farthest;
-	c = c < 65504.0 ? c : farthest;
-	d = d < 65504.0 ? d : farthest;
+	// vkQuake reserves 65504 for missing depth in either channel.
+	half farthest = max (
+		max (a < half (65504.0) ? a : half (0.0), b < half (65504.0) ? b : half (0.0)),
+		max (c < half (65504.0) ? c : half (0.0), d < half (65504.0) ? d : half (0.0)));
+	if (farthest == half (0.0))
+		return half (65504.0);
+	a = a < half (65504.0) ? a : farthest;
+	b = b < half (65504.0) ? b : farthest;
+	c = c < half (65504.0) ? c : farthest;
+	d = d < half (65504.0) ? d : farthest;
 
-	float effect_radius = 0.75 * pc.settings.x * 1.457;
-	float falloff_range = 0.615 * effect_radius;
-	float falloff_mul = -1.0 / falloff_range;
-	float falloff_add = effect_radius * (1.0 - 0.615) / falloff_range + 1.0;
+	half depth_range_scale_factor = half (0.75);
+	half effect_radius = depth_range_scale_factor * half (pc.settings.x) * half (1.457);
+	half falloff_range = half (0.615) * effect_radius;
+	half falloff_from = effect_radius * (half (1.0) - half (get_gtao_constants ().effect_falloff_range));
+	half falloff_mul = half (-1.0) / falloff_range;
+	half falloff_add = falloff_from / falloff_range + half (1.0);
 
-	vec4 weights = clamp ((farthest - vec4 (a, b, c, d)) * falloff_mul + falloff_add, 0.0, 1.0);
-	return dot (weights, vec4 (a, b, c, d)) / dot (weights, vec4 (1.0));
+	half weight0 = clamp ((farthest - a) * falloff_mul + falloff_add, half (0.0), half (1.0));
+	half weight1 = clamp ((farthest - b) * falloff_mul + falloff_add, half (0.0), half (1.0));
+	half weight2 = clamp ((farthest - c) * falloff_mul + falloff_add, half (0.0), half (1.0));
+	half weight3 = clamp ((farthest - d) * falloff_mul + falloff_add, half (0.0), half (1.0));
+	half weight_sum = weight0 + weight1 + weight2 + weight3;
+	return (weight0 * a + weight1 * b + weight2 * c + weight3 * d) / weight_sum;
 }
 
-vec2 reduce (vec2 a, vec2 b, vec2 c, vec2 d)
+half2 reduce (half2 a, half2 b, half2 c, half2 d)
 {
-	return vec2 (reduce_depth (a.x, b.x, c.x, d.x), reduce_depth (a.y, b.y, c.y, d.y));
+	return half2 (reduce_depth (a.x, b.x, c.x, d.x), reduce_depth (a.y, b.y, c.y, d.y));
+}
+
+half2 shuffle_depth (half2 depth, uint mask)
+{
+#ifdef USE_FP16
+	// Transport the half pair through a 32-bit shuffle; shaderSubgroupExtendedTypes is not required.
+	uint packed_depth = packHalf2x16 (vec2 (depth));
+	return half2 (unpackHalf2x16 (subgroupShuffleXor (packed_depth, mask)));
+#else
+	return subgroupShuffleXor (depth, mask);
+#endif
 }
 
 uint morton_x (uint i)
@@ -66,14 +87,14 @@ uint morton_x (uint i)
 	return (i & 1u) | ((i >> 1u) & 2u) | ((i >> 2u) & 4u);
 }
 
-vec2 read2 (ivec2 p)
+half2 read2 (ivec2 p)
 {
 	ivec2 last = max (ivec2 (0), min (ivec2 (3), imageSize (mip2) - ivec2 (gl_WorkGroupID.xy) * 4 - 1));
 	p = clamp (p, ivec2 (0), last);
 	return depths2[p.y * 4 + p.x];
 }
 
-vec2 read3 (ivec2 p)
+half2 read3 (ivec2 p)
 {
 	ivec2 last = max (ivec2 (0), min (ivec2 (1), imageSize (mip3) - ivec2 (gl_WorkGroupID.xy) * 2 - 1));
 	p = clamp (p, ivec2 (0), last);
@@ -81,10 +102,10 @@ vec2 read3 (ivec2 p)
 }
 
 // Each pixel has one owner: preserve world depth and resolve scene depth in registers.
-vec2 prepare_depth (ivec2 p)
+half2 prepare_depth (ivec2 p)
 {
 	if (any (greaterThanEqual (p, imageSize (mip0))))
-		return vec2 (65504.0);
+		return half2 (65504.0);
 	float depth = 0.0;
 	if (all (greaterThanEqual (vec2 (p), pc.viewport.xy)) && all (lessThan (vec2 (p), pc.viewport.xy + round (1.0 / pc.viewport.zw))))
 	{
@@ -95,9 +116,9 @@ vec2 prepare_depth (ivec2 p)
 		depth = texelFetch (scene_depth, p, 0).r;
 #endif
 	}
-	vec2 depths = vec2 (imageLoad (mip0, p).x, depth > 0.0 ? min (pc.projection.z / depth, 65472.0) : 65504.0);
+	half2 depths = half2 (imageLoad (mip0, p).x, depth > 0.0 ? min (pc.projection.z / depth, 65472.0) : 65504.0);
 	// Match the already stored world depth before reducing the two channels together.
-	depths = unpackHalf2x16 (packHalf2x16 (depths));
+	depths = half2 (unpackHalf2x16 (packHalf2x16 (vec2 (depths))));
 	imageStore (mip0, p, vec4 (depths, 0, 0));
 	return depths;
 }
@@ -110,7 +131,7 @@ void main ()
 	ivec2 local = ivec2 (morton_x (index), morton_x (index >> 1));
 	ivec2 p = ivec2 (gl_WorkGroupID.xy) * 8 + local;
 	ivec2 q = p * 2;
-	vec2  depth = reduce (prepare_depth (q), prepare_depth (q + ivec2 (1, 0)), prepare_depth (q + ivec2 (0, 1)), prepare_depth (q + ivec2 (1, 1)));
+	half2 depth = reduce (prepare_depth (q), prepare_depth (q + ivec2 (1, 0)), prepare_depth (q + ivec2 (0, 1)), prepare_depth (q + ivec2 (1, 1)));
 	// An odd trailing row/column still needs mip 0, even when it contributes to no higher mip.
 	ivec2 origin = ivec2 (gl_WorkGroupID.xy) * 8;
 	if (any (greaterThanEqual (origin, imageSize (mip1))))
@@ -126,10 +147,10 @@ void main ()
 	}
 	if (all (lessThan (p, imageSize (mip1))))
 		imageStore (mip1, p, vec4 (depth, 0, 0));
-	vec2 a = depth;
-	vec2 b = subgroupShuffleXor (depth, 1);
-	vec2 c = subgroupShuffleXor (depth, 2);
-	vec2 d = subgroupShuffleXor (depth, 3);
+	half2 a = depth;
+	half2 b = shuffle_depth (depth, 1);
+	half2 c = shuffle_depth (depth, 2);
+	half2 d = shuffle_depth (depth, 3);
 	depth = reduce (a, b, c, d);
 	if ((index & 3u) == 0)
 	{
@@ -141,9 +162,9 @@ void main ()
 	if (gl_SubgroupSize >= 16)
 	{
 		a = depth;
-		b = subgroupShuffleXor (depth, 4);
-		c = subgroupShuffleXor (depth, 8);
-		d = subgroupShuffleXor (depth, 12);
+		b = shuffle_depth (depth, 4);
+		c = shuffle_depth (depth, 8);
+		d = shuffle_depth (depth, 12);
 		depth = reduce (a, b, c, d);
 		if ((index & 15u) == 0)
 		{
@@ -155,9 +176,9 @@ void main ()
 		if (gl_SubgroupSize >= 64)
 		{
 			a = depth;
-			b = subgroupShuffleXor (depth, 16);
-			c = subgroupShuffleXor (depth, 32);
-			d = subgroupShuffleXor (depth, 48);
+			b = shuffle_depth (depth, 16);
+			c = shuffle_depth (depth, 32);
+			d = shuffle_depth (depth, 48);
 			if (index == 0 && all (lessThan (ivec2 (gl_WorkGroupID.xy), imageSize (mip4))))
 				imageStore (mip4, ivec2 (gl_WorkGroupID.xy), vec4 (reduce (a, b, c, d), 0, 0));
 			return;

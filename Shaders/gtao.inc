@@ -20,6 +20,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#ifdef USE_FP16
+#define half  float16_t
+#define half2 f16vec2
+#define half3 f16vec3
+#define half4 f16vec4
+#else
+#define half  float
+#define half2 vec2
+#define half3 vec3
+#define half4 vec4
+#endif
+
 layout (push_constant) uniform constants
 {
 	vec4 viewport, projection, settings;

@@ -1,3 +1,5 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#define USE_FP16
 #include "ssao_filter.inc"

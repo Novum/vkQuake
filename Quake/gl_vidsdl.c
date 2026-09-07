@@ -1090,12 +1090,14 @@ static void GL_InitDevice (void)
 	vulkan_globals.full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;
 	vulkan_globals.screen_effects_sops = false;
+	vulkan_globals.shader_float16 = false;
 	vulkan_globals.ray_query = false;
 	qboolean push_descriptor = false;
 
 	vkGetPhysicalDeviceMemoryProperties (vulkan_physical_device, &vulkan_globals.memory_properties);
 	vkGetPhysicalDeviceProperties (vulkan_physical_device, &vulkan_globals.device_properties);
 
+	qboolean shader_float16_available = false;
 	qboolean driver_properties_available = false;
 	qboolean present_id = false;
 	qboolean present_wait = false;
@@ -1121,6 +1123,8 @@ static void GL_InitDevice (void)
 			if (strcmp (VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.full_screen_exclusive = true;
 #endif
+			if (strcmp (VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+				shader_float16_available = true;
 			if (strcmp (VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				push_descriptor = true;
 			if (strcmp (VK_KHR_RAY_QUERY_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
@@ -1212,6 +1216,7 @@ static void GL_InitDevice (void)
 	ZEROED_STRUCT (VkPhysicalDeviceBufferDeviceAddressFeaturesKHR, buffer_device_address_features);
 	ZEROED_STRUCT (VkPhysicalDeviceAccelerationStructureFeaturesKHR, acceleration_structure_features);
 	ZEROED_STRUCT (VkPhysicalDeviceRayQueryFeaturesKHR, ray_query_features);
+	ZEROED_STRUCT (VkPhysicalDeviceShaderFloat16Int8Features, shader_float16_features);
 #if defined(VK_KHR_present_wait2)
 	ZEROED_STRUCT (VkPhysicalDevicePresentId2FeaturesKHR, present_id_features);
 	ZEROED_STRUCT (VkPhysicalDevicePresentWait2FeaturesKHR, present_wait_features);
@@ -1241,6 +1246,12 @@ static void GL_InitDevice (void)
 		ZEROED_STRUCT (VkPhysicalDeviceFeatures2, physical_device_features_2);
 		physical_device_features_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
 		void **device_features_next = &physical_device_features_2.pNext;
+
+		if (shader_float16_available)
+		{
+			shader_float16_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES;
+			CHAIN_PNEXT (device_features_next, shader_float16_features);
+		}
 
 		if (subgroup_size_control)
 		{
@@ -1276,6 +1287,10 @@ static void GL_InitDevice (void)
 	vulkan_globals.device_features.sampleRateShading = false;
 #endif
 
+	vulkan_globals.shader_float16 = shader_float16_features.shaderFloat16;
+	if (vulkan_globals.shader_float16)
+		Con_Printf ("Using FP16 shader arithmetic\n");
+
 	vulkan_globals.screen_effects_sops =
 		vulkan_globals.vulkan_1_1_available && subgroup_size_control && subgroup_size_control_features.subgroupSizeControl &&
 		subgroup_size_control_features.computeFullSubgroups && ((physical_device_subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0) &&
@@ -1301,6 +1316,8 @@ static void GL_InitDevice (void)
 
 	const char *device_extensions[32] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 	uint32_t	numEnabledExtensions = 1;
+	if (vulkan_globals.shader_float16)
+		device_extensions[numEnabledExtensions++] = VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME;
 	if (vulkan_globals.dedicated_allocation)
 	{
 		device_extensions[numEnabledExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
@@ -1350,6 +1367,12 @@ static void GL_InitDevice (void)
 	ZEROED_STRUCT (VkDeviceCreateInfo, device_create_info);
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	void **device_create_info_next = (void **)&device_create_info.pNext;
+	if (vulkan_globals.shader_float16)
+	{
+		shader_float16_features.pNext = NULL;
+		shader_float16_features.shaderInt8 = VK_FALSE;
+		CHAIN_PNEXT (device_create_info_next, shader_float16_features);
+	}
 	if (vulkan_globals.screen_effects_sops)
 		CHAIN_PNEXT (device_create_info_next, subgroup_size_control_features);
 	if (vulkan_globals.ray_query)
