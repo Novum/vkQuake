@@ -19,7 +19,7 @@ enum
 	SSAO_DEPTH_COUNT
 };
 
-cvar_t					 r_ssao = {"r_ssao", "1", CVAR_ARCHIVE};
+cvar_t					 r_ssao = {"r_ssao", "3", CVAR_ARCHIVE};
 static cvar_t			 r_ssao_radius = {"r_ssao_radius", "32", CVAR_ARCHIVE};
 static cvar_t			 r_ssao_strength = {"r_ssao_strength", "1.0", CVAR_ARCHIVE};
 vulkan_pipeline_layout_t ssao_layout;
@@ -401,6 +401,8 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	constants.projection[0] = (-1.0f - 2.0f * r_refdef.vrect.x / r_refdef.vrect.width) / vulkan_globals.projection_matrix[0];
 	constants.projection[1] = (-1.0f - 2.0f * (vid.height - glheight + r_refdef.vrect.y) / r_refdef.vrect.height) / vulkan_globals.projection_matrix[5];
 
+	// The evaluator uses settings.w for quality; the composite gets its own debug constants.
+	constants.settings[3] = (int)CLAMP (1, r_ssao.value, 3);
 	// Evaluate AO and receiver edges.
 	const VkDescriptorSet evaluate_sets[] = {working_read[SSAO_DEPTH_PYRAMID], working_read[SSAO_HILBERT], working_write[SSAO_AO], working_write[SSAO_EDGES]};
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_evaluate_pipeline.handle);

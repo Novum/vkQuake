@@ -98,10 +98,11 @@ void main ()
 		imageStore (out_working_edges, ivec2 (pixel), vec4 (0));
 		return;
 	}
-	uint		index = texelFetch (hilbert_lut, ivec2 (pixel & 63u), 0).r;
-	vec2		noise = fract (0.5 + float (index) * vec2 (0.75487766624669276, 0.56984029099805326));
-	const float slice_count = 3.0;
-	const float steps_per_slice = 3.0;
+	uint  index = texelFetch (hilbert_lut, ivec2 (pixel & 63u), 0).r;
+	vec2  noise = fract (0.5 + float (index) * vec2 (0.75487766624669276, 0.56984029099805326));
+	// Low: 1x2x2 = 4 samples; medium: 2x2x2 = 8; high: 3x3x2 = 18.
+	float slice_count = pc.settings.w;
+	float steps_per_slice = slice_count < 3.0 ? 2.0 : 3.0;
 
 	vec2 normalized_screen_pos = (pixel + vec2 (0.5)) * c.viewport_pixel_size;
 

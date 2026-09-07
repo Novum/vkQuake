@@ -2163,7 +2163,7 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GRAPHICS_OPT_AMBIENT_OCCLUSION:
 		if (vulkan_globals.screen_effects_sops)
-			Cvar_SetValueQuick (&r_ssao, r_ssao.value > 0 ? 0 : 1);
+			Cvar_SetValueQuick (&r_ssao, (float)(((int)CLAMP (0, r_ssao.value, 3) + 4 + dir) % 4));
 		break;
 	}
 }
@@ -2310,7 +2310,8 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	{
 		const int row = GRAPHICS_OPT_AMBIENT_OCCLUSION - (vulkan_globals.ray_query ? 0 : 1);
 		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * row, "Ambient Occlusion");
-		M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * row, r_ssao.value > 0);
+		const char *ao_modes[] = {"off", "low", "medium", "high"};
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * row, ao_modes[(int)CLAMP (0, r_ssao.value, 3)]);
 	}
 
 	if (vulkan_globals.ray_query)
