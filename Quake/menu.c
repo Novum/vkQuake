@@ -1599,6 +1599,7 @@ enum
 	GAME_OPT_STARTUP_DEMOS,
 	GAME_OPT_SHOWFPS,
 	GAME_OPT_CONFIRMQUIT,
+	GAME_OPT_LANGUAGE,
 	GAME_OPTIONS_ITEMS
 };
 
@@ -1747,6 +1748,9 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GAME_OPT_SHOWFPS:
 		Cvar_SetValue ("scr_showfps", ((int)scr_showfps.value + 2 + dir) % 2);
+		break;
+	case GAME_OPT_LANGUAGE:
+		LOC_CycleLanguage (dir);
 		break;
 	case GAME_OPT_CONFIRMQUIT:
 		Cvar_SetValue ("cl_confirmquit", ((int)cl_confirmquit.value + 2 + dir) % 2);
@@ -1920,6 +1924,10 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 			M_DrawCheckbox (cbx, MENU_VALUE_X, y, scr_showfps.value);
 			break;
 
+		case GAME_OPT_LANGUAGE:
+			M_Print (cbx, MENU_LABEL_X, y, "Language");
+			M_Print (cbx, MENU_VALUE_X, y, language.string);
+			break;
 		case GAME_OPT_CONFIRMQUIT:
 			M_Print (cbx, MENU_LABEL_X, y, "Quit Prompt");
 			M_DrawCheckbox (cbx, MENU_VALUE_X, y, cl_confirmquit.value);

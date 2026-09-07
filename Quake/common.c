@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 
 #include "q_ctype.h"
+#include "unicode_translit.h"
 #include "filenames.h"
 #include "steam.h"
 #include <errno.h>
@@ -427,6 +428,12 @@ size_t UTF8_WriteCodePoint (char *dst, size_t maxbytes, uint32_t codepoint)
 }
 
 // clang-format off
+#define UNICODE_UNKNOWN 0xFFFD
+#define UNICODE_MAX 0x10FFFF
+#define QCHAR_BOX 11
+static char unicode_translit[65536][2];
+static qboolean unicode_translit_init;
+
 static const uint32_t qchar_to_unicode[256] =
 {/*     0       1       2       3       4       5       6       7       8       9       10      11      12      13      14      15
       ----------------------------------------------------------------------------------------------------------------------------------
@@ -521,6 +528,166 @@ size_t UTF8_FromQuake (char *dst, size_t maxbytes, const char *src)
 	dst[j++] = '\0';
 
 	return j;
+}
+
+static uint32_t UTF8_ReadCodePoint (const char **src)
+{
+	const char *text = *src;
+	uint32_t	code, mask, i;
+	uint8_t		first, cont;
+
+	first = text[0];
+	if (!first)
+		return 0;
+
+	if (first < 128)
+	{
+		*src = text + 1;
+		return first;
+	}
+
+	if ((first & 0xC0) != 0xC0)
+	{
+		*src = text + 1;
+		return UNICODE_UNKNOWN;
+	}
+
+	mask = first << 1;
+	code = 0;
+	for (i = 1; i < 6 && (mask & 0x80) != 0; i++, mask <<= 1)
+	{
+		cont = text[i];
+		if (!cont)
+		{
+			*src = text + i;
+			return UNICODE_UNKNOWN;
+		}
+		if ((cont & 0xC0) != 0x80)
+		{
+			*src = text + i + 1;
+			return UNICODE_UNKNOWN;
+		}
+		code = (code << 6) | (cont & 63);
+	}
+
+	mask = ((1 << (7 - i)) - 1);
+	code |= (first & mask) << (6 * (i - 1));
+	*src = text + i;
+
+	if (code > UNICODE_MAX ||																 // out of range
+		i > 4 ||																			 // out of range/overlong
+		(i == 2 && code < 0x80) || (i == 3 && code < 0x800) || (i == 4 && code < 0x10000) || // overlong
+		code - 0xD800 < 2048)																 // surrogate
+	{
+		code = UNICODE_UNKNOWN;
+	}
+
+	return code;
+}
+
+static size_t UTF8_ToQuake (char *dst, size_t maxbytes, const char *src)
+{
+	size_t	 i, j;
+	uint32_t cp;
+
+	if (!unicode_translit_init)
+	{
+		// precomputed single-character/two-character transliterations
+		for (i = 0; i < countof (unicode_translit_src); i++)
+		{
+			unicode_translit[unicode_translit_src[i].code][0] = unicode_translit_src[i].remap[0];
+			unicode_translit[unicode_translit_src[i].code][1] = unicode_translit_src[i].remap[1];
+		}
+
+		// Quake-specific characters: we process the list in reverse order
+		// so that codepoints used for both colored and non-colored qchars
+		// end up being remapped to the non-colored versions
+		// Note: 0 is not included
+		for (i = countof (qchar_to_unicode) - 1; i > 0; i--)
+		{
+			if (qchar_to_unicode[i] >= 128 && qchar_to_unicode[i] < countof (unicode_translit))
+			{
+				unicode_translit[qchar_to_unicode[i]][0] = (char)i;
+				unicode_translit[qchar_to_unicode[i]][1] = '\0';
+			}
+		}
+
+		// map ASCII characters to themselves
+		for (i = 0; i < 128; i++)
+		{
+			unicode_translit[i][0] = (char)i;
+			unicode_translit[i][1] = '\0';
+		}
+
+		// Map all other characters to QCHAR_BOX (unknown character)
+		for (i = 0; i < countof (unicode_translit); i++)
+		{
+			if (!unicode_translit[i][0])
+			{
+				unicode_translit[i][0] = QCHAR_BOX;
+				unicode_translit[i][1] = '\0';
+			}
+		}
+
+		unicode_translit_init = true;
+	}
+
+	if (!maxbytes)
+	{
+		if (dst)
+			return 0; // error
+
+		// Determine necessary output buffer size
+		for (i = 0, j = 0; *src; i++)
+		{
+			// ASCII fast path
+			while (*src && (byte)*src < 0x80)
+			{
+				src++;
+				j++;
+			}
+
+			if (!*src)
+				break;
+
+			// A codepoint maps to either one or two Quake characters
+			cp = UTF8_ReadCodePoint (&src);
+			if (cp < countof (unicode_translit))
+				j += unicode_translit[cp][1] != '\0' ? 2 : 1;
+			else
+				j++;
+		}
+
+		return j + 1; // include terminator
+	}
+
+	--maxbytes;
+
+	for (i = 0; i < maxbytes && *src; i++)
+	{
+		// ASCII fast path
+		while (*src && i < maxbytes && (byte)*src < 0x80)
+			dst[i++] = *src++;
+
+		if (!*src || i >= maxbytes)
+			break;
+
+		cp = UTF8_ReadCodePoint (&src);
+		if (cp < countof (unicode_translit))
+		{
+			char c0 = unicode_translit[cp][0];
+			char c1 = unicode_translit[cp][1];
+			dst[i] = c0;
+			if (c1 && i + 1 < maxbytes)
+				dst[++i] = c1;
+		}
+		else
+			dst[i] = QCHAR_BOX;
+	}
+
+	dst[i++] = '\0';
+
+	return i;
 }
 
 char *q_strtrim (char *str)
@@ -918,6 +1085,7 @@ void Info_Print (const char *info)
 {
 	Info_Enumerate (info, Info_Print_Callback, NULL);
 }
+
 /*
 ============================================================================
 
@@ -2955,7 +3123,7 @@ static void COM_Game_f (void)
 
 		Con_Printf ("\"game\" changed to \"%s\"\n", COM_GetGameNames (true));
 
-		LOC_Init ();
+		LOC_Load ();
 		VID_Lock ();
 		Cbuf_AddText ("exec quake.rc\n");
 		Cbuf_AddText ("vid_unlock\n");
@@ -3945,7 +4113,7 @@ static size_t mz_zip_file_read_func (void *opaque, mz_uint64 ofs, void *buf, siz
 LOC_LoadFile
 ================
 */
-void LOC_LoadFile (const char *file)
+static qboolean LOC_LoadFile (const char *file)
 {
 	char  path[1024];
 	int	  i, lineno;
@@ -3970,9 +4138,7 @@ void LOC_LoadFile (const char *file)
 	localization.numindices = 0;
 
 	if (!file || !*file)
-		return;
-
-	Con_Printf ("\nLanguage initialization\n");
+		return false;
 
 	localization.text = (char *)COM_LoadFile (file, NULL);
 	if (localization.text)
@@ -4061,7 +4227,7 @@ void LOC_LoadFile (const char *file)
 				SDL_RWclose (rw);
 #endif
 			Con_Printf ("Couldn't load '%s'\nfrom '%s'\n", file, com_basedir);
-			return;
+			return false;
 		}
 #ifdef USE_SDL3
 		SDL_ReadIO (rw, localization.text, sz);
@@ -4081,7 +4247,7 @@ loaded:
 	lineno = 0;
 	while (*cursor)
 	{
-		char *line, *equals;
+		char *line, *equals, *next;
 
 		lineno++;
 
@@ -4098,6 +4264,8 @@ loaded:
 				equals = cursor;
 			cursor++;
 		}
+
+		next = *cursor ? cursor + 1 : cursor;
 
 		if (line[0] == '/')
 		{
@@ -4182,11 +4350,10 @@ loaded:
 			if (!trailing_quote)
 			{
 				while (value_dst != value && q_isblank (value_dst[-1]))
-				{
-					*value_dst = 0;
 					value_dst--;
-				}
 			}
+
+			*value_dst = 0;
 
 			if (localization.numentries == localization.maxnumentries)
 			{
@@ -4198,11 +4365,12 @@ loaded:
 
 			entry = &localization.entries[localization.numentries++];
 			entry->key = line;
+			UTF8_ToQuake (value, strlen (value) + 1, value);
 			entry->value = value;
 		}
 
-		if (*cursor)
-			*cursor++ = 0; // terminate line and advance to next
+		*cursor = 0;
+		cursor = next;
 	}
 
 	// hash all entries
@@ -4211,7 +4379,7 @@ loaded:
 	if (localization.numindices == 0)
 	{
 		Con_Printf ("No localized strings in file '%s'\n", file);
-		return;
+		return false;
 	}
 
 	localization.indices = (unsigned *)Mem_Realloc (localization.indices, localization.numindices * sizeof (*localization.indices));
@@ -4240,16 +4408,85 @@ loaded:
 	}
 
 	Con_Printf ("Loaded %d strings from '%s'\n", localization.numentries, file);
+	return true;
 }
-
 /*
 ================
 LOC_Init
 ================
 */
+cvar_t language = {"language", "auto", CVAR_ARCHIVE};
+
+static const char *const knownlangs[][2] = {{"", "auto"}, {"en", "english"}, {"fr", "french"}, {"de", "german"}, {"it", "italian"}, {"es", "spanish"}};
+
+static const char *LOC_GetSystemLanguage (void)
+{
+	const char *result = "english";
+#ifdef USE_SDL3
+	SDL_Locale **prefs = SDL_GetPreferredLocales (NULL);
+#else
+	SDL_Locale *prefs = SDL_GetPreferredLocales ();
+#endif
+	if (!prefs)
+		return result;
+	for (int i = 0;; i++)
+	{
+#ifdef USE_SDL3
+		if (!prefs[i])
+			break;
+		const char *code = prefs[i]->language;
+#else
+		const char *code = prefs[i].language;
+#endif
+		if (!code)
+			break;
+		for (int j = 1; j < countof (knownlangs); j++)
+			if (!q_strcasecmp (code, knownlangs[j][0]))
+			{
+				result = knownlangs[j][1];
+				goto done;
+			}
+	}
+done:
+	SDL_free (prefs);
+	return result;
+}
+
+void LOC_Load (void)
+{
+	const char *name = !q_strcasecmp (language.string, "auto") ? LOC_GetSystemLanguage () : language.string;
+	char		path[MAX_QPATH];
+	// A language is a name, not an arbitrary filesystem path.
+	if (COM_ModForbiddenChars (name) || q_snprintf (path, sizeof (path), "localization/loc_%s.txt", name) >= sizeof (path) || !LOC_LoadFile (path))
+		LOC_LoadFile ("localization/loc_english.txt");
+}
+
+static void LOC_Language_f (cvar_t *var)
+{
+	LOC_Load ();
+}
+
+static void LOC_LanguageCompletion_f (cvar_t *var, const char *partial)
+{
+	for (int i = 0; i < countof (knownlangs); i++)
+		Con_AddToTabList (knownlangs[i][1], partial, NULL);
+}
+
+void LOC_CycleLanguage (int dir)
+{
+	int i;
+	for (i = 0; i < countof (knownlangs); i++)
+		if (!q_strcasecmp (language.string, knownlangs[i][1]))
+			break;
+	Cvar_SetQuick (&language, knownlangs[(i + countof (knownlangs) + dir) % countof (knownlangs)][1]);
+}
+
 void LOC_Init (void)
 {
-	LOC_LoadFile ("localization/loc_english.txt");
+	Cvar_RegisterVariable (&language);
+	Cvar_SetCallback (&language, LOC_Language_f);
+	Cvar_SetCompletion (&language, LOC_LanguageCompletion_f);
+	LOC_Load ();
 }
 
 /*

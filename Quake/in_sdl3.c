@@ -226,6 +226,11 @@ void IN_SendKeyEvents (void)
 			Con_DPrintf ("Ignoring SDL_EVENT_GAMEPAD_REMAPPED\n");
 			break;
 
+		case SDL_EVENT_LOCALE_CHANGED:
+			if (!q_strcasecmp (language.string, "auto"))
+				LOC_Load ();
+			break;
+
 		case SDL_EVENT_QUIT:
 			CL_Disconnect ();
 			Sys_Quit ();

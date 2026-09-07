@@ -369,8 +369,12 @@ unsigned COM_HashString (const char *str);
 unsigned COM_HashBlock (const void *data, size_t size);
 
 // localization support for 2021 rerelease version:
+extern struct cvar_s language;
+
 void		LOC_Init (void);
 void		LOC_Shutdown (void);
+void		LOC_Load (void);
+void		LOC_CycleLanguage (int dir);
 const char *LOC_GetRawString (const char *key);
 const char *LOC_GetString (const char *key);
 qboolean	LOC_HasPlaceholders (const char *str);

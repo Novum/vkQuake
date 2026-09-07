@@ -226,6 +226,11 @@ void IN_SendKeyEvents (void)
 			Con_DPrintf ("Ignoring SDL_CONTROLLERDEVICEREMAPPED\n");
 			break;
 
+		case SDL_LOCALECHANGED:
+			if (!q_strcasecmp (language.string, "auto"))
+				LOC_Load ();
+			break;
+
 		case SDL_QUIT:
 			CL_Disconnect ();
 			Sys_Quit ();
