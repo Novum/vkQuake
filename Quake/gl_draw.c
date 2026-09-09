@@ -649,16 +649,39 @@ static void Draw_FillCharacterQuad (float x, float y, char num, draw_pic_vertex_
 	Draw_FillCharacterQuadScaled (x, y, 1.0f, num, output, rotation);
 }
 
-static void Draw_BindPicState (cb_context_t *cbx, gltexture_t *texture, qboolean alpha_blend, qboolean force_linear)
+typedef enum
 {
-	const qboolean xbr = !force_linear && (int)scr_guifilter.value == 2;
-	if (xbr)
+	DRAW_FILTER_NEAREST,
+	DRAW_FILTER_LINEAR,
+	DRAW_FILTER_XBR
+} draw_filter_t;
+
+static draw_filter_t Draw_GetPicFilter (void)
+{
+	switch ((int)scr_guifilter.value)
+	{
+	case 1:
+		return DRAW_FILTER_LINEAR;
+	case 2:
+		return DRAW_FILTER_XBR;
+	default:
+		return DRAW_FILTER_NEAREST;
+	}
+}
+
+static draw_filter_t Draw_GetTextFilter (void)
+{
+	return (int)scr_guifilter.value == 2 ? DRAW_FILTER_XBR : DRAW_FILTER_NEAREST;
+}
+
+static void Draw_BindPicState (cb_context_t *cbx, gltexture_t *texture, qboolean alpha_blend, draw_filter_t filter)
+{
+	if (filter == DRAW_FILTER_XBR)
 		R_BindGraphicsPipeline (cbx, alpha_blend ? PIPELINE_MENU_XBR_BLEND : PIPELINE_MENU_XBR);
 	else
 		R_BindGraphicsPipeline (cbx, alpha_blend ? PIPELINE_GUI_BLEND : PIPELINE_GUI);
 
-	VkDescriptorSet descriptor_sets[2] = {
-		texture->descriptor_set, vulkan_globals.gui_sampler_descriptor_sets[force_linear || (int)scr_guifilter.value == 1 ? 1 : 0]};
+	VkDescriptorSet descriptor_sets[2] = {texture->descriptor_set, vulkan_globals.gui_sampler_descriptor_sets[filter == DRAW_FILTER_LINEAR ? 1 : 0]};
 	vkCmdBindDescriptorSets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.gui_pipeline_layout.handle, 0, countof (descriptor_sets), descriptor_sets, 0, NULL);
 }
@@ -685,7 +708,7 @@ void Draw_Character (cb_context_t *cbx, float x, float y, int num)
 	Draw_FillCharacterQuad (x, y, (char)num, vertices, rotation);
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f, false);
+	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f, Draw_GetTextFilter ());
 	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
 }
 
@@ -722,7 +745,7 @@ void Draw_String (cb_context_t *cbx, float x, float y, const char *str)
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f, false);
+	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f, Draw_GetTextFilter ());
 	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
 }
 
@@ -760,7 +783,7 @@ void Draw_String_Scaled (cb_context_t *cbx, float x, float y, const char *str, f
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f, false);
+	Draw_BindPicState (cbx, char_texture, canvas_color[3] < 1.0f, Draw_GetTextFilter ());
 	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
 }
 
@@ -826,7 +849,7 @@ void Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qb
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, gl.gltexture, alpha_blend, false);
+	Draw_BindPicState (cbx, gl.gltexture, alpha_blend, Draw_GetPicFilter ());
 	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
@@ -908,7 +931,7 @@ static void Draw_SubPicInternal (
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	Draw_BindPicState (cbx, gl.gltexture, alpha_blend, force_linear);
+	Draw_BindPicState (cbx, gl.gltexture, alpha_blend, force_linear ? DRAW_FILTER_LINEAR : Draw_GetPicFilter ());
 	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
