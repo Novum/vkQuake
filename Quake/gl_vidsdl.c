@@ -2823,6 +2823,8 @@ void GL_BeginRenderingTask (void *unused)
 {
 	VkResult err;
 
+	// Wait for this slot's previous GPU submission to finish before reusing
+	// its command buffers and frame allocations.
 	if (frame_submitted[current_cb_index])
 	{
 		const double wait_start = Sys_DoubleTime ();
@@ -2943,6 +2945,7 @@ GL_SynchronizeEndRenderingTask
 */
 void GL_SynchronizeEndRenderingTask (void)
 {
+	// Wait until the CPU has submitted the frame. The GPU may still be drawing it.
 	if (prev_end_rendering_task != INVALID_TASK_HANDLE)
 	{
 		Task_Join (prev_end_rendering_task, TASK_TIMEOUT_INFINITE);

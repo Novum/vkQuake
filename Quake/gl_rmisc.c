@@ -1091,6 +1091,8 @@ R_SwapDynamicBuffers
 */
 void R_SwapDynamicBuffers (void)
 {
+	// Switch to the buffers for this frame and start writing from the beginning.
+	// BeginRenderingTask has made sure the GPU is done with their old contents.
 	current_dyn_buffer_index = (current_dyn_buffer_index + 1) % NUM_DYNAMIC_BUFFERS;
 	dyn_vertex_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_index_buffers[current_dyn_buffer_index].current_offset = 0;

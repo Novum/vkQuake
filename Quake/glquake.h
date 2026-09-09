@@ -31,9 +31,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 void		  GL_WaitForDeviceIdle (void);
 void		  VID_Restart (qboolean set_mode);
+// Prepares the frame. With use_tasks, creates a task for the caller to submit,
+// which runs after the previous frame's end task and before drawing starts.
 qboolean	  GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *width, int *height);
 qboolean	  GL_AcquireNextSwapChainImage (void);
+// Sends the frame to the GPU. With use_tasks, creates a task for the caller to
+// submit, which runs after drawing commands are recorded. Otherwise runs here.
 task_handle_t GL_EndRendering (qboolean use_tasks, qboolean use_swapchain);
+// Waits until the CPU has submitted the frame. The GPU may still be drawing it.
 void		  GL_SynchronizeEndRenderingTask (void);
 void		  GL_UpdateDescriptorSets (void);
 
@@ -320,6 +325,8 @@ static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 	1,				  // SCBX_ENTITY_SSAO
 };
 
+// A command buffer and its current drawing state. Only one task uses a context
+// at a time; parallel draw tasks use separate contexts.
 typedef struct cb_context_s
 {
 	VkCommandBuffer			   cb;
