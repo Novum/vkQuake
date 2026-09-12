@@ -273,13 +273,20 @@ void main ()
 
 		half world_h0 = -fast_acos (world_horizon_cos1);
 		half world_h1 = fast_acos (world_horizon_cos0);
-		half scene_h0 = -fast_acos (scene_horizon_cos1);
-		half scene_h1 = fast_acos (scene_horizon_cos0);
 
 		half world_iarc0 = (cos_norm + half (2.0) * world_h0 * sin (n) - cos (half (2.0) * world_h0 - n)) / half (4.0);
 		half world_iarc1 = (cos_norm + half (2.0) * world_h1 * sin (n) - cos (half (2.0) * world_h1 - n)) / half (4.0);
-		half scene_iarc0 = (cos_norm + half (2.0) * scene_h0 * sin (n) - cos (half (2.0) * scene_h0 - n)) / half (4.0);
-		half scene_iarc1 = (cos_norm + half (2.0) * scene_h1 * sin (n) - cos (half (2.0) * scene_h1 - n)) / half (4.0);
+
+		// Matching horizons have identical arc integrals, even if earlier slices differed.
+		half scene_iarc0 = world_iarc0;
+		half scene_iarc1 = world_iarc1;
+		if (scene_horizon_cos0 != world_horizon_cos0 || scene_horizon_cos1 != world_horizon_cos1)
+		{
+			half scene_h0 = -fast_acos (scene_horizon_cos1);
+			half scene_h1 = fast_acos (scene_horizon_cos0);
+			scene_iarc0 = (cos_norm + half (2.0) * scene_h0 * sin (n) - cos (half (2.0) * scene_h0 - n)) / half (4.0);
+			scene_iarc1 = (cos_norm + half (2.0) * scene_h1 * sin (n) - cos (half (2.0) * scene_h1 - n)) / half (4.0);
+		}
 		half world_local_visibility = projected_normal_vec_length * (world_iarc0 + world_iarc1);
 		world_visibility += world_local_visibility;
 		half scene_local_visibility = projected_normal_vec_length * (scene_iarc0 + scene_iarc1);
