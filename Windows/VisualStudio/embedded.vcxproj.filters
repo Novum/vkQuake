@@ -216,6 +216,9 @@
     <None Include="..\..\Shaders\globals.inc">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\..\Shaders\thread_group_tiling.inc">
+      <Filter>Shaders</Filter>
+    </None>
     <None Include="..\..\Shaders\world_common.inc">
       <Filter>Shaders\World</Filter>
     </None>

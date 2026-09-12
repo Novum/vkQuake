@@ -71,11 +71,11 @@
       <AdditionalInputs>$(SolutionDir)..\..\Shaders\ssao_prepare.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ssao_evaluate.comp">
-      <AdditionalInputs>$(SolutionDir)..\..\Shaders\ssao_evaluate.inc;$(SolutionDir)..\..\Shaders\gtao.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\thread_group_tiling.inc;$(SolutionDir)..\..\Shaders\ssao_evaluate.inc;$(SolutionDir)..\..\Shaders\gtao.inc;%(AdditionalInputs)</AdditionalInputs>
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ssao_evaluate_fp16.comp">
-      <AdditionalInputs>$(SolutionDir)..\..\Shaders\ssao_evaluate.inc;$(SolutionDir)..\..\Shaders\gtao.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\thread_group_tiling.inc;$(SolutionDir)..\..\Shaders\ssao_evaluate.inc;$(SolutionDir)..\..\Shaders\gtao.inc;%(AdditionalInputs)</AdditionalInputs>
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv"
 "$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv" %(Filename)%(Extension)_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c"</Command>
@@ -458,6 +458,7 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     </CustomBuild>
     <None Include="..\..\Shaders\update_lightmap.inc" />
     <None Include="..\..\Shaders\globals.inc" />
+    <None Include="..\..\Shaders\thread_group_tiling.inc" />
     <None Include="..\..\Shaders\world_common.inc" />
     <CustomBuild Include="..\..\Shaders\ray_debug.comp">
       <FileType>Document</FileType>

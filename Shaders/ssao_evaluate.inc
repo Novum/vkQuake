@@ -26,6 +26,7 @@ layout (set = 1, binding = 0) uniform usampler2D hilbert_lut;
 layout (r8, set = 2, binding = 0) uniform writeonly image2D out_working_ao_term;
 layout (r8, set = 3, binding = 0) uniform writeonly image2D out_working_edges;
 #include "gtao.inc"
+#include "thread_group_tiling.inc"
 
 // Precision boundaries follow XeGTAO_MainPass and its helpers (see gtao.inc).
 
@@ -84,7 +85,7 @@ half fast_acos (half in_x)
 
 void main ()
 {
-	uvec2		   pixel = gl_GlobalInvocationID.xy;
+	uvec2		   pixel = tiled_global_invocation_id ();
 	gtao_constants c = get_gtao_constants ();
 	if (any (greaterThanEqual (pixel, uvec2 (c.viewport_size))))
 		return;
@@ -211,46 +212,56 @@ void main ()
 			vec2 sample_screen_pos0 = normalized_screen_pos + vec2 (sample_offset);
 			vec2 sample_depth0 = vec2 (half2 (textureLod (world_depth, sample_screen_pos0, float (mip_level)).xy));
 			vec3 world_sample_pos0 = compute_viewspace_position (sample_screen_pos0, sample_depth0.x);
-			vec3 scene_sample_pos0 = compute_viewspace_position (sample_screen_pos0, sample_depth0.y);
 
 			vec2 sample_screen_pos1 = normalized_screen_pos - vec2 (sample_offset);
 			vec2 sample_depth1 = vec2 (half2 (textureLod (world_depth, sample_screen_pos1, float (mip_level)).xy));
 			vec3 world_sample_pos1 = compute_viewspace_position (sample_screen_pos1, sample_depth1.x);
-			vec3 scene_sample_pos1 = compute_viewspace_position (sample_screen_pos1, sample_depth1.y);
 
 			vec3 world_sample_delta0 = world_sample_pos0 - pix_center_pos;
 			vec3 world_sample_delta1 = world_sample_pos1 - pix_center_pos;
-			vec3 scene_sample_delta0 = scene_sample_pos0 - pix_center_pos;
-			vec3 scene_sample_delta1 = scene_sample_pos1 - pix_center_pos;
 			half world_sample_dist0 = half (length (world_sample_delta0));
 			half world_sample_dist1 = half (length (world_sample_delta1));
-			half scene_sample_dist0 = half (length (scene_sample_delta0));
-			half scene_sample_dist1 = half (length (scene_sample_delta1));
 
 			half3 world_sample_horizon_vec0 = half3 (world_sample_delta0 / float (world_sample_dist0));
 			half3 world_sample_horizon_vec1 = half3 (world_sample_delta1 / float (world_sample_dist1));
-			half3 scene_sample_horizon_vec0 = half3 (scene_sample_delta0 / float (scene_sample_dist0));
-			half3 scene_sample_horizon_vec1 = half3 (scene_sample_delta1 / float (scene_sample_dist1));
 			half  world_weight0 = clamp (world_sample_dist0 * falloff_mul + falloff_add, half (0.0), half (1.0));
 			half  world_weight1 = clamp (world_sample_dist1 * falloff_mul + falloff_add, half (0.0), half (1.0));
-			half  scene_weight0 = clamp (scene_sample_dist0 * falloff_mul + falloff_add, half (0.0), half (1.0));
-			half  scene_weight1 = clamp (scene_sample_dist1 * falloff_mul + falloff_add, half (0.0), half (1.0));
 			bool  in_bounds0 = all (greaterThanEqual (sample_screen_pos0, vec2 (0))) && all (lessThanEqual (sample_screen_pos0, vec2 (1)));
 			bool  in_bounds1 = all (greaterThanEqual (sample_screen_pos1, vec2 (0))) && all (lessThanEqual (sample_screen_pos1, vec2 (1)));
 			world_weight0 *= sample_depth0.x < 65504.0 && in_bounds0 ? half (1.0) : half (0.0);
 			world_weight1 *= sample_depth1.x < 65504.0 && in_bounds1 ? half (1.0) : half (0.0);
-			scene_weight0 *= sample_depth0.y < 65504.0 && in_bounds0 ? half (1.0) : half (0.0);
-			scene_weight1 *= sample_depth1.y < 65504.0 && in_bounds1 ? half (1.0) : half (0.0);
 
 			half world_shc0 = dot (world_sample_horizon_vec0, view_vec);
 			half world_shc1 = dot (world_sample_horizon_vec1, view_vec);
-			half scene_shc0 = dot (scene_sample_horizon_vec0, view_vec);
-			half scene_shc1 = dot (scene_sample_horizon_vec1, view_vec);
 
 			world_shc0 = mix (low_horizon_cos0, world_shc0, world_weight0);
 			world_shc1 = mix (low_horizon_cos1, world_shc1, world_weight1);
-			scene_shc0 = mix (low_horizon_cos0, scene_shc0, scene_weight0);
-			scene_shc1 = mix (low_horizon_cos1, scene_shc1, scene_weight1);
+
+			// Equal depths have identical sample contributions, even if earlier samples made the horizons differ.
+			half scene_shc0 = world_shc0;
+			half scene_shc1 = world_shc1;
+			if (sample_depth0.x != sample_depth0.y)
+			{
+				vec3  scene_sample_pos0 = compute_viewspace_position (sample_screen_pos0, sample_depth0.y);
+				vec3  scene_sample_delta0 = scene_sample_pos0 - pix_center_pos;
+				half  scene_sample_dist0 = half (length (scene_sample_delta0));
+				half3 scene_sample_horizon_vec0 = half3 (scene_sample_delta0 / float (scene_sample_dist0));
+				half  scene_weight0 = clamp (scene_sample_dist0 * falloff_mul + falloff_add, half (0.0), half (1.0));
+				scene_weight0 *= sample_depth0.y < 65504.0 && in_bounds0 ? half (1.0) : half (0.0);
+				scene_shc0 = dot (scene_sample_horizon_vec0, view_vec);
+				scene_shc0 = mix (low_horizon_cos0, scene_shc0, scene_weight0);
+			}
+			if (sample_depth1.x != sample_depth1.y)
+			{
+				vec3  scene_sample_pos1 = compute_viewspace_position (sample_screen_pos1, sample_depth1.y);
+				vec3  scene_sample_delta1 = scene_sample_pos1 - pix_center_pos;
+				half  scene_sample_dist1 = half (length (scene_sample_delta1));
+				half3 scene_sample_horizon_vec1 = half3 (scene_sample_delta1 / float (scene_sample_dist1));
+				half  scene_weight1 = clamp (scene_sample_dist1 * falloff_mul + falloff_add, half (0.0), half (1.0));
+				scene_weight1 *= sample_depth1.y < 65504.0 && in_bounds1 ? half (1.0) : half (0.0);
+				scene_shc1 = dot (scene_sample_horizon_vec1, view_vec);
+				scene_shc1 = mix (low_horizon_cos1, scene_shc1, scene_weight1);
+			}
 
 			world_horizon_cos0 = max (world_horizon_cos0, world_shc0);
 			world_horizon_cos1 = max (world_horizon_cos1, world_shc1);
