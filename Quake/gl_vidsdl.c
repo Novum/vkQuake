@@ -107,6 +107,7 @@ static cvar_t vid_fullscreen = {"vid_fullscreen", "1", CVAR_ARCHIVE}; // QuakeSp
 static cvar_t vid_width = {"vid_width", "1280", CVAR_ARCHIVE};		  // QuakeSpasm, was 640
 static cvar_t r_width = {"r_width", "-1", CVAR_ARCHIVE};
 static cvar_t r_height = {"r_height", "-1", CVAR_ARCHIVE};
+static cvar_t r_upscalefilter = {"r_upscalefilter", "0", CVAR_ARCHIVE};
 static cvar_t vid_height = {"vid_height", "720", CVAR_ARCHIVE}; // QuakeSpasm, was 480
 static cvar_t vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
 static cvar_t vid_vsync = {"vid_vsync", "1", CVAR_ARCHIVE};
@@ -3124,11 +3125,15 @@ void GL_DrawSceneUpscale (cb_context_t *cbx)
 
 	R_BeginDebugUtilsLabel (cbx, "Scene Upscale");
 	const VkViewport viewport = {0, 0, vid.width, vid.height, 0, 1};
-	const float		 output_size_rcp[2] = {1.0f / vid.width, 1.0f / vid.height};
+	const struct
+	{
+		float	 output_size_rcp[2];
+		uint32_t upscale_filter;
+	} constants = {{1.0f / vid.width, 1.0f / vid.height}, r_upscalefilter.value >= 1 ? 1 : 0};
 	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
 	R_BindGraphicsPipeline (cbx, PIPELINE_SCENE_UPSCALE);
 	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, cbx->current_pipeline.layout.handle, 0, 1, &scene_upscale_descriptor_set, 0, NULL);
-	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof (output_size_rcp), output_size_rcp);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof (constants), &constants);
 	vkCmdDraw (cbx->cb, 3, 1, 0, 0);
 	GL_SetCanvas (cbx, CANVAS_NONE); // The next GUI draw must restore its projection constants.
 	R_EndDebugUtilsLabel (cbx);
@@ -3924,6 +3929,7 @@ void VID_Init (void)
 	Cvar_RegisterVariable (&vid_fullscreen); // johnfitz
 	Cvar_RegisterVariable (&r_width);
 	Cvar_RegisterVariable (&r_height);
+	Cvar_RegisterVariable (&r_upscalefilter);
 	Cvar_RegisterVariable (&vid_width);		  // johnfitz
 	Cvar_RegisterVariable (&vid_height);	  // johnfitz
 	Cvar_RegisterVariable (&vid_refreshrate); // johnfitz
@@ -4255,6 +4261,7 @@ enum
 	VID_OPT_REFRESHRATE,
 	VID_OPT_VSYNC,
 	VID_OPT_RENDER_RESOLUTION,
+	VID_OPT_FILTER,
 	VID_OPT_PADDING,
 	VID_OPT_TEST,
 	VID_OPT_APPLY,
@@ -4315,6 +4322,8 @@ static vid_menu_mode VID_Menu_RenderMode (void)
 static qboolean VID_Menu_OptionSelectable (int option)
 {
 	if (option == VID_OPT_PADDING)
+		return false;
+	if (option == VID_OPT_FILTER && VID_Menu_RenderMode ().width < 0)
 		return false;
 	if (vid_fullscreen.value == 1 && vid_desktopfullscreen.value && (option == VID_OPT_MODE || option == VID_OPT_REFRESHRATE))
 		return false;
@@ -4657,6 +4666,10 @@ void M_Video_Key (int key)
 		case VID_OPT_RENDER_RESOLUTION:
 			VID_Menu_ChooseNextMode (1, true);
 			break;
+		case VID_OPT_FILTER:
+			if (VID_Menu_OptionSelectable (VID_OPT_FILTER))
+				Cvar_SetValueQuick (&r_upscalefilter, r_upscalefilter.value >= 1 ? 0 : 1);
+			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (1);
 			break;
@@ -4680,6 +4693,10 @@ void M_Video_Key (int key)
 			break;
 		case VID_OPT_RENDER_RESOLUTION:
 			VID_Menu_ChooseNextMode (-1, true);
+			break;
+		case VID_OPT_FILTER:
+			if (VID_Menu_OptionSelectable (VID_OPT_FILTER))
+				Cvar_SetValueQuick (&r_upscalefilter, r_upscalefilter.value >= 1 ? 0 : 1);
 			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (-1);
@@ -4707,6 +4724,10 @@ void M_Video_Key (int key)
 			break;
 		case VID_OPT_RENDER_RESOLUTION:
 			VID_Menu_ChooseNextMode (-1, true);
+			break;
+		case VID_OPT_FILTER:
+			if (VID_Menu_OptionSelectable (VID_OPT_FILTER))
+				Cvar_SetValueQuick (&r_upscalefilter, r_upscalefilter.value >= 1 ? 0 : 1);
 			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (-1);
@@ -4780,6 +4801,10 @@ void M_Video_Draw (cb_context_t *cbx)
 			M_Print (cbx, MENU_VALUE_X, y, mode.width < 0 ? "Native" : va ("%ix%i", mode.width, mode.height));
 			break;
 		}
+		case VID_OPT_FILTER:
+			M_Print (cbx, MENU_LABEL_X, y, "Filter");
+			M_Print (cbx, MENU_VALUE_X, y, r_upscalefilter.value >= 1 ? "smooth" : "classic");
+			break;
 		case VID_OPT_REFRESHRATE:
 			M_Print (cbx, MENU_LABEL_X, y, "Refresh rate");
 			M_Print (cbx, MENU_VALUE_X, y, va ("%g", vid_refreshrate.value));
