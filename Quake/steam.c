@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "q_ctype.h"
 #include "steam.h"
 #include "json.h"
+#include "cfgfile.h"
 
 #if defined(_WIN32) && defined(_MSC_VER)
 // comctl32 v6 activation context: with this in the manifest, SDL_ShowMessageBox
@@ -514,12 +515,67 @@ static qboolean Steam_LoadLibrary (const steamgame_t *game)
 
 /*
 ========================
-Steam_Init
+Steam_ShowNotRunningMessage
 ========================
 */
+static cvar_t steam_suppresswarning = {"steam_suppresswarning", "0", CVAR_ARCHIVE};
+
+static void Steam_ShowNotRunningMessage (void)
+{
+	static const SDL_MessageBoxButtonData buttons[] = {
+		{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Continue"},
+		{0, 1, "Don't show again"},
+	};
+	SDL_MessageBoxData messagebox;
+	int				   choice = -1;
+
+	if (steam_suppresswarning.value)
+		return;
+
+	memset (&messagebox, 0, sizeof (messagebox));
+	messagebox.flags = SDL_MESSAGEBOX_INFORMATION;
+	messagebox.title = "Steam not running";
+	messagebox.message = "Steam must be running in order to update achievements,\n"
+						 "track total time played, and show in-game status to your friends.\n"
+						 "\n"
+						 "If this functionality is important to you, please start Steam\n"
+						 "before continuing.\n";
+	messagebox.buttons = buttons;
+	messagebox.numbuttons = countof (buttons);
+#ifdef USE_SDL3
+	if (!SDL_ShowMessageBox (&messagebox, &choice))
+#else
+	if (SDL_ShowMessageBox (&messagebox, &choice) < 0)
+#endif
+	{
+		Sys_Printf ("Couldn't show Steam notification: %s\n", SDL_GetError ());
+		return;
+	}
+
+	if (choice == 1)
+	{
+		Cvar_SetValueQuick (&steam_suppresswarning, 1);
+		// quake.rc loads the config later; preserve the user's new preference.
+		Cbuf_AddText ("steam_suppresswarning 1\n");
+	}
+}
+/*
+========================
+Steam_Init
+========================
+ */
 qboolean Steam_Init (const steamgame_t *game)
 {
-	char appid[32];
+	char		appid[32];
+	const char *early_read[] = {steam_suppresswarning.name};
+
+	Cvar_RegisterVariable (&steam_suppresswarning);
+	if (CFG_OpenConfig (CONFIG_NAME) == 0)
+	{
+		CFG_ReadCvars (early_read, countof (early_read));
+		CFG_CloseConfig ();
+	}
+	CFG_ReadCvarOverrides (early_read, countof (early_read));
 
 	if (COM_CheckParm ("-nosteamapi"))
 	{
@@ -558,14 +614,7 @@ qboolean Steam_Init (const steamgame_t *game)
 	{
 		Sys_Printf ("Steam not running\n");
 
-		SDL_ShowSimpleMessageBox (
-			SDL_MESSAGEBOX_INFORMATION, "Steam not running",
-			"Steam must be running in order to update achievements,\n"
-			"track total time played, and show in-game status to your friends.\n"
-			"\n"
-			"If this functionality is important to you, please start Steam\n"
-			"before continuing.\n",
-			NULL);
+		Steam_ShowNotRunningMessage ();
 
 		if (SteamAPI_IsSteamRunning_Func ())
 			Sys_Printf ("Steam is now running, continuing\n");
