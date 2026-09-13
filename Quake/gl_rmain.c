@@ -32,7 +32,6 @@ int r_framecount;	 // used for dlight push checking
 mplane_t frustum[4];
 
 qboolean render_warp;
-int		 render_scale;
 
 // johnfitz -- rendering statistics
 atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
@@ -121,8 +120,6 @@ float map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
 float map_fallbackalpha;
 
 qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; // johnfitz
-
-cvar_t r_scale = {"r_scale", "1", CVAR_ARCHIVE};
 
 cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_NONE};
 cvar_t r_rtshadows = {"r_rtshadows", "2", CVAR_ARCHIVE};
@@ -419,7 +416,6 @@ static void R_SetupViewBeforeMark (void *unused)
 	r_fovx = r_refdef.fov_x;
 	r_fovy = r_refdef.fov_y;
 	render_warp = false;
-	render_scale = (int)r_scale.value;
 
 	if (r_waterwarp.value)
 	{

@@ -66,7 +66,6 @@ typedef struct end_rendering_parms_s
 	bool		 polyblend	   : 1;
 	bool		 menu		   : 1;
 	bool		 ray_debug	   : 1;
-	uint32_t	 render_scale  : 4;
 	uint32_t	 vid_height	   : 20;
 	uint32_t	 render_width;
 	uint32_t	 render_height;

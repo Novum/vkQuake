@@ -111,7 +111,6 @@ static frame_layout_t  pending_layout;
 static frame_layout_t  current_layout;
 static physical_pass_t physical_passes[MAIN_RENDER_PASS_VARIANT_COUNT][MAX_FRAME_PASSES];
 
-extern cvar_t					  r_usesops;
 extern VkAccelerationStructureKHR bmodel_tlas;
 
 static frame_step_t *R_AddFrameStep (frame_builder_t *builder, frame_step_type_t type)
@@ -542,10 +541,6 @@ typedef struct ray_debug_constants_s
 	float down_z;
 } ray_debug_constants_t;
 
-#define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
-#define SCREEN_EFFECT_FLAG_SCALE_2X	  0x1
-#define SCREEN_EFFECT_FLAG_SCALE_4X	  0x2
-#define SCREEN_EFFECT_FLAG_SCALE_8X	  0x3
 #define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
 #define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
 #define SCREEN_EFFECT_FLAG_MENU		  0x10
@@ -605,14 +600,6 @@ static void R_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering_
 		}
 		else
 #endif
-			if (parms->render_scale >= 2)
-		{
-			if (vulkan_globals.screen_effects_sops && r_usesops.value)
-				pipeline = &vulkan_globals.screen_effects_scale_sops_pipeline;
-			else
-				pipeline = &vulkan_globals.screen_effects_scale_pipeline;
-		}
-		else
 			pipeline = &vulkan_globals.screen_effects_pipeline;
 
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
@@ -626,12 +613,6 @@ static void R_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering_
 			uint32_t screen_effect_flags = 0;
 			if (parms->render_warp)
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_WATER_WARP;
-			if (parms->render_scale >= 8)
-				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_8X;
-			else if (parms->render_scale >= 4)
-				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_4X;
-			else if (parms->render_scale >= 2)
-				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_2X;
 			if (parms->vid_palettize)
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_PALETTIZE;
 			if (parms->menu)
@@ -783,8 +764,7 @@ uint32_t R_RecordFrame (
 	const main_render_pass_variant_t variant = parms->use_mboit ? MAIN_RENDER_PASS_MBOIT : parms->use_oit ? MAIN_RENDER_PASS_OIT : MAIN_RENDER_PASS_STANDARD;
 	const frame_desc_t				*frame = &current_layout.variants[variant];
 	VkCommandBuffer					 command_buffer = vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES].cb;
-	const bool						 screen_effects =
-		parms->render_warp || parms->render_scale >= 2 || parms->vid_palettize || (parms->polyblend && parms->v_blend[3]) || parms->menu || parms->ray_debug;
+	const bool	 screen_effects = parms->render_warp || parms->vid_palettize || (parms->polyblend && parms->v_blend[3]) || parms->menu || parms->ray_debug;
 	const bool	 msaa = current_layout.samples != VK_SAMPLE_COUNT_1_BIT;
 	VkClearValue clear_values[MAX_PASS_ATTACHMENTS] = {0};
 	clear_values[0] = parms->color_clear_value;

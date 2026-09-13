@@ -437,8 +437,6 @@ typedef struct
 	vulkan_pipeline_t		 wboit_resolve_pipeline;
 	vulkan_pipeline_t		 mboit_resolve_pipeline;
 	vulkan_pipeline_t		 screen_effects_pipeline;
-	vulkan_pipeline_t		 screen_effects_scale_pipeline;
-	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;
 	vulkan_pipeline_t		 cs_tex_warp_pipeline;
 	vulkan_pipeline_t		 showtris_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 showtris_indirect_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
@@ -540,7 +538,6 @@ extern mplane_t frustum[4];
 extern qboolean render_warp;
 extern qboolean in_update_screen;
 extern qboolean use_simd;
-extern int		render_scale;
 
 //
 // view origin
@@ -572,7 +569,6 @@ extern cvar_t r_telealpha;
 extern cvar_t r_slimealpha;
 extern cvar_t r_dynamic;
 extern cvar_t r_novis;
-extern cvar_t r_scale;
 
 extern cvar_t gl_polyblend;
 extern cvar_t gl_nocolors;

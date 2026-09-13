@@ -1960,7 +1960,6 @@ enum
 	GRAPHICS_OPT_MAX_FPS,
 	GRAPHICS_OPT_ANTIALIASING_SAMPLES,
 	GRAPHICS_OPT_ANTIALIASING_MODE,
-	GRAPHICS_OPT_RENDER_SCALE,
 	GRAPHICS_OPT_ANISOTROPY,
 	GRAPHICS_OPT_UNDERWATER,
 	GRAPHICS_OPT_TRANSPARENCY,
@@ -2021,38 +2020,6 @@ static void M_GraphicsOptions_ChooseNextAASamples (int dir)
 	}
 
 	Cvar_SetValueQuick (&vid_fsaa, (float)value);
-}
-
-static void M_GraphicsOptions_ChooseNextRenderScale (int dir)
-{
-	int value = r_scale.value;
-
-	if (dir > 0)
-	{
-		if (value >= 8)
-			value = 0;
-		else if (value >= 4)
-			value = 8;
-		else if (value >= 2)
-			value = 4;
-		else
-			value = 2;
-	}
-	else
-	{
-		if (value <= 0)
-			value = 8;
-		else if (value <= 2)
-			value = 0;
-		else if (value <= 4)
-			value = 2;
-		else if (value <= 8)
-			value = 4;
-		else
-			value = 8;
-	}
-
-	Cvar_SetValueQuick (&r_scale, (float)value);
 }
 
 static void M_GraphicsOptions_ChooseNextParticles (int dir)
@@ -2142,9 +2109,6 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_ANTIALIASING_MODE:
 		if (vulkan_globals.device_features.sampleRateShading)
 			Cvar_SetValueQuick (&vid_fsaamode, (float)(((int)vid_fsaamode.value + 2 + dir) % 2));
-		break;
-	case GRAPHICS_OPT_RENDER_SCALE:
-		M_GraphicsOptions_ChooseNextRenderScale (dir);
 		break;
 	case GRAPHICS_OPT_ANISOTROPY:
 		Cvar_SetValueQuick (&vid_anisotropic, (float)(((int)vid_anisotropic.value + 2 + dir) % 2));
@@ -2284,9 +2248,6 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_MODE,
 		(((int)vid_fsaamode.value == 0) || !vulkan_globals.device_features.sampleRateShading) ? "Multisample" : "Supersample");
-
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_RENDER_SCALE, "Render Scale");
-	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_RENDER_SCALE, (r_scale.value >= 2) ? va ("1/%i", (int)r_scale.value) : "off");
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANISOTROPY, "Anisotropic");
 	M_Print (

@@ -120,7 +120,6 @@ cvar_t		  vid_fsaa = {"vid_fsaa", "4", CVAR_ARCHIVE};
 cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t		  vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
 cvar_t		  vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
-cvar_t		  r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};		// johnfitz
 #if defined(_DEBUG)
 static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 #endif
@@ -3573,7 +3572,6 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 #if defined(_DEBUG)
 		.ray_debug = r_raydebug.value && (bmodel_tlas != VK_NULL_HANDLE),
 #endif
-		.render_scale = CLAMP (0, render_scale, 8),
 		.vid_width = vid.width,
 		.vid_height = vid.height,
 		.render_width = vid.render_width,

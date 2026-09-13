@@ -917,7 +917,6 @@ void V_RenderView (
 	{
 		R_ClearDebugEntityInfo ();
 		render_warp = false;
-		render_scale = 1;
 		return;
 	}
 
