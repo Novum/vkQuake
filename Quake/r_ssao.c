@@ -19,7 +19,7 @@ enum
 	SSAO_DEPTH_COUNT
 };
 
-cvar_t					 r_ssao = {"r_ssao", "3", CVAR_ARCHIVE};
+cvar_t					 r_ssao = {"r_ssao", "1", CVAR_ARCHIVE};
 static cvar_t			 r_ssao_radius = {"r_ssao_radius", "32", CVAR_ARCHIVE};
 static cvar_t			 r_ssao_strength = {"r_ssao_strength", "1.0", CVAR_ARCHIVE};
 vulkan_pipeline_layout_t ssao_layout;
