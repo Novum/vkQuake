@@ -186,6 +186,7 @@ SHADER_OBJS = \
 	sky_cube_frag.o \
 	sky_cube_vert.o \
 	postprocess_frag.o \
+	scene_upscale_frag.o \
 	ssao_composite_frag.o \
 	ssao_composite_debug_frag.o \
 	ssao_composite_msaa_debug_frag.o \

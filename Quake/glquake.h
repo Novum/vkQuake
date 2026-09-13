@@ -297,6 +297,7 @@ typedef enum
 {
 	PIPELINE_BASIC_ALPHATEST,
 	PIPELINE_BASIC_BLEND,
+	PIPELINE_SCENE_UPSCALE,
 	PIPELINE_GUI,
 	PIPELINE_GUI_BLEND,
 	PIPELINE_BASIC_NOTEX_BLEND,
@@ -870,8 +871,10 @@ static inline void R_BindPipeline (cb_context_t *cbx, VkPipelineBindPoint bind_p
 	}
 }
 
-void R_BindGraphicsPipeline (cb_context_t *cbx, graphics_pipeline_t pipeline);
-bool R_HasGraphicsPipeline (const cb_context_t *cbx, graphics_pipeline_t pipeline);
+void		   GL_DrawSceneUpscale (cb_context_t *cbx);
+extern vrect_t r_scene_vrect;
+void		   R_BindGraphicsPipeline (cb_context_t *cbx, graphics_pipeline_t pipeline);
+bool		   R_HasGraphicsPipeline (const cb_context_t *cbx, graphics_pipeline_t pipeline);
 
 static inline void R_PushConstants (cb_context_t *cbx, VkShaderStageFlags stage_flags, int offset, int size, const void *data)
 {

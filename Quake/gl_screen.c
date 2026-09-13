@@ -1402,6 +1402,7 @@ SCR_DrawGUI
 static void SCR_DrawGUI (void *unused)
 {
 	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_GUI];
+	GL_DrawSceneUpscale (cbx);
 
 	GL_SetCanvas (cbx, CANVAS_DEFAULT);
 	R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_BLEND);

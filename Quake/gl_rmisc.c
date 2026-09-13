@@ -2578,6 +2578,7 @@ DECLARE_SHADER_MODULE (sky_cube_vert);
 DECLARE_SHADER_MODULE (sky_cube_frag);
 DECLARE_SHADER_MODULE (postprocess_vert);
 DECLARE_SHADER_MODULE (postprocess_frag);
+DECLARE_SHADER_MODULE (scene_upscale_frag);
 DECLARE_SHADER_MODULE (ssao_composite_frag);
 DECLARE_SHADER_MODULE (ssao_composite_msaa_frag);
 DECLARE_SHADER_MODULE (ssao_prepare_comp);
@@ -4069,6 +4070,23 @@ static void R_CreatePostprocessPipelines ()
 		}
 	}
 
+	if (vid.render_width != vid.width || vid.render_height != vid.height)
+	{
+		pipeline_create_infos_t upscale;
+		R_CopyPipelineCreateInfos (&upscale, &base);
+		upscale.multisample_state.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+		upscale.depth_stencil_state.depthTestEnable = VK_FALSE;
+		upscale.depth_stencil_state.depthWriteEnable = VK_FALSE;
+		upscale.blend_attachment_states[0].blendEnable = VK_FALSE;
+		upscale.shader_stages[1].module = scene_upscale_frag_module;
+		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+		{
+			R_SetPipelineRenderPassVariant (&upscale, SUBPASS_UI, variant);
+			R_CreateGraphicsPipeline (
+				&graphics_pipelines[PIPELINE_SCENE_UPSCALE][SUBPASS_UI][variant], &upscale, vulkan_globals.basic_pipeline_layout, "scene_upscale");
+		}
+	}
+
 	pipeline_create_infos_t infos;
 	R_CopyPipelineCreateInfos (&infos, &base);
 	infos.multisample_state.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -4213,6 +4231,7 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (sky_cube_frag);
 	CREATE_SHADER_MODULE (postprocess_vert);
 	CREATE_SHADER_MODULE (postprocess_frag);
+	CREATE_SHADER_MODULE (scene_upscale_frag);
 #ifdef _DEBUG
 	if (r_ssao.value > 0)
 	{
@@ -4315,6 +4334,7 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (sky_cube_frag);
 	DESTROY_SHADER_MODULE (postprocess_vert);
 	DESTROY_SHADER_MODULE (postprocess_frag);
+	DESTROY_SHADER_MODULE (scene_upscale_frag);
 	DESTROY_SHADER_MODULE (ssao_composite_frag);
 	DESTROY_SHADER_MODULE (ssao_composite_msaa_frag);
 	DESTROY_SHADER_MODULE (ssao_prepare_comp);

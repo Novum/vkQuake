@@ -391,6 +391,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\postprocess.frag.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\scene_upscale.frag.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\ssao_composite.frag.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
@@ -545,6 +548,9 @@
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\postprocess.frag.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\scene_upscale.frag.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\ssao_composite.frag.c">

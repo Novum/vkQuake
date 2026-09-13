@@ -363,9 +363,17 @@ static void R_SetupMatrices ()
 R_SetupContext
 =============
 */
+vrect_t r_scene_vrect;
+
+static void R_SceneViewport (cb_context_t *cbx, float min_depth)
+{
+	const VkViewport viewport = {r_scene_vrect.x, r_scene_vrect.y, r_scene_vrect.width, r_scene_vrect.height, min_depth, 1.0f};
+	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
+}
+
 static void R_SetupContext (cb_context_t *cbx)
 {
-	GL_Viewport (cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
+	R_SceneViewport (cbx, 0.0f);
 	R_BindGraphicsPipeline (cbx, PIPELINE_BASIC_BLEND);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
@@ -379,6 +387,13 @@ R_SetupViewBeforeMark
 */
 static void R_SetupViewBeforeMark (void *unused)
 {
+	// Map both edges so the scene viewport and AO use exactly the same pixels.
+	const int view_y = vid.height - glheight + r_refdef.vrect.y;
+	r_scene_vrect.x = r_refdef.vrect.x * vid.render_width / vid.width;
+	r_scene_vrect.y = view_y * vid.render_height / vid.height;
+	r_scene_vrect.width = (r_refdef.vrect.x + r_refdef.vrect.width) * vid.render_width / vid.width - r_scene_vrect.x;
+	r_scene_vrect.height = (view_y + r_refdef.vrect.height) * vid.render_height / vid.height - r_scene_vrect.y;
+
 	// must happen here: in indirect mode draw_world only depends on this task, latching
 	// bmodel_instances_index any later would race the read in R_DrawIndirectBrushes
 	if (indirect)
@@ -575,14 +590,14 @@ void R_DrawViewModel (cb_context_t *cbx)
 	R_BeginDebugUtilsLabel (cbx, "View Model");
 
 	// hack the depth range to prevent view model from poking into walls
-	GL_Viewport (cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.7f, 1.0f);
+	R_SceneViewport (cbx, 0.7f);
 
 	int aliaspolys = 0;
 	R_DrawAliasModel (cbx, currententity, &aliaspolys);
 	Atomic_AddUInt32 (&rs_aliaspolys, aliaspolys);
 	Atomic_IncrementUInt32 (&rs_aliaspasses);
 
-	GL_Viewport (cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
+	R_SceneViewport (cbx, 0.0f);
 
 	R_EndDebugUtilsLabel (cbx);
 }
@@ -1453,8 +1468,7 @@ static void R_DrawParticlesTask (void *unused)
 		// the blend context is recorded for the resolve subpass, so only set the viewport here:
 		// R_SetupContext would bind a pipeline created for subpass 0
 		fte_blend_cbx = vulkan_globals.secondary_cb_contexts[SCBX_FTE_PARTICLES_BLEND];
-		GL_Viewport (
-			fte_blend_cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
+		R_SceneViewport (fte_blend_cbx, 0.0f);
 	}
 	PScript_DrawParticles (R_UseOIT () ? fte_blend_cbx : cbx, NULL);
 #endif

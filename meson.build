@@ -43,6 +43,7 @@ shaders = [
     'Shaders/indirect.comp',
     'Shaders/indirect_clear.comp',
     'Shaders/postprocess.frag',
+    'Shaders/scene_upscale.frag',
     'Shaders/ssao_composite.frag',
     'Shaders/ssao_composite_debug.frag',
     'Shaders/ssao_composite_msaa_debug.frag',

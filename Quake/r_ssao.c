@@ -139,7 +139,7 @@ void R_CreateSSAO (VkImage depth)
 					  : image_index == SSAO_EDGES		  ? VK_FORMAT_R8_UNORM
 					  : image_index == SSAO_HILBERT		  ? VK_FORMAT_R16_UINT
 														  : VK_FORMAT_R8_UNORM,
-			.extent = {image_index == SSAO_HILBERT ? 64 : vid.width, image_index == SSAO_HILBERT ? 64 : vid.height, 1},
+			.extent = {image_index == SSAO_HILBERT ? 64 : vid.render_width, image_index == SSAO_HILBERT ? 64 : vid.render_height, 1},
 			.mipLevels = image_index == SSAO_DEPTH_PYRAMID ? 5 : 1,
 			.arrayLayers = 1,
 			.samples = working ? VK_SAMPLE_COUNT_1_BIT : vulkan_globals.sample_count,
@@ -289,7 +289,7 @@ void R_DestroySSAO (void)
 static ssao_constants_t R_SSAOConstants (void)
 {
 	return (ssao_constants_t){
-		.viewport = {r_refdef.vrect.x, vid.height - glheight + r_refdef.vrect.y, 1.0f / r_refdef.vrect.width, 1.0f / r_refdef.vrect.height},
+		.viewport = {r_scene_vrect.x, r_scene_vrect.y, 1.0f / r_scene_vrect.width, 1.0f / r_scene_vrect.height},
 		.projection =
 			{1.0f / vulkan_globals.projection_matrix[0], 1.0f / vulkan_globals.projection_matrix[5], vulkan_globals.projection_matrix[14],
 			 vulkan_globals.sample_count},
@@ -307,7 +307,7 @@ static ssao_constants_t R_SSAOConstants (void)
 void R_PrepareSSAOWorldDepth (cb_context_t *cbx)
 {
 	const VkCommandBuffer cb = cbx->cb;
-	if (!r_refdef.vrect.width || !r_refdef.vrect.height)
+	if (!r_scene_vrect.width || !r_scene_vrect.height)
 		return;
 	VkImageMemoryBarrier barriers[] = {
 		{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -335,7 +335,7 @@ void R_PrepareSSAOWorldDepth (cb_context_t *cbx)
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_prepare_pipeline.handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_prepare_pipeline.layout.handle, 0, countof (sets), sets, 0, NULL);
 	vulkan_globals.vk_cmd_push_constants (cb, ssao_prepare_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-	vulkan_globals.vk_cmd_dispatch (cb, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);
+	vulkan_globals.vk_cmd_dispatch (cb, (vid.render_width + 7) / 8, (vid.render_height + 7) / 8, 1);
 	barriers[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	barriers[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 	barriers[0].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -363,7 +363,7 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1,
 		&depth_barrier);
-	if (!r_refdef.vrect.width || !r_refdef.vrect.height)
+	if (!r_scene_vrect.width || !r_scene_vrect.height)
 		return;
 	ssao_constants_t	 constants = R_SSAOConstants ();
 	// Preserve prepared world depth; discard the other outputs after previous readers finish.
@@ -382,7 +382,7 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL,
 		countof (barriers), barriers);
-	const uint32_t		  width = vid.width, height = vid.height;
+	const uint32_t		  width = vid.render_width, height = vid.render_height;
 	const uint32_t		  groups_x = (width + 7) / 8, groups_y = (height + 7) / 8;
 	const VkMemoryBarrier read_barrier = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER, .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT, .dstAccessMask = VK_ACCESS_SHADER_READ_BIT};
@@ -399,10 +399,10 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	constants.settings[2] = 0; // Only the second denoiser pass applies final weighting and visibility scaling.
 	constants.viewport[0] = width;
 	constants.viewport[1] = height;
-	constants.viewport[2] = 2.0f * width / r_refdef.vrect.width / vulkan_globals.projection_matrix[0];
-	constants.viewport[3] = 2.0f * height / r_refdef.vrect.height / vulkan_globals.projection_matrix[5];
-	constants.projection[0] = (-1.0f - 2.0f * r_refdef.vrect.x / r_refdef.vrect.width) / vulkan_globals.projection_matrix[0];
-	constants.projection[1] = (-1.0f - 2.0f * (vid.height - glheight + r_refdef.vrect.y) / r_refdef.vrect.height) / vulkan_globals.projection_matrix[5];
+	constants.viewport[2] = 2.0f * width / r_scene_vrect.width / vulkan_globals.projection_matrix[0];
+	constants.viewport[3] = 2.0f * height / r_scene_vrect.height / vulkan_globals.projection_matrix[5];
+	constants.projection[0] = (-1.0f - 2.0f * r_scene_vrect.x / r_scene_vrect.width) / vulkan_globals.projection_matrix[0];
+	constants.projection[1] = (-1.0f - 2.0f * (r_scene_vrect.y) / r_scene_vrect.height) / vulkan_globals.projection_matrix[5];
 
 	// The evaluator uses settings.w for quality; the composite gets its own debug constants.
 	constants.settings[3] = (int)CLAMP (1, r_ssao.value, 3);
@@ -453,7 +453,7 @@ void R_DrawSSAOTask (void *unused)
 	if (r_ssao.value <= 0)
 		return;
 	cb_context_t  *cbx = vulkan_globals.secondary_cb_contexts[SCBX_ENTITY_SSAO];
-	const VkRect2D rect = {{r_refdef.vrect.x, vid.height - glheight + r_refdef.vrect.y}, {r_refdef.vrect.width, r_refdef.vrect.height}};
+	const VkRect2D rect = {{r_scene_vrect.x, r_scene_vrect.y}, {r_scene_vrect.width, r_scene_vrect.height}};
 	if (!rect.extent.width || !rect.extent.height)
 		return;
 	const VkViewport viewport = {rect.offset.x, rect.offset.y, rect.extent.width, rect.extent.height, 0, 1};

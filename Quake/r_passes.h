@@ -68,6 +68,8 @@ typedef struct end_rendering_parms_s
 	bool		 ray_debug	   : 1;
 	uint32_t	 render_scale  : 4;
 	uint32_t	 vid_height	   : 20;
+	uint32_t	 render_width;
+	uint32_t	 render_height;
 	float		 time;
 	VkClearValue color_clear_value;
 	uint8_t		 v_blend[4];
@@ -80,6 +82,9 @@ typedef struct end_rendering_parms_s
 typedef struct
 {
 	uint32_t		   width, height;
+	uint32_t		   render_width;
+	uint32_t		   render_height;
+	VkImageView		   ui_color;
 	VkImageView		   color[2];
 	VkImageView		   depth, msaa_color;
 	VkImageView		   oit_accum, oit_reveal;

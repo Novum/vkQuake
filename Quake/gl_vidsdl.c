@@ -105,7 +105,9 @@ extern VkAccelerationStructureKHR bmodel_tlas;
 // johnfitz -- new cvars
 static cvar_t vid_fullscreen = {"vid_fullscreen", "1", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
 static cvar_t vid_width = {"vid_width", "1280", CVAR_ARCHIVE};		  // QuakeSpasm, was 640
-static cvar_t vid_height = {"vid_height", "720", CVAR_ARCHIVE};		  // QuakeSpasm, was 480
+static cvar_t r_width = {"r_width", "-1", CVAR_ARCHIVE};
+static cvar_t r_height = {"r_height", "-1", CVAR_ARCHIVE};
+static cvar_t vid_height = {"vid_height", "720", CVAR_ARCHIVE}; // QuakeSpasm, was 480
 static cvar_t vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
 static cvar_t vid_vsync = {"vid_vsync", "1", CVAR_ARCHIVE};
 static cvar_t vid_maxframelatency = {"vid_maxframelatency", "2", CVAR_ARCHIVE};		// max frames queued for display under vsync, 0 = uncapped
@@ -165,6 +167,10 @@ static VkImage			msaa_color_buffer;
 static vulkan_memory_t	msaa_color_buffer_memory;
 static VkImageView		msaa_color_buffer_view;
 static VkDescriptorSet	postprocess_descriptor_set;
+static VkImage			ui_color_buffer;
+static VkImageView		ui_color_buffer_view;
+static vulkan_memory_t	ui_color_buffer_memory;
+static VkDescriptorSet	scene_upscale_descriptor_set;
 static VkDescriptorSet	wboit_resolve_descriptor_set;
 static VkBuffer			palette_colors_buffer;
 static VkBufferView		palette_buffer_view;
@@ -323,6 +329,23 @@ static int VID_GetCurrentWindowHeight (void)
 VID_GetCurrentRefreshRate
 ====================
 */
+static SDL_DisplayMode VID_GetDesktopDisplayMode (void)
+{
+#ifdef USE_SDL3
+	const SDL_DisplayID	   display = draw_context ? SDL_GetDisplayForWindow (draw_context) : SDL_GetPrimaryDisplay ();
+	const SDL_DisplayMode *mode = display ? SDL_GetDesktopDisplayMode (display) : NULL;
+	if (!mode)
+		Sys_Error ("Could not get desktop display mode: %s", SDL_GetError ());
+	return *mode;
+#else
+	const int		display = draw_context ? SDL_GetWindowDisplayIndex (draw_context) : 0;
+	SDL_DisplayMode mode;
+	if (display < 0 || SDL_GetDesktopDisplayMode (display, &mode) != 0)
+		Sys_Error ("Could not get desktop display mode: %s", SDL_GetError ());
+	return mode;
+#endif
+}
+
 static float VID_GetCurrentRefreshRate (void)
 {
 #ifdef USE_SDL3
@@ -389,7 +412,7 @@ static qboolean VID_GetDesktopFullscreen (void)
 	// In SDL3, check if fullscreen mode is NULL (desktop fullscreen) or has a mode (exclusive fullscreen)
 	return SDL_GetWindowFullscreenMode (draw_context) == NULL && (SDL_GetWindowFlags (draw_context) & SDL_WINDOW_FULLSCREEN);
 #else
-	return (SDL_GetWindowFlags (draw_context) & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+	return (SDL_GetWindowFlags (draw_context) & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP;
 #endif
 }
 
@@ -1651,8 +1674,8 @@ static void GL_CreateDepthBuffer (void)
 	image_create_info.pNext = NULL;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
 	image_create_info.format = vulkan_globals.depth_format;
-	image_create_info.extent.width = vid.width;
-	image_create_info.extent.height = vid.height;
+	image_create_info.extent.width = vid.render_width;
+	image_create_info.extent.height = vid.render_height;
 	image_create_info.extent.depth = 1;
 	image_create_info.mipLevels = 1;
 	image_create_info.arrayLayers = 1;
@@ -1714,9 +1737,79 @@ static void GL_CreateDepthBuffer (void)
 
 /*
 ===============
-GL_CreateColorBuffer
+GL_CreateUIColorBuffer
 ===============
 */
+static void GL_CreateUIColorBuffer (void)
+{
+	VkResult err;
+
+	Sys_Printf ("Creating native UI color buffer\n");
+
+	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
+	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image_create_info.pNext = NULL;
+	image_create_info.imageType = VK_IMAGE_TYPE_2D;
+	image_create_info.format = vulkan_globals.color_format;
+	image_create_info.extent.width = vid.width;
+	image_create_info.extent.height = vid.height;
+	image_create_info.extent.depth = 1;
+	image_create_info.mipLevels = 1;
+	image_create_info.arrayLayers = 1;
+	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+
+	assert (ui_color_buffer == VK_NULL_HANDLE);
+	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &ui_color_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateImage failed with code %i", (int)err);
+
+	GL_SetObjectName ((uint64_t)ui_color_buffer, VK_OBJECT_TYPE_IMAGE, "UI Color Buffer");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements (vulkan_globals.device, ui_color_buffer, &memory_requirements);
+
+	ZEROED_STRUCT (VkMemoryDedicatedAllocateInfoKHR, dedicated_allocation_info);
+	dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+	dedicated_allocation_info.image = ui_color_buffer;
+
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+	if (vulkan_globals.dedicated_allocation)
+		memory_allocate_info.pNext = &dedicated_allocation_info;
+
+	assert (ui_color_buffer_memory.handle == VK_NULL_HANDLE);
+	R_AllocateVulkanMemory (&ui_color_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
+	GL_SetObjectName ((uint64_t)ui_color_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "UI Color Buffer");
+
+	err = vkBindImageMemory (vulkan_globals.device, ui_color_buffer, ui_color_buffer_memory.handle, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
+
+	ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
+	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	image_view_create_info.format = vulkan_globals.color_format;
+	image_view_create_info.image = ui_color_buffer;
+	image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_view_create_info.subresourceRange.baseMipLevel = 0;
+	image_view_create_info.subresourceRange.levelCount = 1;
+	image_view_create_info.subresourceRange.baseArrayLayer = 0;
+	image_view_create_info.subresourceRange.layerCount = 1;
+	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	image_view_create_info.flags = 0;
+
+	assert (ui_color_buffer_view == VK_NULL_HANDLE);
+	err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &ui_color_buffer_view);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateImageView failed with code %i", (int)err);
+
+	GL_SetObjectName ((uint64_t)ui_color_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "UI Color Buffer View");
+}
+
 static void GL_CreateColorBuffer (void)
 {
 	VkResult err;
@@ -1729,8 +1822,8 @@ static void GL_CreateColorBuffer (void)
 	image_create_info.pNext = NULL;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
 	image_create_info.format = vulkan_globals.color_format;
-	image_create_info.extent.width = vid.width;
-	image_create_info.extent.height = vid.height;
+	image_create_info.extent.width = vid.render_width;
+	image_create_info.extent.height = vid.render_height;
 	image_create_info.extent.depth = 1;
 	image_create_info.mipLevels = 1;
 	image_create_info.arrayLayers = 1;
@@ -1902,8 +1995,8 @@ static void GL_CreateOITImage (VkImage *image, vulkan_memory_t *memory, VkImageV
 	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
-	image_create_info.extent.width = vid.width;
-	image_create_info.extent.height = vid.height;
+	image_create_info.extent.width = vid.render_width;
+	image_create_info.extent.height = vid.render_height;
 	image_create_info.extent.depth = 1;
 	image_create_info.mipLevels = 1;
 	image_create_info.arrayLayers = 1;
@@ -1975,8 +2068,8 @@ static void GL_CreateOITBuffers (void)
 	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
-	image_create_info.extent.width = vid.width;
-	image_create_info.extent.height = vid.height;
+	image_create_info.extent.width = vid.render_width;
+	image_create_info.extent.height = vid.render_height;
 	image_create_info.extent.depth = 1;
 	image_create_info.mipLevels = 1;
 	image_create_info.arrayLayers = 1;
@@ -2191,12 +2284,31 @@ void GL_UpdateDescriptorSets (void)
 
 	GL_WaitForDeviceIdle ();
 
+	if (scene_upscale_descriptor_set != VK_NULL_HANDLE)
+	{
+		R_FreeDescriptorSet (scene_upscale_descriptor_set, &vulkan_globals.single_texture_set_layout);
+		scene_upscale_descriptor_set = VK_NULL_HANDLE;
+	}
+	if (ui_color_buffer)
+	{
+		scene_upscale_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.single_texture_set_layout);
+		const VkDescriptorImageInfo scene_info = {vulkan_globals.gui_linear_sampler, color_buffers_view[0], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+		const VkWriteDescriptorSet	write = {
+			 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			 .dstSet = scene_upscale_descriptor_set,
+			 .dstBinding = 0,
+			 .descriptorCount = 1,
+			 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			 .pImageInfo = &scene_info};
+		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
+	}
+
 	if (postprocess_descriptor_set != VK_NULL_HANDLE)
 		R_FreeDescriptorSet (postprocess_descriptor_set, &vulkan_globals.input_attachment_set_layout);
 	postprocess_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.input_attachment_set_layout);
 
 	ZEROED_STRUCT (VkDescriptorImageInfo, image_info);
-	image_info.imageView = color_buffers_view[0];
+	image_info.imageView = ui_color_buffer_view ? ui_color_buffer_view : color_buffers_view[0];
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	ZEROED_STRUCT (VkWriteDescriptorSet, input_attachment_write);
@@ -2660,6 +2772,9 @@ static void GL_CreateFrameBuffers (void)
 	const render_framebuffer_images_t images = {
 		.width = vid.width,
 		.height = vid.height,
+		.render_width = vid.render_width,
+		.render_height = vid.render_height,
+		.ui_color = ui_color_buffer_view ? ui_color_buffer_view : color_buffers_view[0],
 		.color = {color_buffers_view[0], color_buffers_view[1]},
 		.depth = depth_buffer_view,
 		.msaa_color = msaa_color_buffer_view,
@@ -2679,6 +2794,17 @@ static void GL_CreateFrameBuffers (void)
 GL_CreateRenderResources
 ===============
 */
+static void VID_GetRenderSize (int *width, int *height)
+{
+	*width = vid.width;
+	*height = vid.height;
+	if (r_width.value > 0 && r_height.value > 0)
+	{
+		*width = (int)CLAMP (q_min (320, vid.width), r_width.value, vid.width);
+		*height = (int)CLAMP (q_min (200, vid.height), r_height.value, vid.height);
+	}
+}
+
 static void GL_CreateRenderResources (void)
 {
 	if (sv.active && cls.signon < 1) // server has loaded the map but client hasn't called R_NewMap yet - wait until next frame
@@ -2690,7 +2816,10 @@ static void GL_CreateRenderResources (void)
 		return;
 	}
 
+	VID_GetRenderSize (&vid.render_width, &vid.render_height);
 	GL_CreateColorBuffer ();
+	if (vid.render_width != vid.width || vid.render_height != vid.height)
+		GL_CreateUIColorBuffer ();
 	GL_CreateDepthBuffer ();
 	R_CreateSSAO (depth_buffer);
 	R_CreateRenderPasses ();
@@ -2744,6 +2873,20 @@ static void GL_DestroyRenderResources (void)
 	}
 
 	R_DestroyFrameBuffers ();
+
+	if (scene_upscale_descriptor_set != VK_NULL_HANDLE)
+	{
+		R_FreeDescriptorSet (scene_upscale_descriptor_set, &vulkan_globals.single_texture_set_layout);
+		scene_upscale_descriptor_set = VK_NULL_HANDLE;
+	}
+	if (ui_color_buffer)
+	{
+		vkDestroyImageView (vulkan_globals.device, ui_color_buffer_view, NULL);
+		vkDestroyImage (vulkan_globals.device, ui_color_buffer, NULL);
+		R_FreeVulkanMemory (&ui_color_buffer_memory, &num_vulkan_misc_allocations);
+		ui_color_buffer_view = VK_NULL_HANDLE;
+		ui_color_buffer = VK_NULL_HANDLE;
+	}
 
 	if (msaa_color_buffer)
 	{
@@ -2918,18 +3061,19 @@ void GL_BeginRenderingTask (void *unused)
 
 			R_BeginDebugUtilsLabel (cbx, va ("CBX %d", scbx_index));
 
-			VkRect2D render_area;
+			const qboolean ui = cbx->subpass_type == SUBPASS_UI || cbx->subpass_type == SUBPASS_POST_PROCESS;
+			VkRect2D	   render_area;
 			render_area.offset.x = 0;
 			render_area.offset.y = 0;
-			render_area.extent.width = vid.width;
-			render_area.extent.height = vid.height;
+			render_area.extent.width = ui ? vid.width : vid.render_width;
+			render_area.extent.height = ui ? vid.height : vid.render_height;
 			vkCmdSetScissor (cbx->cb, 0, 1, &render_area);
 
 			VkViewport viewport;
 			viewport.x = 0;
 			viewport.y = 0;
-			viewport.width = vid.width;
-			viewport.height = vid.height;
+			viewport.width = render_area.extent.width;
+			viewport.height = render_area.extent.height;
 			viewport.minDepth = 0.0f;
 			viewport.maxDepth = 1.0f;
 			vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
@@ -2974,6 +3118,23 @@ static oit_mode_t GL_FrameOITModeForCvarValue (int r_oit_value)
 	return OIT_MODE_NONE;
 }
 
+void GL_DrawSceneUpscale (cb_context_t *cbx)
+{
+	if (!ui_color_buffer)
+		return;
+
+	R_BeginDebugUtilsLabel (cbx, "Scene Upscale");
+	const VkViewport viewport = {0, 0, vid.width, vid.height, 0, 1};
+	const float		 output_size_rcp[2] = {1.0f / vid.width, 1.0f / vid.height};
+	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
+	R_BindGraphicsPipeline (cbx, PIPELINE_SCENE_UPSCALE);
+	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, cbx->current_pipeline.layout.handle, 0, 1, &scene_upscale_descriptor_set, 0, NULL);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof (output_size_rcp), output_size_rcp);
+	vkCmdDraw (cbx->cb, 3, 1, 0, 0);
+	GL_SetCanvas (cbx, CANVAS_NONE); // The next GUI draw must restore its projection constants.
+	R_EndDebugUtilsLabel (cbx);
+}
+
 qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *width, int *height)
 {
 	if (!use_tasks)
@@ -2985,7 +3146,10 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 	frame_oit_mode = requested_oit_mode;
 	const qboolean render_pass_setup_changed = R_SetupRenderPasses ();
 
-	if (vid.restart_next_frame || (render_resources_created && (oit_mode_changed || render_pass_setup_changed)))
+	int render_width, render_height;
+	VID_GetRenderSize (&render_width, &render_height);
+	const qboolean render_size_changed = render_width != vid.render_width || render_height != vid.render_height;
+	if (vid.restart_next_frame || (render_resources_created && (oit_mode_changed || render_pass_setup_changed || render_size_changed)))
 	{
 		VID_Restart (false);
 		vid.restart_next_frame = false;
@@ -3201,8 +3365,8 @@ static void GL_RecordOITResolveContext (end_rendering_parms_t *parms, VkRect2D r
 	VkViewport viewport;
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = (float)parms->vid_width;
-	viewport.height = (float)parms->vid_height;
+	viewport.width = (float)parms->render_width;
+	viewport.height = (float)parms->render_height;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
@@ -3247,8 +3411,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	VkRect2D render_area;
 	render_area.offset.x = 0;
 	render_area.offset.y = 0;
-	render_area.extent.width = parms->vid_width;
-	render_area.extent.height = parms->vid_height;
+	render_area.extent.width = parms->render_width;
+	render_area.extent.height = parms->render_height;
 
 	const double display_wait_start = frame_timing_enabled ? Sys_DoubleTime () : 0.0;
 #if defined(VK_KHR_present_wait2)
@@ -3412,6 +3576,8 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.render_scale = CLAMP (0, render_scale, 8),
 		.vid_width = vid.width,
 		.vid_height = vid.height,
+		.render_width = vid.render_width,
+		.render_height = vid.render_height,
 		.time = fmod (cl.time, 2.0 * M_PI),
 		.color_clear_value = vulkan_globals.color_clear_value,
 		.v_blend[0] = v_blend[0],
@@ -3757,7 +3923,9 @@ void VID_Init (void)
 							   "vid_desktopfullscreen", "vid_fsaamode", "vid_fsaa",	  "vid_borderless"};
 #define num_readvars countof (read_vars)
 
-	Cvar_RegisterVariable (&vid_fullscreen);  // johnfitz
+	Cvar_RegisterVariable (&vid_fullscreen); // johnfitz
+	Cvar_RegisterVariable (&r_width);
+	Cvar_RegisterVariable (&r_height);
 	Cvar_RegisterVariable (&vid_width);		  // johnfitz
 	Cvar_RegisterVariable (&vid_height);	  // johnfitz
 	Cvar_RegisterVariable (&vid_refreshrate); // johnfitz
@@ -3799,32 +3967,15 @@ void VID_Init (void)
 
 #ifdef USE_SDL3
 	if (!SDL_InitSubSystem (SDL_INIT_VIDEO))
-		Sys_Error ("Couldn't init SDL video: %s", SDL_GetError ());
-
-	{
-		SDL_DisplayID		   display = SDL_GetPrimaryDisplay ();
-		const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode (display);
-		if (!mode)
-			Sys_Error ("Could not get desktop display mode: %s\n", SDL_GetError ());
-
-		display_width = mode->w;
-		display_height = mode->h;
-		display_refreshrate = mode->refresh_rate;
-	}
 #else
 	if (SDL_InitSubSystem (SDL_INIT_VIDEO) < 0)
+#endif
 		Sys_Error ("Couldn't init SDL video: %s", SDL_GetError ());
 
-	{
-		SDL_DisplayMode mode;
-		if (SDL_GetDesktopDisplayMode (0, &mode) != 0)
-			Sys_Error ("Could not get desktop display mode: %s\n", SDL_GetError ());
-
-		display_width = mode.w;
-		display_height = mode.h;
-		display_refreshrate = mode.refresh_rate;
-	}
-#endif
+	const SDL_DisplayMode desktop = VID_GetDesktopDisplayMode ();
+	display_width = desktop.w;
+	display_height = desktop.h;
+	display_refreshrate = desktop.refresh_rate;
 
 	Sys_Printf ("SDL Video Driver: %s\n", SDL_GetCurrentVideoDriver ());
 
@@ -4004,6 +4155,7 @@ void VID_Restart (qboolean set_mode)
 	R_InitSamplers ();
 
 	SCR_UpdateRelativeScale ();
+	VID_Menu_RebuildModeList ();
 
 	scr_initialized = true;
 }
@@ -4104,6 +4256,7 @@ enum
 	VID_OPT_MODE,
 	VID_OPT_REFRESHRATE,
 	VID_OPT_VSYNC,
+	VID_OPT_RENDER_RESOLUTION,
 	VID_OPT_PADDING,
 	VID_OPT_TEST,
 	VID_OPT_APPLY,
@@ -4124,6 +4277,43 @@ static int			 vid_menu_nummodes = 0;
 static float vid_menu_rates[MAX_RATES_LIST];
 static int	 vid_menu_numrates = 0;
 
+static qboolean VID_Menu_Borderless (void)
+{
+	return vid_fullscreen.value == 1 && vid_desktopfullscreen.value;
+}
+
+static vid_menu_mode VID_Menu_OutputMode (void)
+{
+	if (!vid_changed)
+		return (vid_menu_mode){vid.width, vid.height};
+	if (VID_Menu_Borderless ())
+	{
+		const SDL_DisplayMode desktop = VID_GetDesktopDisplayMode ();
+		return (vid_menu_mode){desktop.w, desktop.h};
+	}
+	vid_menu_mode mode = {(int)vid_width.value, (int)vid_height.value};
+	if (!vid_fullscreen.value)
+	{
+		mode.width = mode.width * vid.width / q_max (1, VID_GetCurrentWindowWidth ());
+		mode.height = mode.height * vid.height / q_max (1, VID_GetCurrentWindowHeight ());
+	}
+	return mode;
+}
+
+static vid_menu_mode VID_Menu_RenderMode (void)
+{
+	const vid_menu_mode output = VID_Menu_OutputMode ();
+	if (r_width.value <= 0 || r_height.value <= 0)
+		return (vid_menu_mode){-1, -1};
+
+	vid_menu_mode mode;
+	mode.width = (int)CLAMP (q_min (320, output.width), r_width.value, output.width);
+	mode.height = (int)CLAMP (q_min (200, output.height), r_height.value, output.height);
+	if (mode.width == output.width && mode.height == output.height)
+		return (vid_menu_mode){-1, -1};
+	return mode;
+}
+
 static qboolean VID_Menu_OptionSelectable (int option)
 {
 	if (option == VID_OPT_PADDING)
@@ -4135,7 +4325,7 @@ static qboolean VID_Menu_OptionSelectable (int option)
 
 // common window sizes offered in addition to the display modes when windowed
 static const vid_menu_mode vid_menu_windowed_modes[] = {
-	{640, 480},	  {800, 600},	{1024, 768},  {1280, 720},	{1280, 800},  {1366, 768},	{1440, 900},  {1600, 900},	{1600, 1200}, {1680, 1050},
+	{320, 240},	  {640, 480},	{800, 600},	  {1024, 768},	{1280, 720},  {1280, 800},	{1366, 768},  {1440, 900},	{1600, 900},  {1600, 1200}, {1680, 1050},
 	{1920, 1080}, {1920, 1200}, {2560, 1080}, {2560, 1440}, {2560, 1600}, {3440, 1440}, {3840, 1600}, {3840, 2160}, {5120, 1440}, {5120, 2880},
 };
 
@@ -4186,41 +4376,60 @@ display modes, windowed additionally offers common window sizes that fit on
 the desktop since windows are not limited to display modes
 ================
 */
-static void VID_Menu_RebuildModeList (void)
+static void VID_Menu_BuildModeList (qboolean render_resolution)
 {
 	int i;
 
 	vid_menu_nummodes = 0;
+	if (render_resolution)
+	{
+		const vid_menu_mode output = VID_Menu_OutputMode ();
+		const int			max_width = output.width;
+		const int			max_height = output.height;
+		VID_Menu_AddMode (-1, -1); // Native occupies the highest-resolution position in the cycle.
+		if (max_width / 2 >= 320 && max_height / 2 >= 200)
+		{
+			VID_Menu_AddMode (max_width / 2, max_height / 2);
+			VID_Menu_AddMode (max_width * 3 / 4, max_height * 3 / 4);
+		}
+		for (i = 0; i < (int)countof (vid_menu_windowed_modes); ++i)
+			if (vid_menu_windowed_modes[i].width <= max_width && vid_menu_windowed_modes[i].height <= max_height)
+				VID_Menu_AddMode (vid_menu_windowed_modes[i].width, vid_menu_windowed_modes[i].height);
+		for (i = 0; i < nummodes; ++i)
+			if (modelist[i].width <= max_width && modelist[i].height <= max_height)
+				VID_Menu_AddMode (modelist[i].width, modelist[i].height);
+		const vid_menu_mode current = VID_Menu_RenderMode ();
+		VID_Menu_AddMode (current.width, current.height);
+		// The output size is represented only by Native, never by a duplicate numeric entry.
+		int count = 1;
+		for (i = 1; i < vid_menu_nummodes; ++i)
+			if (vid_menu_modes[i].width <= max_width && vid_menu_modes[i].height <= max_height &&
+				(vid_menu_modes[i].width < max_width || vid_menu_modes[i].height < max_height))
+				vid_menu_modes[count++] = vid_menu_modes[i];
+		vid_menu_nummodes = count;
+		qsort (vid_menu_modes + 1, vid_menu_nummodes - 1, sizeof (vid_menu_modes[0]), VID_Menu_CompareModes);
+		return;
+	}
 
 	for (i = 0; i < nummodes; i++)
 		VID_Menu_AddMode (modelist[i].width, modelist[i].height);
 
 	if (!vid_fullscreen.value)
 	{
-		int desktop_width = 0, desktop_height = 0;
-#ifdef USE_SDL3
-		const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode (SDL_GetPrimaryDisplay ());
-		if (mode)
-		{
-			desktop_width = mode->w;
-			desktop_height = mode->h;
-		}
-#else
-		SDL_DisplayMode mode;
-		if (SDL_GetDesktopDisplayMode (0, &mode) == 0)
-		{
-			desktop_width = mode.w;
-			desktop_height = mode.h;
-		}
-#endif
+		const SDL_DisplayMode desktop = VID_GetDesktopDisplayMode ();
 		for (i = 0; i < (int)countof (vid_menu_windowed_modes); i++)
 		{
-			if (vid_menu_windowed_modes[i].width <= desktop_width && vid_menu_windowed_modes[i].height <= desktop_height)
+			if (vid_menu_windowed_modes[i].width <= desktop.w && vid_menu_windowed_modes[i].height <= desktop.h)
 				VID_Menu_AddMode (vid_menu_windowed_modes[i].width, vid_menu_windowed_modes[i].height);
 		}
 	}
 
 	qsort (vid_menu_modes, vid_menu_nummodes, sizeof (vid_menu_modes[0]), VID_Menu_CompareModes);
+}
+
+static void VID_Menu_RebuildModeList (void)
+{
+	VID_Menu_BuildModeList (false);
 }
 
 /*
@@ -4282,15 +4491,19 @@ chooses next resolution in order, then updates vid_width and
 vid_height cvars, then updates refreshrate lists
 ================
 */
-static void VID_Menu_ChooseNextMode (int dir)
+static void VID_Menu_ChooseNextMode (int dir, qboolean render_resolution)
 {
 	int i;
+	VID_Menu_BuildModeList (render_resolution);
+	cvar_t			   *width = render_resolution ? &r_width : &vid_width;
+	cvar_t			   *height = render_resolution ? &r_height : &vid_height;
+	const vid_menu_mode current = render_resolution ? VID_Menu_RenderMode () : (vid_menu_mode){(int)width->value, (int)height->value};
 
 	if (vid_menu_nummodes)
 	{
 		for (i = 0; i < vid_menu_nummodes; i++)
 		{
-			if (vid_menu_modes[i].width == vid_width.value && vid_menu_modes[i].height == vid_height.value)
+			if (vid_menu_modes[i].width == current.width && vid_menu_modes[i].height == current.height)
 				break;
 		}
 
@@ -4307,9 +4520,10 @@ static void VID_Menu_ChooseNextMode (int dir)
 				i = vid_menu_nummodes - 1;
 		}
 
-		Cvar_SetValueQuick (&vid_width, (float)vid_menu_modes[i].width);
-		Cvar_SetValueQuick (&vid_height, (float)vid_menu_modes[i].height);
-		VID_Menu_RebuildRateList ();
+		Cvar_SetValueQuick (width, (float)vid_menu_modes[i].width);
+		Cvar_SetValueQuick (height, (float)vid_menu_modes[i].height);
+		if (!render_resolution)
+			VID_Menu_RebuildRateList ();
 	}
 }
 
@@ -4361,6 +4575,8 @@ static void VID_Menu_ChooseNextFullScreenMode (int dir)
 		Cvar_SetValueQuick (&vid_fullscreen, (float)(((int)vid_fullscreen.value + 2 + dir) % 2));
 
 	VID_Menu_RebuildModeList ();
+	if (VID_Menu_Borderless ())
+		return;
 
 	// if the current width/height is not in the new list, snap to the closest mode
 	for (i = 0; i < vid_menu_nummodes; i++)
@@ -4417,22 +4633,20 @@ void M_Video_Key (int key)
 
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
-		if (--video_options_cursor < 0)
-			video_options_cursor = VIDEO_OPTIONS_ITEMS - 1;
-		if (video_options_cursor == VID_OPT_PADDING)
-			--video_options_cursor;
-		if (!VID_Menu_OptionSelectable (video_options_cursor))
-			video_options_cursor = VID_OPT_FULLSCREEN;
+		do
+		{
+			if (--video_options_cursor < 0)
+				video_options_cursor = VIDEO_OPTIONS_ITEMS - 1;
+		} while (!VID_Menu_OptionSelectable (video_options_cursor));
 		break;
 
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
-		if (++video_options_cursor >= VIDEO_OPTIONS_ITEMS)
-			video_options_cursor = 0;
-		if (video_options_cursor == VID_OPT_PADDING)
-			++video_options_cursor;
-		if (!VID_Menu_OptionSelectable (video_options_cursor))
-			video_options_cursor = VID_OPT_VSYNC;
+		do
+		{
+			if (++video_options_cursor >= VIDEO_OPTIONS_ITEMS)
+				video_options_cursor = 0;
+		} while (!VID_Menu_OptionSelectable (video_options_cursor));
 		break;
 
 	case K_LEFTARROW:
@@ -4440,7 +4654,10 @@ void M_Video_Key (int key)
 		switch (video_options_cursor)
 		{
 		case VID_OPT_MODE:
-			VID_Menu_ChooseNextMode (1);
+			VID_Menu_ChooseNextMode (1, false);
+			break;
+		case VID_OPT_RENDER_RESOLUTION:
+			VID_Menu_ChooseNextMode (1, true);
 			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (1);
@@ -4461,7 +4678,10 @@ void M_Video_Key (int key)
 		switch (video_options_cursor)
 		{
 		case VID_OPT_MODE:
-			VID_Menu_ChooseNextMode (-1);
+			VID_Menu_ChooseNextMode (-1, false);
+			break;
+		case VID_OPT_RENDER_RESOLUTION:
+			VID_Menu_ChooseNextMode (-1, true);
 			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (-1);
@@ -4485,7 +4705,10 @@ void M_Video_Key (int key)
 		switch (video_options_cursor)
 		{
 		case VID_OPT_MODE:
-			VID_Menu_ChooseNextMode (-1);
+			VID_Menu_ChooseNextMode (-1, false);
+			break;
+		case VID_OPT_RENDER_RESOLUTION:
+			VID_Menu_ChooseNextMode (-1, true);
 			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (-1);
@@ -4544,8 +4767,21 @@ void M_Video_Draw (cb_context_t *cbx)
 		{
 		case VID_OPT_MODE:
 			M_Print (cbx, MENU_LABEL_X, y, "Video mode");
-			M_Print (cbx, MENU_VALUE_X, y, va ("%ix%i", (int)vid_width.value, (int)vid_height.value));
+			if (VID_Menu_Borderless ())
+			{
+				const vid_menu_mode mode = VID_Menu_OutputMode ();
+				M_Print (cbx, MENU_VALUE_X, y, va ("%ix%i", mode.width, mode.height));
+			}
+			else
+				M_Print (cbx, MENU_VALUE_X, y, va ("%ix%i", (int)vid_width.value, (int)vid_height.value));
 			break;
+		case VID_OPT_RENDER_RESOLUTION:
+		{
+			const vid_menu_mode mode = VID_Menu_RenderMode ();
+			M_Print (cbx, MENU_LABEL_X, y, "Render resolution");
+			M_Print (cbx, MENU_VALUE_X, y, mode.width < 0 ? "Native" : va ("%ix%i", mode.width, mode.height));
+			break;
+		}
 		case VID_OPT_REFRESHRATE:
 			M_Print (cbx, MENU_LABEL_X, y, "Refresh rate");
 			M_Print (cbx, MENU_VALUE_X, y, va ("%g", vid_refreshrate.value));

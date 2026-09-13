@@ -88,6 +88,7 @@ typedef struct
 	VkFormat			  depth_format;
 	VkFormat			  swapchain_format;
 	VkSampleCountFlagBits samples;
+	bool				  upscale;
 	frame_desc_t		  variants[MAIN_RENDER_PASS_VARIANT_COUNT];
 } frame_layout_t;
 
@@ -275,6 +276,7 @@ bool R_SetupRenderPasses (void)
 	pending_layout.depth_format = vulkan_globals.depth_format;
 	pending_layout.swapchain_format = vulkan_globals.swap_chain_format;
 	pending_layout.samples = vulkan_globals.sample_count;
+	pending_layout.upscale = vid.render_width != vid.width || vid.render_height != vid.height;
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		R_DescribeFrame (&pending_layout.variants[variant], variant);
 
@@ -468,7 +470,7 @@ void R_CreateFrameBuffers (const render_framebuffer_images_t *images)
 			VkImageView attachments[MAX_PASS_ATTACHMENTS] = {0};
 			if (ui)
 			{
-				attachments[0] = images->color[0];
+				attachments[0] = images->ui_color;
 				attachments[1] = images->swapchain[i];
 			}
 			else
@@ -495,8 +497,8 @@ void R_CreateFrameBuffers (const render_framebuffer_images_t *images)
 				.renderPass = physical->handles[MAIN_RENDER_PASS_STENCIL_CLEAR],
 				.attachmentCount = physical->attachment_count,
 				.pAttachments = attachments,
-				.width = images->width,
-				.height = images->height,
+				.width = ui ? images->width : images->render_width,
+				.height = ui ? images->height : images->render_height,
 				.layers = 1,
 			};
 			const VkResult result = vkCreateFramebuffer (vulkan_globals.device, &info, NULL, &physical->framebuffers[i]);
@@ -636,10 +638,10 @@ static void R_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering_
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_MENU;
 
 			const screen_effect_constants_t push_constants = {
-				parms->vid_width - 1,
-				parms->vid_height - 1,
-				1.0f / (float)parms->vid_width,
-				1.0f / (float)parms->vid_height,
+				parms->render_width - 1,
+				parms->render_height - 1,
+				1.0f / (float)parms->render_width,
+				1.0f / (float)parms->render_height,
 				(float)parms->vid_width / (float)parms->vid_height,
 				parms->time,
 				screen_effect_flags,
@@ -670,8 +672,8 @@ static void R_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering_
 			vulkan_globals.vk_cmd_push_descriptor_set (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 1, 1, &tlas_write);
 
 			const ray_debug_constants_t push_constants = {
-				1.0f / (float)parms->vid_width,
-				1.0f / (float)parms->vid_height,
+				1.0f / (float)parms->render_width,
+				1.0f / (float)parms->render_height,
 				(float)parms->vid_width / (float)parms->vid_height,
 				parms->origin[0],
 				parms->origin[1],
@@ -690,7 +692,7 @@ static void R_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering_
 		}
 #endif
 
-		vkCmdDispatch (cbx->cb, (parms->vid_width + 7) / 8, (parms->vid_height + 7) / 8, 1);
+		vkCmdDispatch (cbx->cb, (parms->render_width + 7) / 8, (parms->render_height + 7) / 8, 1);
 
 		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barriers[0].pNext = NULL;
@@ -816,12 +818,29 @@ uint32_t R_RecordFrame (
 			const bool			   ui = frame->passes[step->pass].target == FRAME_TARGET_UI;
 			const physical_pass_t *physical = &physical_passes[variant][step->pass];
 			const uint32_t		   image = ui ? swapchain_index : screen_effects ? 1 : 0;
+			if (ui && (parms->render_width != parms->vid_width || parms->render_height != parms->vid_height))
+			{
+				// The fullscreen triangle samples the scene before the native-resolution GUI.
+				const VkImageMemoryBarrier barrier = {
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+					.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+					.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+					.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+					.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+					.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+					.image = vulkan_globals.color_buffers[0],
+					.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+				vkCmdPipelineBarrier (
+					command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+					0, 0, NULL, 0, NULL, 1, &barrier);
+			}
 			assert (image < physical->framebuffer_count);
 			const VkRenderPassBeginInfo begin = {
 				.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 				.renderPass = physical->handles[ui || Sky_NeedStencil () ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL],
 				.framebuffer = physical->framebuffers[image],
-				.renderArea = {{0, 0}, {parms->vid_width, parms->vid_height}},
+				.renderArea = {{0, 0}, {ui ? parms->vid_width : parms->render_width, ui ? parms->vid_height : parms->render_height}},
 				.clearValueCount = ui ? 0 : physical->attachment_count,
 				.pClearValues = clear_values,
 			};
@@ -1052,14 +1071,15 @@ static void R_CreateScenePasses (main_render_pass_variant_t variant)
 
 static void R_CreateUIPasses (main_render_pass_variant_t variant)
 {
+	const bool upscale = current_layout.upscale;
 	// UI Render Pass
 	ZEROED_STRUCT_ARRAY (VkAttachmentDescription, attachment_descriptions, 2);
 
-	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	attachment_descriptions[0].initialLayout = upscale ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[0].format = vulkan_globals.color_format;
-	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	attachment_descriptions[0].loadOp = upscale ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_LOAD;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;

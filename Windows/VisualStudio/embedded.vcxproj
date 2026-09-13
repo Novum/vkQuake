@@ -54,6 +54,9 @@
     <CustomBuild Include="..\..\Shaders\postprocess.frag">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\scene_upscale.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ssao_composite.frag">
       <FileType>Document</FileType>
       <AdditionalInputs>$(SolutionDir)..\..\Shaders\ssao_composite.inc;%(AdditionalInputs)</AdditionalInputs>
