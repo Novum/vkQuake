@@ -527,10 +527,12 @@ Returns the clipflags if the velocity was modified (hit something solid)
 2 = wall / step
 4 = dead stop
 If steptrace is not NULL, the trace of any vertical wall hit will be stored
+If move_velocity is supplied, use it for sweeps and clip both velocities.
+The stored entity velocity must already include the full gravity update.
 ============
 */
 #define MAX_CLIP_PLANES 5
-static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
+static int SV_FlyMove (edict_t *ent, float time, const vec3_t move_velocity, trace_t *steptrace)
 {
 	int					bumpcount, numbumps;
 	vec3_t				dir;
@@ -538,6 +540,7 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 	int					numplanes;
 	vec3_t				planes[MAX_CLIP_PLANES];
 	vec3_t				primal_velocity, original_velocity, new_velocity;
+	vec3_t				sweep_velocity, original_end_velocity, new_end_velocity, impact_velocity;
 	int					i, j;
 	trace_t				trace;
 	vec3_t				end;
@@ -548,20 +551,22 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 	numbumps = 4;
 
 	blocked = 0;
-	VectorCopy (ent->v.velocity, original_velocity);
-	VectorCopy (ent->v.velocity, primal_velocity);
-	VectorCopy (ent->v.velocity, new_velocity);
+	VectorCopy (move_velocity ? move_velocity : ent->v.velocity, sweep_velocity);
+	VectorCopy (sweep_velocity, original_velocity);
+	VectorCopy (sweep_velocity, primal_velocity);
+	VectorCopy (sweep_velocity, new_velocity);
+	VectorCopy (ent->v.velocity, original_end_velocity);
 	numplanes = 0;
 
 	time_left = time;
 
 	for (bumpcount = 0; bumpcount < numbumps; bumpcount++)
 	{
-		if (!ent->v.velocity[0] && !ent->v.velocity[1] && !ent->v.velocity[2])
+		if (!sweep_velocity[0] && !sweep_velocity[1] && !sweep_velocity[2])
 			break;
 
 		for (i = 0; i < 3; i++)
-			end[i] = ent->v.origin[i] + time_left * ent->v.velocity[i];
+			end[i] = ent->v.origin[i] + time_left * sweep_velocity[i];
 
 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
 
@@ -574,7 +579,8 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		if (trace.fraction > 0)
 		{ // actually covered some distance
 			VectorCopy (trace.endpos, ent->v.origin);
-			VectorCopy (ent->v.velocity, original_velocity);
+			VectorCopy (sweep_velocity, original_velocity);
+			VectorCopy (ent->v.velocity, original_end_velocity);
 			numplanes = 0;
 		}
 
@@ -607,9 +613,15 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		//
 		assert_always (!ent->free);
 
+		VectorCopy (ent->v.velocity, impact_velocity);
 		SV_Impact (ent, trace.ent);
 		if (ent->free)
 			break; // removed by the impact function
+
+		// The crease branch below uses the current velocity, including QC edits.
+		// A replacement velocity must not inherit the old gravity sweep bias.
+		if (!VectorCompare (ent->v.velocity, impact_velocity))
+			VectorCopy (ent->v.velocity, sweep_velocity);
 
 		time_left -= time_left * trace.fraction;
 
@@ -624,15 +636,17 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		numplanes++;
 
 		//
-		// modify original_velocity so it parallels all of the clip planes
+		// Clip both velocities against the same planes. A candidate must also
+		// keep the end velocity out of every plane, even near a jump's apex.
 		//
 		for (i = 0; i < numplanes; i++)
 		{
 			ClipVelocity (original_velocity, planes[i], new_velocity, 1);
+			ClipVelocity (original_end_velocity, planes[i], new_end_velocity, 1);
 			for (j = 0; j < numplanes; j++)
 				if (j != i)
 				{
-					if (DotProduct (new_velocity, planes[j]) < 0)
+					if (DotProduct (new_velocity, planes[j]) < 0 || DotProduct (new_end_velocity, planes[j]) < 0)
 						break; // not ok
 				}
 			if (j == numplanes)
@@ -641,7 +655,8 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 
 		if (i != numplanes)
 		{ // go along this plane
-			VectorCopy (new_velocity, ent->v.velocity);
+			VectorCopy (new_velocity, sweep_velocity);
+			VectorCopy (new_end_velocity, ent->v.velocity);
 		}
 		else
 		{ // go along the crease
@@ -652,6 +667,8 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 				return 7;
 			}
 			CrossProduct (planes[0], planes[1], dir);
+			d = DotProduct (dir, sweep_velocity);
+			VectorScale (dir, d, sweep_velocity);
 			d = DotProduct (dir, ent->v.velocity);
 			VectorScale (dir, d, ent->v.velocity);
 		}
@@ -660,7 +677,7 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		// if original velocity is against the original velocity, stop dead
 		// to avoid tiny occilations in sloping corners
 		//
-		if (DotProduct (ent->v.velocity, primal_velocity) <= 0)
+		if (DotProduct (sweep_velocity, primal_velocity) <= 0)
 		{
 			VectorCopy (vec3_origin, ent->v.velocity);
 			return blocked;
@@ -680,27 +697,19 @@ static float SV_EntGravity (edict_t *ent)
 ============
 SV_AddGravity
 
-Gravity is applied in two phases: the move runs with velocity biased to the
-average of this frame's 72Hz gravity steps, which lands positions exactly on
-the canonical 72Hz trajectory for any frame duration. SV_FinishGravity removes
-the bias after the move; both phases sum to gravity*frametime and the bias is
-zero when frametime == 1/72.
+Apply gravity fully before movement and touch callbacks.
+The separate sweep velocity preserves the canonical 72Hz freefall trajectory.
+Clip both velocities on impact; no post-movement gravity update is needed.
 ============
 */
-static void SV_AddGravity (edict_t *ent)
+static void SV_AddGravity (edict_t *ent, vec3_t move_velocity)
 {
-	const double dt = sv_analyticphysics_frame ? (host_frametime + 1.0 / MAX_PHYSICS_FREQ) * 0.5 : host_frametime;
-	ent->v.velocity[2] -= SV_EntGravity (ent) * sv_gravity.value * dt;
-}
+	const float	 gravity = SV_EntGravity (ent) * sv_gravity.value;
+	const double move_time = sv_analyticphysics_frame ? (host_frametime + 1.0 / MAX_PHYSICS_FREQ) * 0.5 : host_frametime;
 
-static void SV_FinishGravity (edict_t *ent)
-{
-	if (!sv_analyticphysics_frame)
-		return;
-	// entities that landed during the move keep their clipped velocity, like at 72fps
-	if ((int)ent->v.flags & FL_ONGROUND)
-		return;
-	ent->v.velocity[2] -= SV_EntGravity (ent) * sv_gravity.value * (host_frametime - 1.0 / MAX_PHYSICS_FREQ) * 0.5;
+	VectorCopy (ent->v.velocity, move_velocity);
+	move_velocity[2] -= gravity * move_time;
+	ent->v.velocity[2] -= gravity * host_frametime;
 }
 
 /*
@@ -1137,12 +1146,13 @@ static void SV_ClearWalkSupportClipContext (void)
 	VectorCopy (vec3_origin, sv_walk_support_normal);
 }
 
-static int SV_FlyMoveWithMoveFrameClipContext (edict_t *ent, float time, const sv_client_move_frame_t *move_frame, trace_t *steptrace)
+static int
+SV_FlyMoveWithMoveFrameClipContext (edict_t *ent, float time, const sv_client_move_frame_t *move_frame, const vec3_t move_velocity, trace_t *steptrace)
 {
 	int clip;
 
 	SV_SetWalkMoveFrameClipContext (move_frame);
-	clip = SV_FlyMove (ent, time, steptrace);
+	clip = SV_FlyMove (ent, time, move_velocity, steptrace);
 	SV_ClearWalkSupportClipContext ();
 	return clip;
 }
@@ -2058,7 +2068,7 @@ static int SV_TryUnstick (edict_t *ent, vec3_t oldvel)
 		ent->v.velocity[0] = oldvel[0];
 		ent->v.velocity[1] = oldvel[1];
 		ent->v.velocity[2] = 0;
-		clip = SV_FlyMove (ent, 0.1, &steptrace);
+		clip = SV_FlyMove (ent, 0.1, NULL, &steptrace);
 
 		if (fabs (oldorg[1] - ent->v.origin[1]) > 4 || fabs (oldorg[0] - ent->v.origin[0]) > 4)
 		{
@@ -2081,7 +2091,7 @@ SV_WalkMove
 Only used by players
 ======================
 */
-static void SV_WalkMove (edict_t *ent, const sv_client_move_frame_t *move_frame)
+static void SV_WalkMove (edict_t *ent, const sv_client_move_frame_t *move_frame, const vec3_t move_velocity)
 {
 	vec3_t	upmove, downmove;
 	vec3_t	oldorg, oldvel;
@@ -2099,7 +2109,7 @@ static void SV_WalkMove (edict_t *ent, const sv_client_move_frame_t *move_frame)
 	VectorCopy (ent->v.origin, oldorg);
 	VectorCopy (ent->v.velocity, oldvel);
 
-	clip = SV_FlyMoveWithMoveFrameClipContext (ent, host_frametime, move_frame, &steptrace);
+	clip = SV_FlyMoveWithMoveFrameClipContext (ent, host_frametime, move_frame, move_velocity, &steptrace);
 
 	if (!(clip & 2))
 	{
@@ -2137,7 +2147,7 @@ static void SV_WalkMove (edict_t *ent, const sv_client_move_frame_t *move_frame)
 	ent->v.velocity[0] = oldvel[0];
 	ent->v.velocity[1] = oldvel[1];
 	ent->v.velocity[2] = 0;
-	clip = SV_FlyMoveWithMoveFrameClipContext (ent, host_frametime, move_frame, &steptrace);
+	clip = SV_FlyMoveWithMoveFrameClipContext (ent, host_frametime, move_frame, NULL, &steptrace);
 
 	// check for stuckness, possibly due to the limited precision of floats
 	// in the clipping hulls. Disable when using pr_checkextension to avoid
@@ -2156,7 +2166,7 @@ static void SV_WalkMove (edict_t *ent, const sv_client_move_frame_t *move_frame)
 
 	// move down
 	VectorCopy (ent->v.origin, downmove);
-	downmove[2] += -STEPSIZE + oldvel[2] * host_frametime;
+	downmove[2] += -STEPSIZE + move_velocity[2] * host_frametime;
 	downtrace = SV_PushEntityTo (ent, downmove); // FIXME: don't link?
 
 	if (downtrace.plane.normal[2] > MIN_WALK_NORMAL)
@@ -2190,6 +2200,7 @@ Player character actions
 */
 static void SV_Physics_ClientWalk (edict_t *ent, sv_client_move_frame_t *move_frame)
 {
+	vec3_t	 move_velocity, old_velocity;
 	qboolean supported_by_pusher;
 	qboolean in_water;
 	qboolean apply_gravity;
@@ -2199,16 +2210,21 @@ static void SV_Physics_ClientWalk (edict_t *ent, sv_client_move_frame_t *move_fr
 	apply_gravity = !supported_by_pusher && !in_water && !((int)ent->v.flags & FL_WATERJUMP);
 
 	if (apply_gravity)
-		SV_AddGravity (ent);
-	else if (supported_by_pusher)
-		ent->v.velocity[2] = 0;
+		SV_AddGravity (ent, move_velocity);
+	else
+	{
+		if (supported_by_pusher)
+			ent->v.velocity[2] = 0;
+		VectorCopy (ent->v.velocity, move_velocity);
+	}
 
+	VectorCopy (ent->v.velocity, old_velocity);
 	SV_CheckStuckWithMoveFrame (ent, move_frame);
 	assert_always (!ent->free);
-	SV_WalkMove (ent, move_frame);
-
-	if (!ent->free && apply_gravity)
-		SV_FinishGravity (ent);
+	// Unsticking can touch a trigger that replaces the velocity.
+	if (!VectorCompare (ent->v.velocity, old_velocity))
+		VectorCopy (ent->v.velocity, move_velocity);
+	SV_WalkMove (ent, move_frame, move_velocity);
 }
 
 static void SV_Physics_Client (edict_t *ent, int num)
@@ -2269,7 +2285,7 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	case MOVETYPE_FLY:
 		if (!SV_RunThink (ent))
 			goto done;
-		SV_FlyMove (ent, host_frametime, NULL);
+		SV_FlyMove (ent, host_frametime, NULL, NULL);
 		break;
 
 	case MOVETYPE_NOCLIP:
@@ -2396,7 +2412,7 @@ Toss, bounce, and fly movement.  When onground, do nothing.
 static void SV_Physics_Toss (edict_t *ent)
 {
 	trace_t trace;
-	vec3_t	end;
+	vec3_t	end, move_velocity;
 	float	backoff;
 
 	// regular thinking
@@ -2411,20 +2427,19 @@ static void SV_Physics_Toss (edict_t *ent)
 
 	// add gravity
 	if (ent->v.movetype != MOVETYPE_FLY && ent->v.movetype != MOVETYPE_FLYMISSILE)
-		SV_AddGravity (ent);
+		SV_AddGravity (ent, move_velocity);
+	else
+		VectorCopy (ent->v.velocity, move_velocity);
 
 	// move angles
 	VectorMA (ent->v.angles, host_frametime, ent->v.avelocity, ent->v.angles);
 
 	// move origin
-	VectorMA (ent->v.origin, host_frametime, ent->v.velocity, end);
+	VectorMA (ent->v.origin, host_frametime, move_velocity, end);
 	trace = SV_PushEntityTo (ent, end);
 
 	if (ent->free)
 		return;
-
-	if (ent->v.movetype != MOVETYPE_FLY && ent->v.movetype != MOVETYPE_FLYMISSILE)
-		SV_FinishGravity (ent);
 
 	if (trace.fraction == 1)
 		return;
@@ -2479,6 +2494,7 @@ will fall if the floor is pulled out from under them.
 static void SV_Physics_Step (edict_t *ent)
 {
 	qboolean hitsound;
+	vec3_t	 move_velocity;
 
 	// freefall if not onground
 	if (!((int)ent->v.flags & (FL_ONGROUND | FL_FLY | FL_SWIM)))
@@ -2488,15 +2504,23 @@ static void SV_Physics_Step (edict_t *ent)
 		else
 			hitsound = false;
 
-		SV_AddGravity (ent);
+		SV_AddGravity (ent, move_velocity);
 		SV_CheckVelocity (ent);
-		SV_FlyMove (ent, host_frametime, NULL);
+		// Bound the sweep as well as the stored end velocity after gravity.
+		for (int i = 0; i < 3; i++)
+		{
+			if (IS_NAN (move_velocity[i]))
+				move_velocity[i] = 0;
+			if (move_velocity[i] > sv_maxvelocity.value)
+				move_velocity[i] = sv_maxvelocity.value;
+			else if (move_velocity[i] < -sv_maxvelocity.value)
+				move_velocity[i] = -sv_maxvelocity.value;
+		}
+		SV_FlyMove (ent, host_frametime, move_velocity, NULL);
 		SV_LinkEdict (ent, true);
 
 		if (ent->free)
 			return;
-
-		SV_FinishGravity (ent);
 
 		if ((int)ent->v.flags & FL_ONGROUND) // just hit ground
 		{
