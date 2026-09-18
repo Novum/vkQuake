@@ -54,6 +54,12 @@ static cvar_t gyro_calibration_x = {"gyro_calibration_x", "0", CVAR_ARCHIVE_GAME
 static cvar_t gyro_calibration_y = {"gyro_calibration_y", "0", CVAR_ARCHIVE_GAME};
 static cvar_t gyro_calibration_z = {"gyro_calibration_z", "0", CVAR_ARCHIVE_GAME};
 static cvar_t gyro_noise_thresh = {"gyro_noise_thresh", "1.5", CVAR_ARCHIVE_GAME};
+static cvar_t joy_flick = {"joy_flick", "0", CVAR_ARCHIVE_GAME};
+static cvar_t joy_flick_time = {"joy_flick_time", "0.125", CVAR_ARCHIVE_GAME};
+static cvar_t joy_flick_recenter = {"joy_flick_recenter", "0", CVAR_ARCHIVE_GAME};
+static cvar_t joy_flick_deadzone = {"joy_flick_deadzone", "0.9", CVAR_ARCHIVE_GAME};
+static cvar_t joy_flick_noise_thresh = {"joy_flick_noise_thresh", "2", CVAR_ARCHIVE_GAME};
+static cvar_t joy_flick_adjust_speed = {"joy_flick_adjust_speed", "30", CVAR_ARCHIVE_GAME};
 
 #ifdef USE_SDL3
 #define SDL3_GET_WINDOW (SDL_Window *)VID_GetWindow ()
@@ -133,6 +139,20 @@ static float		gyro_accum[3];
 static unsigned int gyro_calibration_samples;
 static qboolean		gyro_present;
 static qboolean		gyro_button_pressed;
+static struct
+{
+	float yaw;
+	float pitch;
+	float yaw_delta;
+	float previous_fraction;
+	float previous_angle;
+	float previous_scale;
+} flick;
+
+static void IN_ResetFlickState (void)
+{
+	memset (&flick, 0, sizeof (flick));
+}
 
 void IN_SetGyroAvailable (qboolean available)
 {
@@ -142,6 +162,7 @@ void IN_SetGyroAvailable (qboolean available)
 	{
 		gyro_calibration_samples = 0;
 		gyro_button_pressed = false;
+		IN_ResetFlickState ();
 	}
 }
 
@@ -359,6 +380,12 @@ void IN_Init (void)
 	Cvar_RegisterVariable (&gyro_calibration_y);
 	Cvar_RegisterVariable (&gyro_calibration_z);
 	Cvar_RegisterVariable (&gyro_noise_thresh);
+	Cvar_RegisterVariable (&joy_flick);
+	Cvar_RegisterVariable (&joy_flick_time);
+	Cvar_RegisterVariable (&joy_flick_recenter);
+	Cvar_RegisterVariable (&joy_flick_deadzone);
+	Cvar_RegisterVariable (&joy_flick_noise_thresh);
+	Cvar_RegisterVariable (&joy_flick_adjust_speed);
 	Cmd_AddCommand ("gyro_calibrate", IN_StartGyroCalibration_f);
 	Cmd_AddCommand ("+gyroaction", IN_GyroActionDown);
 	Cmd_AddCommand ("-gyroaction", IN_GyroActionUp);
@@ -737,11 +764,67 @@ void IN_JoyMove (usercmd_t *cmd)
 	if (CL_AngleLocked ())
 		return;
 
-	cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_frametime;
-	cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_frametime;
+	if (joy_flick.value && gyro_present && gyro_enable.value)
+	{
+		float		   angle = anglemod (atan2f (lookRaw.y, lookRaw.x) * (180.f / M_PI) + 90.f);
+		const float	   magnitude = IN_AxisMagnitude (lookRaw);
+		const qboolean active = magnitude > joy_flick_deadzone.value;
+		const qboolean was_active = flick.previous_scale > joy_flick_deadzone.value;
 
-	if (lookEased.x != 0 || lookEased.y != 0)
-		V_StopPitchDrift ();
+		if (active != was_active && !was_active)
+		{
+			flick.previous_fraction = 0.f;
+			flick.yaw = angle > 180.f ? angle - 360.f : angle;
+			flick.pitch = cl.viewangles[PITCH];
+		}
+		else if (active)
+		{
+			float delta = angle - flick.previous_angle;
+			if (delta > 180.f)
+				delta -= 360.f;
+			else if (delta < -180.f)
+				delta += 360.f;
+			if (joy_flick_noise_thresh.value > 0.f)
+			{
+				float filter = fabsf (delta) / joy_flick_noise_thresh.value;
+				if (filter < 1.f)
+				{
+					filter = 0.05f + 0.95f * filter * filter;
+					delta *= filter;
+					angle = anglemod (flick.previous_angle + delta);
+				}
+			}
+			flick.yaw_delta += delta;
+		}
+
+		float delta = joy_flick_adjust_speed.value > 0.f ? flick.yaw_delta * q_min (1.0, host_rawframetime * joy_flick_adjust_speed.value) : flick.yaw_delta;
+		if (fabsf (delta) > 0.01f)
+		{
+			cl.viewangles[YAW] -= delta;
+			flick.yaw_delta -= delta;
+		}
+
+		float		fraction = joy_flick_time.value > 0.f ? CLAMP (0.f, flick.previous_fraction + host_rawframetime / joy_flick_time.value, 1.f) : 1.f;
+		const float eased = 1.f - (1.f - fraction) * (1.f - fraction);
+		const float previous_eased = 1.f - (1.f - flick.previous_fraction) * (1.f - flick.previous_fraction);
+		delta = eased - previous_eased;
+		cl.viewangles[YAW] -= flick.yaw * delta;
+		cl.viewangles[PITCH] -= flick.pitch * delta * CLAMP (0.f, joy_flick_recenter.value, 1.f);
+
+		flick.previous_scale = magnitude;
+		flick.previous_angle = angle;
+		flick.previous_fraction = fraction;
+	}
+	else
+	{
+		IN_ResetFlickState ();
+		const double frame_time = host_rawframetime;
+		cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * frame_time;
+		cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * frame_time;
+
+		if (lookEased.x != 0 || lookEased.y != 0)
+			V_StopPitchDrift ();
+	}
 
 	/* johnfitz -- variable pitch clamping */
 	if (cl.viewangles[PITCH] > cl_maxpitch.value)
