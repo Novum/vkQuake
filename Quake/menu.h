@@ -34,6 +34,9 @@ enum m_state_e
 	m_setup,
 	m_net,
 	m_options,
+#ifdef USE_SDL3
+	m_controller,
+#endif
 	m_game,
 	m_sound,
 	m_video,

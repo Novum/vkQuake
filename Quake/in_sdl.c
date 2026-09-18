@@ -172,6 +172,11 @@ void IN_SetGyroAvailable (qboolean available)
 	}
 }
 
+qboolean IN_HasGyro (void)
+{
+	return gyro_present;
+}
+
 static float IN_FilterGyroSample (float previous, float current)
 {
 	const float threshold = DEG2RAD (gyro_noise_thresh.value);
