@@ -3490,6 +3490,45 @@ void SV_SpawnServer (const char *server)
 			SV_SendServerinfo (host_client);
 	}
 
+	// Exec map-specific map/mapname[@CRC16].rc. (same naming convention as *.ent)
+	{
+		char		 basemapname[MAX_QPATH];
+		char		 rcfilename[MAX_QPATH];
+		unsigned int path_id;
+		qboolean	 versioned = true;
+
+		q_strlcpy (basemapname, qcvm->worldmodel->name, sizeof (basemapname));
+		COM_StripExtension (basemapname, basemapname, sizeof (basemapname));
+
+		q_snprintf (rcfilename, sizeof (rcfilename), "%s@%04x.rc", basemapname, qcvm->worldmodel->entities_crc);
+
+		Con_DPrintf2 ("trying to load %s\n", rcfilename);
+		bool map_rc_exists = COM_FileExists (rcfilename, &path_id);
+
+		if (!map_rc_exists)
+		{
+			q_snprintf (rcfilename, sizeof (rcfilename), "%s.rc", basemapname);
+			Con_DPrintf2 ("trying to load %s\n", rcfilename);
+			map_rc_exists = COM_FileExists (rcfilename, &path_id);
+			versioned = false;
+		}
+
+		if (map_rc_exists)
+		{
+			// use .rc file only from the same gamedir as the map
+			// itself or from a searchpath with higher priority
+			// unless we got a CRC match
+			if (versioned == false && path_id < qcvm->worldmodel->path_id)
+			{
+				Con_DPrintf ("ignored %s from a gamedir with lower priority\n", rcfilename);
+			}
+			else
+			{
+				Cbuf_AddText (va ("exec %s\n", rcfilename));
+			}
+		}
+	} // End exec map-specific .rc
+
 	Con_DPrintf ("Server spawned.\n");
 
 	if (sv.mapchecks.active)
