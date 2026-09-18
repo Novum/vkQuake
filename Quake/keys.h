@@ -109,6 +109,10 @@ typedef enum keycode_t
 	K_RTHUMB,
 	K_LSHOULDER,
 	K_RSHOULDER,
+	K_DPAD_UP,
+	K_DPAD_DOWN,
+	K_DPAD_LEFT,
+	K_DPAD_RIGHT,
 	K_ABUTTON,
 	K_BBUTTON,
 	K_XBUTTON,
@@ -121,6 +125,27 @@ typedef enum keycode_t
 	K_PADDLE3,
 	K_PADDLE4,
 	K_TOUCHPAD,
+
+	K_LTHUMB_ALT,
+	K_RTHUMB_ALT,
+	K_LSHOULDER_ALT,
+	K_RSHOULDER_ALT,
+	K_DPAD_UP_ALT,
+	K_DPAD_DOWN_ALT,
+	K_DPAD_LEFT_ALT,
+	K_DPAD_RIGHT_ALT,
+	K_ABUTTON_ALT,
+	K_BBUTTON_ALT,
+	K_XBUTTON_ALT,
+	K_YBUTTON_ALT,
+	K_LTRIGGER_ALT,
+	K_RTRIGGER_ALT,
+	K_MISC1_ALT,
+	K_PADDLE1_ALT,
+	K_PADDLE2_ALT,
+	K_PADDLE3_ALT,
+	K_PADDLE4_ALT,
+	K_TOUCHPAD_ALT,
 
 	K_PAUSE,
 
@@ -143,6 +168,7 @@ typedef enum
 
 extern keydest_t key_dest;
 extern char		*keybindings[MAX_KEYS];
+extern qboolean	 joy_altmodifier_pressed;
 
 #define CMDLINES 1024
 
