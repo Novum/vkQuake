@@ -699,9 +699,10 @@ typedef struct qmodel_s
 	int			texofs[TEXTYPE_COUNT + 1]; // index of first texture of the given type in the usedtextures array
 	int		   *usedtextures;
 
-	byte *visdata;
-	byte *lightdata;
-	char *entities;
+	byte		*visdata;
+	byte		*lightdata;
+	char		*entities;
+	unsigned int entities_crc; // entities lump CRC16
 
 	qboolean viswarn;	 // for Mod_DecompressVis()
 	qboolean bogus_tree; // BSP node tree doesn't visit nummodelsurfaces surfaces

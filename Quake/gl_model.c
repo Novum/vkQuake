@@ -1499,7 +1499,6 @@ static void Mod_LoadEntities (qmodel_t *mod, byte *mod_base, lump_t *l)
 	char		 entfilename[MAX_QPATH];
 	char		*ents = NULL;
 	unsigned int path_id;
-	unsigned int crc = 0;
 	qboolean	 versioned = true;
 
 	if (!external_ents.value)
@@ -1507,13 +1506,17 @@ static void Mod_LoadEntities (qmodel_t *mod, byte *mod_base, lump_t *l)
 
 	if (l->filelen > 0)
 	{
-		crc = CRC_Block (mod_base + l->fileofs, l->filelen - 1);
+		mod->entities_crc = CRC_Block (mod_base + l->fileofs, l->filelen - 1);
+	}
+	else
+	{
+		mod->entities_crc = 0;
 	}
 
 	q_strlcpy (basemapname, mod->name, sizeof (basemapname));
 	COM_StripExtension (basemapname, basemapname, sizeof (basemapname));
 
-	q_snprintf (entfilename, sizeof (entfilename), "%s@%04x.ent", basemapname, crc);
+	q_snprintf (entfilename, sizeof (entfilename), "%s@%04x.ent", basemapname, mod->entities_crc);
 	Con_DPrintf2 ("trying to load %s\n", entfilename);
 	ents = (char *)COM_LoadFile (entfilename, &path_id);
 

@@ -1431,7 +1431,7 @@ static void Host_Map_f (void)
 		}
 		else if (cls.state == ca_connected)
 		{
-			Con_Printf ("Current map: %s ( %s )\n", cl.levelname, cl.mapname);
+			Con_Printf ("Current map: %s ( %s ) %s\n", cl.levelname, cl.mapname, cl.worldmodel ? va ("crc : %04x", cl.worldmodel->entities_crc) : "");
 		}
 		else
 		{
