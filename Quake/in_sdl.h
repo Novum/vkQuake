@@ -4,6 +4,8 @@ void IN_ShutdownJoystick (void);
 void	 IN_SetGamepadInputActive (qboolean active);
 qboolean IN_HasRumble (void);
 void	 IN_Rumble (uint16_t low_frequency, uint16_t high_frequency, uint32_t duration_ms);
+void	 IN_SetGyroAvailable (qboolean available);
+void	 IN_GyroSample (const float sample[3]);
 #endif
 void IN_BeginIgnoringMouseEvents (void);
 void IN_EndIgnoringMouseEvents (void);

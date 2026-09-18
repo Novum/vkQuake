@@ -2559,6 +2559,7 @@ static const menukeybind_t default_keybinds[] = {
 	{"+speed", "Run"},
 	{"+zoom", "Quick zoom"},
 #ifdef USE_SDL3
+	{"+gyroaction", "Gyro switch"},
 	{"+altmodifier", "Alt modifier"},
 #endif
 	{"+moveup", "Swim up"},
