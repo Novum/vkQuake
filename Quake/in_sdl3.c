@@ -93,6 +93,7 @@ void IN_StartupJoystick (void)
 
 void IN_ShutdownJoystick (void)
 {
+	joy_altmodifier_pressed = false;
 	SDL_QuitSubSystem (SDL_INIT_GAMEPAD);
 }
 
@@ -215,6 +216,7 @@ void IN_SendKeyEvents (void)
 		case SDL_EVENT_GAMEPAD_REMOVED:
 			if (joy_active_instaceid != 0 && event.gdevice.which == joy_active_instaceid)
 			{
+				joy_altmodifier_pressed = false;
 				SDL_CloseGamepad (joy_active_controller);
 				joy_active_controller = NULL;
 				joy_active_instaceid = 0;

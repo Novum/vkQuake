@@ -44,6 +44,9 @@ char	*keybindings[MAX_KEYS];
 qboolean consolekeys[MAX_KEYS]; // if true, can't be rebound while in console
 qboolean menubound[MAX_KEYS];	// if true, can't be rebound while in menu
 qboolean keydown[MAX_KEYS];
+#ifdef USE_SDL3
+static int gamepad_active_key[MAX_KEYS];
+#endif
 
 typedef struct
 {
@@ -126,6 +129,12 @@ keyname_t keynames[] = {
 	{"RTHUMB", K_RTHUMB},
 	{"LSHOULDER", K_LSHOULDER},
 	{"RSHOULDER", K_RSHOULDER},
+#ifdef USE_SDL3
+	{"DPAD_UP", K_DPAD_UP},
+	{"DPAD_DOWN", K_DPAD_DOWN},
+	{"DPAD_LEFT", K_DPAD_LEFT},
+	{"DPAD_RIGHT", K_DPAD_RIGHT},
+#endif
 	{"ABUTTON", K_ABUTTON},
 	{"BBUTTON", K_BBUTTON},
 	{"XBUTTON", K_XBUTTON},
@@ -138,6 +147,29 @@ keyname_t keynames[] = {
 	{"PADDLE3", K_PADDLE3},
 	{"PADDLE4", K_PADDLE4},
 	{"TOUCHPAD", K_TOUCHPAD},
+
+#ifdef USE_SDL3
+	{"LTHUMB_ALT", K_LTHUMB_ALT},
+	{"RTHUMB_ALT", K_RTHUMB_ALT},
+	{"LSHOULDER_ALT", K_LSHOULDER_ALT},
+	{"RSHOULDER_ALT", K_RSHOULDER_ALT},
+	{"DPAD_UP_ALT", K_DPAD_UP_ALT},
+	{"DPAD_DOWN_ALT", K_DPAD_DOWN_ALT},
+	{"DPAD_LEFT_ALT", K_DPAD_LEFT_ALT},
+	{"DPAD_RIGHT_ALT", K_DPAD_RIGHT_ALT},
+	{"ABUTTON_ALT", K_ABUTTON_ALT},
+	{"BBUTTON_ALT", K_BBUTTON_ALT},
+	{"XBUTTON_ALT", K_XBUTTON_ALT},
+	{"YBUTTON_ALT", K_YBUTTON_ALT},
+	{"LTRIGGER_ALT", K_LTRIGGER_ALT},
+	{"RTRIGGER_ALT", K_RTRIGGER_ALT},
+	{"MISC1_ALT", K_MISC1_ALT},
+	{"PADDLE1_ALT", K_PADDLE1_ALT},
+	{"PADDLE2_ALT", K_PADDLE2_ALT},
+	{"PADDLE3_ALT", K_PADDLE3_ALT},
+	{"PADDLE4_ALT", K_PADDLE4_ALT},
+	{"TOUCHPAD_ALT", K_TOUCHPAD_ALT},
+#endif
 
 	{NULL, 0}};
 
@@ -1024,6 +1056,27 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	if (key < 0 || key >= MAX_KEYS)
 		return;
 
+#ifdef USE_SDL3
+	if (key >= K_LTHUMB && key <= K_TOUCHPAD)
+	{
+		const int physical_key = key;
+		if (!down && gamepad_active_key[physical_key])
+			key = gamepad_active_key[physical_key];
+		else if (down && gamepad_active_key[physical_key])
+			key = gamepad_active_key[physical_key];
+		else if (down && joy_altmodifier_pressed && (!keybindings[key] || strcmp (keybindings[key], "+altmodifier")))
+		{
+			const int altkey = key + (K_LTHUMB_ALT - K_LTHUMB);
+			if (keybindings[altkey] || !keybindings[key])
+				key = altkey;
+		}
+		if (down)
+			gamepad_active_key[physical_key] = key;
+		else
+			gamepad_active_key[physical_key] = 0;
+	}
+#endif
+
 	// handle fullscreen toggle
 	if (down && (key == K_ENTER || key == K_KP_ENTER) && keydown[K_ALT])
 	{
@@ -1279,6 +1332,9 @@ void Key_ClearStates (void)
 		if (keydown[i])
 			Key_Event (i, false);
 	}
+#ifdef USE_SDL3
+	memset (gamepad_active_key, 0, sizeof (gamepad_active_key));
+#endif
 }
 
 /*

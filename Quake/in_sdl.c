@@ -28,6 +28,10 @@ static qboolean textmode;
 
 cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 
+#ifdef USE_SDL3
+qboolean joy_altmodifier_pressed = false;
+#endif
+
 // SDL Game Controller cvars
 static cvar_t joy_deadzone_look = {"joy_deadzone_look", "0.175", CVAR_ARCHIVE_GAME};
 static cvar_t joy_deadzone_move = {"joy_deadzone_move", "0.175", CVAR_ARCHIVE_GAME};
@@ -92,6 +96,18 @@ static qboolean no_mouse = false;
 /* total accumulated mouse movement since last frame,
    float because SDL3 reports relative motion in subpixel precision */
 static float total_dx, total_dy = 0;
+
+#ifdef USE_SDL3
+static void IN_JoyAltModifierDown (void)
+{
+	joy_altmodifier_pressed = true;
+}
+
+static void IN_JoyAltModifierUp (void)
+{
+	joy_altmodifier_pressed = false;
+}
+#endif
 
 void IN_Activate (void)
 {
@@ -221,6 +237,11 @@ void IN_Init (void)
 	Cvar_RegisterVariable (&joy_exponent_move);
 	Cvar_RegisterVariable (&joy_swapmovelook);
 	Cvar_RegisterVariable (&joy_enable);
+
+#ifdef USE_SDL3
+	Cmd_AddCommand ("+altmodifier", IN_JoyAltModifierDown);
+	Cmd_AddCommand ("-altmodifier", IN_JoyAltModifierUp);
+#endif
 
 	IN_Activate ();
 	IN_StartupJoystick ();
@@ -369,13 +390,29 @@ static int IN_KeyForControllerButton (SDL_GamepadButton button)
 	case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
 		return K_RSHOULDER;
 	case SDL_GAMEPAD_BUTTON_DPAD_UP:
+#ifdef USE_SDL3
+		return K_DPAD_UP;
+#else
 		return K_UPARROW;
+#endif
 	case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+#ifdef USE_SDL3
+		return K_DPAD_DOWN;
+#else
 		return K_DOWNARROW;
+#endif
 	case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+#ifdef USE_SDL3
+		return K_DPAD_LEFT;
+#else
 		return K_LEFTARROW;
+#endif
 	case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+#ifdef USE_SDL3
+		return K_DPAD_RIGHT;
+#else
 		return K_RIGHTARROW;
+#endif
 	case SDL_GAMEPAD_BUTTON_MISC1:
 		return K_MISC1;
 	case SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1:
@@ -463,14 +500,29 @@ void IN_Commands (void)
 		qboolean newstate = SDL_GameControllerGetButton (joy_active_controller, (SDL_GameControllerButton)i);
 #endif
 		qboolean oldstate = joy_buttonstate.buttondown[i];
+		int		 key;
 
 		joy_buttonstate.buttondown[i] = newstate;
+		key = IN_KeyForControllerButton ((SDL_GamepadButton)i);
+#ifdef USE_SDL3
+		if (key_dest != key_game && !M_WaitingForKeyBinding ())
+		{
+			if (key == K_DPAD_UP)
+				key = K_UPARROW;
+			else if (key == K_DPAD_DOWN)
+				key = K_DOWNARROW;
+			else if (key == K_DPAD_LEFT)
+				key = K_LEFTARROW;
+			else if (key == K_DPAD_RIGHT)
+				key = K_RIGHTARROW;
+		}
+#endif
 
 		// NOTE: This can cause a reentrant call of IN_Commands, via SCR_ModalMessage when confirming a new game.
 #ifdef USE_SDL3
-		IN_JoyKeyEvent (oldstate, newstate, IN_KeyForControllerButton ((SDL_GamepadButton)i), &joy_buttontimer[i]);
+		IN_JoyKeyEvent (oldstate, newstate, key, &joy_buttontimer[i]);
 #else
-		IN_JoyKeyEvent (oldstate, newstate, IN_KeyForControllerButton ((SDL_GameControllerButton)i), &joy_buttontimer[i]);
+		IN_JoyKeyEvent (oldstate, newstate, key, &joy_buttontimer[i]);
 #endif
 	}
 

@@ -2558,6 +2558,9 @@ static const menukeybind_t default_keybinds[] = {
 	{"+jump", "Jump / Swim up"},
 	{"+speed", "Run"},
 	{"+zoom", "Quick zoom"},
+#ifdef USE_SDL3
+	{"+altmodifier", "Alt modifier"},
+#endif
 	{"+moveup", "Swim up"},
 	{"+movedown", "Swim down"},
 	{"", ""},
