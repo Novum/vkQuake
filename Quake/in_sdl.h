@@ -1,5 +1,10 @@
 void IN_StartupJoystick (void);
 void IN_ShutdownJoystick (void);
+#ifdef USE_SDL3
+void	 IN_SetGamepadInputActive (qboolean active);
+qboolean IN_HasRumble (void);
+void	 IN_Rumble (uint16_t low_frequency, uint16_t high_frequency, uint32_t duration_ms);
+#endif
 void IN_BeginIgnoringMouseEvents (void);
 void IN_EndIgnoringMouseEvents (void);
 

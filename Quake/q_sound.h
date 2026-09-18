@@ -111,6 +111,11 @@ void   S_BeginPrecaching (void);
 void   S_EndPrecaching (void);
 void   S_PaintChannels (int endtime);
 void   S_InitPaintChannels (void);
+#ifdef USE_SDL3
+float S_GetLoFreqLevel (void);
+float S_GetHiFreqLevel (void);
+void  S_ClearFilteredLevels (void);
+#endif
 
 /* picks a channel based on priorities, empty slots, number of channels */
 channel_t *SND_PickChannel (int entnum, int entchannel);

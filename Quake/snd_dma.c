@@ -587,6 +587,10 @@ void S_ClearBuffer (void)
 	if (!sound_started || !shm)
 		goto unlock_mutex;
 
+#ifdef USE_SDL3
+	S_ClearFilteredLevels ();
+#endif
+
 	SNDDMA_LockBuffer ();
 	if (!shm->buffer)
 		goto unlock_mutex;
