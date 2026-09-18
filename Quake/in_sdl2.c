@@ -31,6 +31,16 @@ extern cvar_t in_debugkeys;
 static SDL_JoystickID joy_active_instaceid = -1;
 SDL_GameController	 *joy_active_controller = NULL;
 
+static void IN_SetupGamepadFeatures (void)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+	const qboolean has_gyro = joy_active_controller && SDL_GameControllerHasSensor (joy_active_controller, SDL_SENSOR_GYRO);
+	IN_SetGyroAvailable (has_gyro && SDL_GameControllerSetSensorEnabled (joy_active_controller, SDL_SENSOR_GYRO, SDL_TRUE) == 0);
+#else
+	IN_SetGyroAvailable (false);
+#endif
+}
+
 qboolean IN_HasRumble (void)
 {
 #if SDL_VERSION_ATLEAST(2, 0, 9)
@@ -94,6 +104,7 @@ void IN_StartupJoystick (void)
 
 				joy_active_instaceid = SDL_JoystickInstanceID (SDL_GameControllerGetJoystick (gamecontroller));
 				joy_active_controller = gamecontroller;
+				IN_SetupGamepadFeatures ();
 				break;
 			}
 			else
@@ -111,6 +122,7 @@ void IN_StartupJoystick (void)
 void IN_ShutdownJoystick (void)
 {
 	IN_Rumble (0, 0, 0);
+	IN_SetGyroAvailable (false);
 	IN_SetGamepadInputActive (false);
 	joy_altmodifier_pressed = false;
 	SDL_QuitSubSystem (SDL_INIT_GAMECONTROLLER);
@@ -225,6 +237,13 @@ void IN_SendKeyEvents (void)
 			IN_MouseMotion (event.motion.xrel, event.motion.yrel);
 			break;
 
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+		case SDL_CONTROLLERSENSORUPDATE:
+			if (event.csensor.which == joy_active_instaceid && event.csensor.sensor == SDL_SENSOR_GYRO)
+				IN_GyroSample (event.csensor.data);
+			break;
+#endif
+
 		case SDL_CONTROLLERDEVICEADDED:
 			if (joy_active_instaceid == -1)
 			{
@@ -236,6 +255,7 @@ void IN_SendKeyEvents (void)
 					SDL_Joystick *joy;
 					joy = SDL_GameControllerGetJoystick (joy_active_controller);
 					joy_active_instaceid = SDL_JoystickInstanceID (joy);
+					IN_SetupGamepadFeatures ();
 				}
 			}
 			else
@@ -245,6 +265,7 @@ void IN_SendKeyEvents (void)
 			if (joy_active_instaceid != -1 && event.cdevice.which == joy_active_instaceid)
 			{
 				IN_Rumble (0, 0, 0);
+				IN_SetGyroAvailable (false);
 				IN_SetGamepadInputActive (false);
 				joy_altmodifier_pressed = false;
 				SDL_GameControllerClose (joy_active_controller);

@@ -31,6 +31,12 @@ extern cvar_t in_debugkeys;
 static SDL_JoystickID joy_active_instaceid = 0; // in SDL3, 0 is the invalid joystick ID
 SDL_Gamepad			 *joy_active_controller = NULL;
 
+static void IN_SetupGamepadFeatures (void)
+{
+	const qboolean has_gyro = joy_active_controller && SDL_GamepadHasSensor (joy_active_controller, SDL_SENSOR_GYRO);
+	IN_SetGyroAvailable (has_gyro && SDL_SetGamepadSensorEnabled (joy_active_controller, SDL_SENSOR_GYRO, true));
+}
+
 qboolean IN_HasRumble (void)
 {
 	if (!joy_active_controller)
@@ -91,6 +97,7 @@ void IN_StartupJoystick (void)
 
 					joy_active_instaceid = id;
 					joy_active_controller = gamecontroller;
+					IN_SetupGamepadFeatures ();
 					SDL_free (joysticks);
 					return;
 				}
@@ -107,6 +114,7 @@ void IN_StartupJoystick (void)
 void IN_ShutdownJoystick (void)
 {
 	IN_Rumble (0, 0, 0);
+	IN_SetGyroAvailable (false);
 	IN_SetGamepadInputActive (false);
 	joy_altmodifier_pressed = false;
 	SDL_QuitSubSystem (SDL_INIT_GAMEPAD);
@@ -228,6 +236,7 @@ void IN_SendKeyEvents (void)
 					SDL_Joystick *joy;
 					joy = SDL_GetGamepadJoystick (joy_active_controller);
 					joy_active_instaceid = SDL_GetJoystickID (joy);
+					IN_SetupGamepadFeatures ();
 				}
 			}
 			else
@@ -237,6 +246,7 @@ void IN_SendKeyEvents (void)
 			if (joy_active_instaceid != 0 && event.gdevice.which == joy_active_instaceid)
 			{
 				IN_Rumble (0, 0, 0);
+				IN_SetGyroAvailable (false);
 				IN_SetGamepadInputActive (false);
 				joy_altmodifier_pressed = false;
 				SDL_CloseGamepad (joy_active_controller);
@@ -248,6 +258,10 @@ void IN_SendKeyEvents (void)
 			break;
 		case SDL_EVENT_GAMEPAD_REMAPPED:
 			Con_DPrintf ("Ignoring SDL_EVENT_GAMEPAD_REMAPPED\n");
+			break;
+		case SDL_EVENT_GAMEPAD_SENSOR_UPDATE:
+			if (event.gsensor.which == joy_active_instaceid && event.gsensor.sensor == SDL_SENSOR_GYRO)
+				IN_GyroSample (event.gsensor.data);
 			break;
 
 		case SDL_EVENT_LOCALE_CHANGED:

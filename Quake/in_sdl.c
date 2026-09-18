@@ -45,6 +45,15 @@ static cvar_t joy_swapmovelook = {"joy_swapmovelook", "0", CVAR_ARCHIVE_GAME};
 static cvar_t joy_enable = {"joy_enable", "1", CVAR_ARCHIVE_GAME};
 static cvar_t joy_always_active = {"joy_always_active", "0", CVAR_ARCHIVE_GAME};
 static cvar_t joy_rumble = {"joy_rumble", "0.3", CVAR_ARCHIVE_GAME};
+static cvar_t gyro_enable = {"gyro_enable", "1", CVAR_ARCHIVE_GAME};
+static cvar_t gyro_mode = {"gyro_mode", "2", CVAR_ARCHIVE_GAME};
+static cvar_t gyro_turning_axis = {"gyro_turning_axis", "0", CVAR_ARCHIVE_GAME};
+static cvar_t gyro_yawsensitivity = {"gyro_yawsensitivity", "2.5", CVAR_ARCHIVE_GAME};
+static cvar_t gyro_pitchsensitivity = {"gyro_pitchsensitivity", "2.5", CVAR_ARCHIVE_GAME};
+static cvar_t gyro_calibration_x = {"gyro_calibration_x", "0", CVAR_ARCHIVE_GAME};
+static cvar_t gyro_calibration_y = {"gyro_calibration_y", "0", CVAR_ARCHIVE_GAME};
+static cvar_t gyro_calibration_z = {"gyro_calibration_z", "0", CVAR_ARCHIVE_GAME};
+static cvar_t gyro_noise_thresh = {"gyro_noise_thresh", "1.5", CVAR_ARCHIVE_GAME};
 
 #ifdef USE_SDL3
 #define SDL3_GET_WINDOW (SDL_Window *)VID_GetWindow ()
@@ -110,12 +119,97 @@ static qboolean IN_JoyActive (void)
    float because SDL3 reports relative motion in subpixel precision */
 static float total_dx, total_dy = 0;
 
+enum
+{
+	GYRO_BUTTON_IGNORED,
+	GYRO_BUTTON_ENABLES,
+	GYRO_BUTTON_DISABLES,
+	GYRO_BUTTON_INVERTS_DIR
+};
+
+#define GYRO_CALIBRATION_SAMPLES 300
+static float		gyro_yaw, gyro_pitch;
+static float		gyro_accum[3];
+static unsigned int gyro_calibration_samples;
+static qboolean		gyro_present;
+static qboolean		gyro_button_pressed;
+
+void IN_SetGyroAvailable (qboolean available)
+{
+	gyro_present = available;
+	gyro_yaw = gyro_pitch = 0.f;
+	if (!available)
+	{
+		gyro_calibration_samples = 0;
+		gyro_button_pressed = false;
+	}
+}
+
+static float IN_FilterGyroSample (float previous, float current)
+{
+	const float threshold = DEG2RAD (gyro_noise_thresh.value);
+	const float difference = fabsf (current - previous);
+	if (threshold > 0.f && difference < threshold)
+	{
+		const float fraction = difference / threshold;
+		current = previous + (current - previous) * (0.01f + 0.99f * fraction * fraction);
+	}
+	return current;
+}
+
+void IN_GyroSample (const float sample[3])
+{
+	if (gyro_calibration_samples)
+	{
+		for (int i = 0; i < 3; i++)
+			gyro_accum[i] += sample[i];
+		if (--gyro_calibration_samples == 0)
+		{
+			const float scale = 1.f / GYRO_CALIBRATION_SAMPLES;
+			Cvar_SetValueQuick (&gyro_calibration_x, gyro_accum[0] * scale);
+			Cvar_SetValueQuick (&gyro_calibration_y, gyro_accum[1] * scale);
+			Cvar_SetValueQuick (&gyro_calibration_z, gyro_accum[2] * scale);
+			Con_Printf ("Gyro calibration finished\n");
+		}
+		return;
+	}
+
+	const float previous_yaw = gyro_yaw;
+	const float previous_pitch = gyro_pitch;
+	gyro_yaw = gyro_turning_axis.value ? -(sample[2] - gyro_calibration_z.value) : sample[1] - gyro_calibration_y.value;
+	gyro_pitch = sample[0] - gyro_calibration_x.value;
+	gyro_yaw = IN_FilterGyroSample (previous_yaw, gyro_yaw);
+	gyro_pitch = IN_FilterGyroSample (previous_pitch, gyro_pitch);
+}
+
+static void IN_StartGyroCalibration_f (void)
+{
+	if (!gyro_present)
+	{
+		Con_Printf ("No gyro sensor available\n");
+		return;
+	}
+	IN_Rumble (0, 0, 0);
+	memset (gyro_accum, 0, sizeof (gyro_accum));
+	gyro_calibration_samples = GYRO_CALIBRATION_SAMPLES;
+	Con_Printf ("Calibrating gyro; keep the controller still...\n");
+}
+
+static void IN_GyroActionDown (void)
+{
+	gyro_button_pressed = true;
+}
+
+static void IN_GyroActionUp (void)
+{
+	gyro_button_pressed = false;
+}
+
 static float IN_ClampedFraction (float value, float min, float max)
 {
 	return CLAMP (0.f, (value - min) / (max - min), 1.f);
 }
 
-#ifdef USE_SDL3
 static void IN_JoyAltModifierDown (void)
 {
 	joy_altmodifier_pressed = true;
@@ -125,19 +219,6 @@ static void IN_JoyAltModifierUp (void)
 {
 	joy_altmodifier_pressed = false;
 }
-#endif
-
-#ifndef USE_SDL3
-static void IN_JoyAltModifierDown (void)
-{
-	joy_altmodifier_pressed = true;
-}
-
-static void IN_JoyAltModifierUp (void)
-{
-	joy_altmodifier_pressed = false;
-}
-#endif
 
 void IN_Activate (void)
 {
@@ -269,6 +350,18 @@ void IN_Init (void)
 	Cvar_RegisterVariable (&joy_enable);
 	Cvar_RegisterVariable (&joy_always_active);
 	Cvar_RegisterVariable (&joy_rumble);
+	Cvar_RegisterVariable (&gyro_enable);
+	Cvar_RegisterVariable (&gyro_mode);
+	Cvar_RegisterVariable (&gyro_turning_axis);
+	Cvar_RegisterVariable (&gyro_yawsensitivity);
+	Cvar_RegisterVariable (&gyro_pitchsensitivity);
+	Cvar_RegisterVariable (&gyro_calibration_x);
+	Cvar_RegisterVariable (&gyro_calibration_y);
+	Cvar_RegisterVariable (&gyro_calibration_z);
+	Cvar_RegisterVariable (&gyro_noise_thresh);
+	Cmd_AddCommand ("gyro_calibrate", IN_StartGyroCalibration_f);
+	Cmd_AddCommand ("+gyroaction", IN_GyroActionDown);
+	Cmd_AddCommand ("-gyroaction", IN_GyroActionUp);
 
 	Cmd_AddCommand ("+altmodifier", IN_JoyAltModifierDown);
 	Cmd_AddCommand ("-altmodifier", IN_JoyAltModifierUp);
@@ -579,7 +672,7 @@ void IN_Commands (void)
 
 	joy_axisstate = newaxisstate;
 
-	if (IN_JoyActive () && IN_HasRumble () && joy_rumble.value > 0.f)
+	if (IN_JoyActive () && IN_HasRumble () && !gyro_calibration_samples && joy_rumble.value > 0.f)
 	{
 		const float strength = CLAMP (0.f, joy_rumble.value, 1.f) * 65535.f;
 		const float low = IN_ClampedFraction (S_GetLoFreqLevel (), 0.067f, 0.45f);
@@ -657,6 +750,38 @@ void IN_JoyMove (usercmd_t *cmd)
 		cl.viewangles[PITCH] = cl_minpitch.value;
 }
 
+static void IN_GyroMove (void)
+{
+	float scale;
+	if (!gyro_enable.value || !gyro_present || !IN_JoyActive () || gyro_calibration_samples || cl.paused || key_dest != key_game || CL_AngleLocked ())
+		return;
+
+	scale = (180.f / M_PI) * host_rawframetime;
+	scale *= tanf (DEG2RAD (r_refdef.basefov) * 0.5f) / tanf (DEG2RAD (scr_fov.value) * 0.5f);
+	switch ((int)gyro_mode.value)
+	{
+	case GYRO_BUTTON_ENABLES:
+		if (!gyro_button_pressed)
+			return;
+		break;
+	case GYRO_BUTTON_DISABLES:
+		if (gyro_button_pressed)
+			return;
+		break;
+	case GYRO_BUTTON_INVERTS_DIR:
+		if (gyro_button_pressed)
+			scale = -scale;
+		break;
+	default:
+		break;
+	}
+
+	cl.viewangles[YAW] += scale * gyro_yaw * gyro_yawsensitivity.value;
+	cl.viewangles[PITCH] -= scale * gyro_pitch * gyro_pitchsensitivity.value;
+	V_StopPitchDrift ();
+	cl.viewangles[PITCH] = CLAMP (cl_minpitch.value, cl.viewangles[PITCH], cl_maxpitch.value);
+}
+
 void IN_MouseMove (usercmd_t *cmd)
 {
 	float dmx, dmy;
@@ -712,6 +837,7 @@ void IN_Move (usercmd_t *cmd)
 	cmd->upmove = 0;
 
 	IN_JoyMove (cmd);
+	IN_GyroMove ();
 	IN_MouseMove (cmd);
 }
 

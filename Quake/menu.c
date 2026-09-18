@@ -2558,6 +2558,7 @@ static const menukeybind_t default_keybinds[] = {
 	{"+jump", "Jump / Swim up"},
 	{"+speed", "Run"},
 	{"+zoom", "Quick zoom"},
+	{"+gyroaction", "Gyro switch"},
 	{"+altmodifier", "Alt modifier"},
 	{"+moveup", "Swim up"},
 	{"+movedown", "Swim down"},
