@@ -29,7 +29,9 @@ static int					 snd_scaletable[32][256];
 static int					*snd_p, snd_linear_count;
 static short				*snd_out;
 
-static int snd_vol;
+static int	 snd_vol;
+static float snd_lofreqlevel;
+static float snd_hifreqlevel;
 
 static void Snd_WriteLinearBlastStereo16 (void)
 {
@@ -385,6 +387,39 @@ static void S_UnderwaterFilter (int endtime)
 	}
 }
 
+static void S_UpdateLevels (int count)
+{
+	if (snd_vol <= 0)
+	{
+		S_ClearFilteredLevels ();
+		return;
+	}
+
+	const float scale = 0.5f / (snd_vol * 32768.f);
+	for (int i = 0; i < count; i++)
+	{
+		const float sample = (abs (paintbuffer[i].left) + abs (paintbuffer[i].right)) * scale;
+		snd_lofreqlevel += (sample - snd_lofreqlevel) * 1e-3f;
+		snd_hifreqlevel += (sample - snd_hifreqlevel) * 1e-2f;
+	}
+}
+
+float S_GetLoFreqLevel (void)
+{
+	return snd_lofreqlevel;
+}
+
+float S_GetHiFreqLevel (void)
+{
+	return snd_hifreqlevel;
+}
+
+void S_ClearFilteredLevels (void)
+{
+	snd_lofreqlevel = 0.f;
+	snd_hifreqlevel = 0.f;
+}
+
 /*
 ===============================================================================
 
@@ -488,6 +523,7 @@ void S_PaintChannels (int endtime)
 		}
 
 		S_UnderwaterFilter (end - paintedtime);
+		S_UpdateLevels (end - paintedtime);
 
 		// paint in the music
 		if (s_rawend >= paintedtime)

@@ -43,6 +43,8 @@ static cvar_t joy_exponent = {"joy_exponent", "2", CVAR_ARCHIVE_GAME};
 static cvar_t joy_exponent_move = {"joy_exponent_move", "2", CVAR_ARCHIVE_GAME};
 static cvar_t joy_swapmovelook = {"joy_swapmovelook", "0", CVAR_ARCHIVE_GAME};
 static cvar_t joy_enable = {"joy_enable", "1", CVAR_ARCHIVE_GAME};
+static cvar_t joy_always_active = {"joy_always_active", "0", CVAR_ARCHIVE_GAME};
+static cvar_t joy_rumble = {"joy_rumble", "0.3", CVAR_ARCHIVE_GAME};
 
 #ifdef USE_SDL3
 #define SDL3_GET_WINDOW (SDL_Window *)VID_GetWindow ()
@@ -92,10 +94,26 @@ static cvar_t joy_enable = {"joy_enable", "1", CVAR_ARCHIVE_GAME};
 #endif
 
 static qboolean no_mouse = false;
+static qboolean gamepad_input_active;
+
+void IN_SetGamepadInputActive (qboolean active)
+{
+	gamepad_input_active = active;
+}
+
+static qboolean IN_JoyActive (void)
+{
+	return joy_enable.value && joy_active_controller && (joy_always_active.value || gamepad_input_active);
+}
 
 /* total accumulated mouse movement since last frame,
    float because SDL3 reports relative motion in subpixel precision */
 static float total_dx, total_dy = 0;
+
+static float IN_ClampedFraction (float value, float min, float max)
+{
+	return CLAMP (0.f, (value - min) / (max - min), 1.f);
+}
 
 #ifdef USE_SDL3
 static void IN_JoyAltModifierDown (void)
@@ -249,6 +267,8 @@ void IN_Init (void)
 	Cvar_RegisterVariable (&joy_exponent_move);
 	Cvar_RegisterVariable (&joy_swapmovelook);
 	Cvar_RegisterVariable (&joy_enable);
+	Cvar_RegisterVariable (&joy_always_active);
+	Cvar_RegisterVariable (&joy_rumble);
 
 	Cmd_AddCommand ("+altmodifier", IN_JoyAltModifierDown);
 	Cmd_AddCommand ("-altmodifier", IN_JoyAltModifierUp);
@@ -446,12 +466,14 @@ static void IN_JoyKeyEvent (qboolean wasdown, qboolean isdown, int key, double *
 			if (currenttime >= *timer)
 			{
 				*timer = currenttime + 0.1;
+				IN_SetGamepadInputActive (true);
 				Key_Event (key, true);
 			}
 		}
 		else
 		{
 			*timer = 0;
+			IN_SetGamepadInputActive (true);
 			Key_Event (key, false);
 		}
 	}
@@ -460,6 +482,7 @@ static void IN_JoyKeyEvent (qboolean wasdown, qboolean isdown, int key, double *
 		if (isdown)
 		{
 			*timer = currenttime + 0.5;
+			IN_SetGamepadInputActive (true);
 			Key_Event (key, true);
 		}
 	}
@@ -515,6 +538,20 @@ void IN_Commands (void)
 		newaxisstate.axisvalue[i] = SDL_GetGamepadAxis (joy_active_controller, (SDL_GamepadAxis)i) / 32768.0f;
 	}
 
+	if (key_dest == key_game && !gamepad_input_active)
+	{
+		joyaxis_t move_axis = {newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTX], newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTY]};
+		joyaxis_t look_axis = {newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_RIGHTX], newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_RIGHTY]};
+		if (joy_swapmovelook.value)
+		{
+			const joyaxis_t temp = move_axis;
+			move_axis = look_axis;
+			look_axis = temp;
+		}
+		if (IN_AxisMagnitude (look_axis) > joy_deadzone_look.value || IN_AxisMagnitude (move_axis) > joy_deadzone_move.value)
+			IN_SetGamepadInputActive (true);
+	}
+
 	// emit emulated arrow keys so the analog sticks can be used in the menu
 	if (key_dest != key_game)
 	{
@@ -541,6 +578,15 @@ void IN_Commands (void)
 		K_RTRIGGER, &joy_emulatedkeytimer[5]);
 
 	joy_axisstate = newaxisstate;
+
+	if (IN_JoyActive () && IN_HasRumble () && joy_rumble.value > 0.f)
+	{
+		const float strength = CLAMP (0.f, joy_rumble.value, 1.f) * 65535.f;
+		const float low = IN_ClampedFraction (S_GetLoFreqLevel (), 0.067f, 0.45f);
+		float		high = IN_ClampedFraction (S_GetHiFreqLevel (), 0.061f, 0.45f);
+		high *= high;
+		IN_Rumble ((uint16_t)(low * strength), (uint16_t)(high * strength), 100);
+	}
 }
 
 /*

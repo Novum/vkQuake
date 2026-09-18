@@ -31,6 +31,27 @@ extern cvar_t in_debugkeys;
 static SDL_JoystickID joy_active_instaceid = -1;
 SDL_GameController	 *joy_active_controller = NULL;
 
+qboolean IN_HasRumble (void)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 9)
+	return joy_active_controller && SDL_GameControllerHasRumble (joy_active_controller);
+#else
+	return false;
+#endif
+}
+
+void IN_Rumble (uint16_t low_frequency, uint16_t high_frequency, uint32_t duration_ms)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 9)
+	if (joy_active_controller)
+		SDL_GameControllerRumble (joy_active_controller, low_frequency, high_frequency, duration_ms);
+#else
+	(void)low_frequency;
+	(void)high_frequency;
+	(void)duration_ms;
+#endif
+}
+
 void IN_StartupJoystick (void)
 {
 	char				controllerdb[MAX_OSPATH];
@@ -89,6 +110,8 @@ void IN_StartupJoystick (void)
 
 void IN_ShutdownJoystick (void)
 {
+	IN_Rumble (0, 0, 0);
+	IN_SetGamepadInputActive (false);
 	joy_altmodifier_pressed = false;
 	SDL_QuitSubSystem (SDL_INIT_GAMECONTROLLER);
 }
@@ -136,6 +159,7 @@ void IN_SendKeyEvents (void)
 			}
 			break;
 		case SDL_TEXTINPUT:
+			IN_SetGamepadInputActive (false);
 			if (in_debugkeys.value)
 				IN_DebugTextEvent (&event);
 
@@ -151,6 +175,7 @@ void IN_SendKeyEvents (void)
 			break;
 		case SDL_KEYDOWN:
 		case SDL_KEYUP:
+			IN_SetGamepadInputActive (false);
 			down = (event.key.state == SDL_PRESSED);
 
 			if (in_debugkeys.value)
@@ -166,6 +191,7 @@ void IN_SendKeyEvents (void)
 
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
+			IN_SetGamepadInputActive (false);
 			if (event.button.button < 1 || event.button.button > countof (buttonremap))
 			{
 				Con_Printf ("Ignored event for mouse button %d\n", event.button.button);
@@ -181,6 +207,7 @@ void IN_SendKeyEvents (void)
 			break;
 
 		case SDL_MOUSEWHEEL:
+			IN_SetGamepadInputActive (false);
 			if (event.wheel.y > 0)
 			{
 				Key_Event (K_MWHEELUP, true);
@@ -194,6 +221,7 @@ void IN_SendKeyEvents (void)
 			break;
 
 		case SDL_MOUSEMOTION:
+			IN_SetGamepadInputActive (false);
 			IN_MouseMotion (event.motion.xrel, event.motion.yrel);
 			break;
 
@@ -216,6 +244,8 @@ void IN_SendKeyEvents (void)
 		case SDL_CONTROLLERDEVICEREMOVED:
 			if (joy_active_instaceid != -1 && event.cdevice.which == joy_active_instaceid)
 			{
+				IN_Rumble (0, 0, 0);
+				IN_SetGamepadInputActive (false);
 				joy_altmodifier_pressed = false;
 				SDL_GameControllerClose (joy_active_controller);
 				joy_active_controller = NULL;
