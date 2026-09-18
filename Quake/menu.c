@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
+#include "in_sdl.h"
 #include "r_ssao.h"
 
 void (*vid_menucmdfn) (void); // johnfitz
@@ -2427,8 +2428,217 @@ static void M_SoundOptions_Draw (cb_context_t *cbx)
 
 enum
 {
+	CONTROLLER_YAW,
+	CONTROLLER_PITCH,
+	CONTROLLER_INVERT,
+	CONTROLLER_SWAP,
+	CONTROLLER_ALWAYS_ACTIVE,
+	CONTROLLER_LOOK_DEADZONE,
+	CONTROLLER_MOVE_DEADZONE,
+	CONTROLLER_TRIGGER_DEADZONE,
+	CONTROLLER_RUMBLE,
+	CONTROLLER_GYRO,
+	CONTROLLER_FLICK,
+	CONTROLLER_GYRO_MODE,
+	CONTROLLER_GYRO_AXIS,
+	CONTROLLER_GYRO_YAW,
+	CONTROLLER_GYRO_PITCH,
+	CONTROLLER_GYRO_NOISE,
+	CONTROLLER_CALIBRATE,
+	CONTROLLER_ITEMS
+};
+
+static int controller_options_cursor;
+
+static cvar_t *M_ControllerCvar (const char *name)
+{
+	cvar_t *var = Cvar_FindVar (name);
+	if (!var)
+		Sys_Error ("M_ControllerCvar: %s not registered", name);
+	return var;
+}
+
+static void M_Menu_ControllerOptions_f (void)
+{
+	M_MenuChanged ();
+	IN_Deactivate (true);
+	key_dest = key_menu;
+	m_state = m_controller;
+}
+
+static void M_ControllerOptions_Adjust (int dir)
+{
+	cvar_t *var = NULL;
+	float	value = 0.f;
+	switch (controller_options_cursor)
+	{
+	case CONTROLLER_YAW:
+		var = M_ControllerCvar ("joy_sensitivity_yaw");
+		value = CLAMP (10.f, var->value + dir * 10.f, 500.f);
+		break;
+	case CONTROLLER_PITCH:
+		var = M_ControllerCvar ("joy_sensitivity_pitch");
+		value = CLAMP (10.f, var->value + dir * 10.f, 500.f);
+		break;
+	case CONTROLLER_INVERT:
+		var = M_ControllerCvar ("joy_invert");
+		value = !var->value;
+		break;
+	case CONTROLLER_SWAP:
+		var = M_ControllerCvar ("joy_swapmovelook");
+		value = !var->value;
+		break;
+	case CONTROLLER_ALWAYS_ACTIVE:
+		var = M_ControllerCvar ("joy_always_active");
+		value = !var->value;
+		break;
+	case CONTROLLER_LOOK_DEADZONE:
+		var = M_ControllerCvar ("joy_deadzone_look");
+		value = CLAMP (0.f, var->value + dir * 0.025f, 0.5f);
+		break;
+	case CONTROLLER_MOVE_DEADZONE:
+		var = M_ControllerCvar ("joy_deadzone_move");
+		value = CLAMP (0.f, var->value + dir * 0.025f, 0.5f);
+		break;
+	case CONTROLLER_TRIGGER_DEADZONE:
+		var = M_ControllerCvar ("joy_deadzone_trigger");
+		value = CLAMP (0.f, var->value + dir * 0.025f, 0.5f);
+		break;
+	case CONTROLLER_RUMBLE:
+		if (!IN_HasRumble ())
+			return;
+		var = M_ControllerCvar ("joy_rumble");
+		value = CLAMP (0.f, var->value + dir * 0.1f, 1.f);
+		break;
+	case CONTROLLER_GYRO:
+		if (!IN_HasGyro ())
+			return;
+		var = M_ControllerCvar ("gyro_enable");
+		value = !var->value;
+		break;
+	case CONTROLLER_FLICK:
+		if (!IN_HasGyro ())
+			return;
+		var = M_ControllerCvar ("joy_flick");
+		value = !var->value;
+		break;
+	case CONTROLLER_GYRO_MODE:
+		var = M_ControllerCvar ("gyro_mode");
+		value = ((int)var->value + dir + 4) % 4;
+		break;
+	case CONTROLLER_GYRO_AXIS:
+		var = M_ControllerCvar ("gyro_turning_axis");
+		value = !var->value;
+		break;
+	case CONTROLLER_GYRO_YAW:
+		var = M_ControllerCvar ("gyro_yawsensitivity");
+		value = CLAMP (0.1f, var->value + dir * 0.1f, 20.f);
+		break;
+	case CONTROLLER_GYRO_PITCH:
+		var = M_ControllerCvar ("gyro_pitchsensitivity");
+		value = CLAMP (0.1f, var->value + dir * 0.1f, 20.f);
+		break;
+	case CONTROLLER_GYRO_NOISE:
+		var = M_ControllerCvar ("gyro_noise_thresh");
+		value = CLAMP (0.f, var->value + dir * 0.1f, 10.f);
+		break;
+	case CONTROLLER_CALIBRATE:
+		if (IN_HasGyro ())
+			Cbuf_AddText ("gyro_calibrate\n");
+		return;
+	}
+	Cvar_SetValueQuick (var, value);
+}
+
+static void M_ControllerOptions_Key (int key)
+{
+	switch (key)
+	{
+	case K_ESCAPE:
+	case K_MOUSE2:
+	case K_BBUTTON:
+		M_Menu_Options_f ();
+		break;
+	case K_UPARROW:
+		controller_options_cursor = (controller_options_cursor + CONTROLLER_ITEMS - 1) % CONTROLLER_ITEMS;
+		S_LocalSound ("misc/menu1.wav");
+		break;
+	case K_DOWNARROW:
+		controller_options_cursor = (controller_options_cursor + 1) % CONTROLLER_ITEMS;
+		S_LocalSound ("misc/menu1.wav");
+		break;
+	case K_LEFTARROW:
+		M_ControllerOptions_Adjust (-1);
+		break;
+	case K_RIGHTARROW:
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+	case K_MOUSE1:
+		M_ControllerOptions_Adjust (1);
+		break;
+	}
+}
+
+static void M_ControllerOptions_Draw (cb_context_t *cbx)
+{
+	static const char *const labels[CONTROLLER_ITEMS] = {"Look yaw",	  "Look pitch",		  "Invert pitch", "Swap sticks", "Always active", "Look deadzone",
+														 "Move deadzone", "Trigger deadzone", "Vibration",	  "Gyro",		 "Flick stick",	  "Gyro button",
+														 "Turning axis",  "Gyro yaw",		  "Gyro pitch",	  "Gyro noise",	 "Calibrate gyro"};
+	qpic_t					*p;
+	const int				 top = 32;
+
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	p = Draw_CachePic ("gfx/p_option.lmp");
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
+
+	for (int i = 0; i < CONTROLLER_ITEMS; i++)
+	{
+		const int y = top + i * CHARACTER_SIZE;
+		M_Print (cbx, 56, y, labels[i]);
+		M_Mouse_UpdateCursor (&controller_options_cursor, 56, 320, y, CHARACTER_SIZE, i);
+	}
+
+#define VALUE(name) (M_ControllerCvar (name)->value)
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_YAW * 8, va ("%.0f", VALUE ("joy_sensitivity_yaw")));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_PITCH * 8, va ("%.0f", VALUE ("joy_sensitivity_pitch")));
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_INVERT * 8, VALUE ("joy_invert"));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_SWAP * 8, VALUE ("joy_swapmovelook") ? "Left" : "Right");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_ALWAYS_ACTIVE * 8, VALUE ("joy_always_active"));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_LOOK_DEADZONE * 8, va ("%.0f%%", VALUE ("joy_deadzone_look") * 100.f));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_MOVE_DEADZONE * 8, va ("%.0f%%", VALUE ("joy_deadzone_move") * 100.f));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_TRIGGER_DEADZONE * 8, va ("%.0f%%", VALUE ("joy_deadzone_trigger") * 100.f));
+	if (IN_HasRumble ())
+		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_RUMBLE * 8, va ("%.0f%%", VALUE ("joy_rumble") * 100.f));
+	else
+		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_RUMBLE * 8, "N/A");
+	if (IN_HasGyro ())
+	{
+		M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO * 8, VALUE ("gyro_enable"));
+		M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_FLICK * 8, VALUE ("joy_flick"));
+	}
+	else
+	{
+		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO * 8, "N/A");
+		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_FLICK * 8, "N/A");
+	}
+	static const char *const modes[] = {"Ignored", "Enables", "Disables", "Inverts"};
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_MODE * 8, modes[CLAMP (0, (int)VALUE ("gyro_mode"), 3)]);
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_AXIS * 8, VALUE ("gyro_turning_axis") ? "Roll" : "Yaw");
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_YAW * 8, va ("%.1f", VALUE ("gyro_yawsensitivity")));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_PITCH * 8, va ("%.1f", VALUE ("gyro_pitchsensitivity")));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_NOISE * 8, va ("%.1f", VALUE ("gyro_noise_thresh")));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_CALIBRATE * 8, IN_HasGyro () ? "Start" : "N/A");
+#undef VALUE
+
+	Draw_Character (cbx, 48, top + controller_options_cursor * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
+}
+
+enum
+{
 	OPT_GAME = 0,
 	OPT_CONTROLS,
+	OPT_CONTROLLER,
 	OPT_VIDEO,
 	OPT_GRAPHICS,
 	OPT_SOUND,
@@ -2459,6 +2669,7 @@ static void M_Options_Draw (cb_context_t *cbx)
 	// Draw the items in the order of the enum defined above:
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * OPT_GAME, "Game");
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * OPT_CONTROLS, "Key Bindings");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * OPT_CONTROLLER, "Controller");
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * OPT_VIDEO, "Video");
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * OPT_GRAPHICS, "Graphics");
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * OPT_SOUND, "Sound");
@@ -2495,6 +2706,9 @@ void M_Options_Key (int k)
 			break;
 		case OPT_CONTROLS:
 			M_Menu_Keys_f ();
+			break;
+		case OPT_CONTROLLER:
+			M_Menu_ControllerOptions_f ();
 			break;
 		case OPT_DEFAULTS:
 			if (SCR_ModalMessage (
@@ -5086,6 +5300,10 @@ void M_Draw (cb_context_t *cbx)
 		M_Options_Draw (cbx);
 		break;
 
+	case m_controller:
+		M_ControllerOptions_Draw (cbx);
+		break;
+
 	case m_game:
 		M_GameOptions_Draw (cbx);
 		break;
@@ -5232,6 +5450,10 @@ void M_Keydown (int key, qboolean repeat)
 
 	case m_options:
 		M_Options_Key (key);
+		return;
+
+	case m_controller:
+		M_ControllerOptions_Key (key);
 		return;
 
 	case m_game:
