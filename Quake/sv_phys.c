@@ -540,7 +540,7 @@ static int SV_FlyMove (edict_t *ent, float time, const vec3_t move_velocity, tra
 	int					numplanes;
 	vec3_t				planes[MAX_CLIP_PLANES];
 	vec3_t				primal_velocity, original_velocity, new_velocity;
-	vec3_t				sweep_velocity, original_end_velocity, new_end_velocity, impact_velocity;
+	vec3_t				sweep_velocity, original_end_velocity, new_end_velocity = {0}, impact_velocity;
 	int					i, j;
 	trace_t				trace;
 	vec3_t				end;
