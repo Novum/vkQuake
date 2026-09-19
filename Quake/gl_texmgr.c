@@ -1330,15 +1330,15 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		mipwidth = glt->width;
 		mipheight = glt->height;
 
+		memcpy (staging_memory, data, mipwidth * mipheight * 4);
 		while (mipwidth >= 1 && mipheight >= 1)
 		{
-			memcpy (staging_memory + mip_offset, data, mipwidth * mipheight * 4);
-
+			const byte *previous_mip = staging_memory + mip_offset;
 			mip_offset += mipwidth * mipheight * 4;
 			num_regions += 1;
 
 			if (mipwidth > 1 && mipheight > 1)
-				TexMgr_Downsample (data, mipwidth, mipheight, mipwidth / 2, mipheight / 2);
+				stbir_resize_uint8 (previous_mip, mipwidth, mipheight, 0, staging_memory + mip_offset, mipwidth / 2, mipheight / 2, 0, 4);
 
 			mipwidth /= 2;
 			mipheight /= 2;
