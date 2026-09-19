@@ -165,6 +165,8 @@ SHADER_OBJS = \
 	indirect_comp.o \
 	indirect_clear_comp.o \
 	basic_frag.o \
+	fte_particles_frag.o \
+	fte_particles_msaa_frag.o \
 	basic_oit_frag.o \
 	basic_mboit_moment_frag.o \
 	basic_mboit_composite_frag.o \

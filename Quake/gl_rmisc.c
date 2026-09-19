@@ -1775,6 +1775,15 @@ void R_CreatePipelineLayouts ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.basic_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "basic_pipeline_layout");
 		vulkan_globals.basic_pipeline_layout.push_constant_range = push_constant_range;
 		vulkan_globals.basic_pipeline_layout.mboit_input_attachment_set = 1;
+
+		basic_descriptor_set_layouts[1] = vulkan_globals.input_attachment_set_layout.handle;
+		push_constant_range.size = 22 * sizeof (float);
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.fte_particle_pipeline_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.fte_particle_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "fte_particle_pipeline_layout");
+		vulkan_globals.fte_particle_pipeline_layout.push_constant_range = push_constant_range;
+		vulkan_globals.fte_particle_pipeline_layout.mboit_input_attachment_set = -1;
 	}
 
 	{
@@ -2524,6 +2533,8 @@ static VkVertexInputBindingDescription	 md5_8_vertex_binding_description;
 
 DECLARE_SHADER_MODULE (basic_vert);
 DECLARE_SHADER_MODULE (basic_frag);
+DECLARE_SHADER_MODULE (fte_particles_frag);
+DECLARE_SHADER_MODULE (fte_particles_msaa_frag);
 DECLARE_SHADER_MODULE (basic_oit_frag);
 DECLARE_SHADER_MODULE (basic_mboit_moment_frag);
 DECLARE_SHADER_MODULE (basic_mboit_composite_frag);
@@ -3372,6 +3383,26 @@ static void R_CreateFTEParticlesPipelines ()
 	pipeline_create_infos_t mode_base, infos;
 	for (int i = 0; i < 8; ++i)
 	{
+		// Resolve the fade policy once for each blend mode, at pipeline creation.
+		static const VkBool32 fade_channels[8][2] = {
+			{VK_FALSE, VK_TRUE}, // BM_BLEND: alpha
+			{VK_TRUE, VK_FALSE}, // BM_BLENDCOLOUR: RGB
+			{VK_FALSE, VK_TRUE}, // BM_ADDA: alpha
+			{VK_TRUE, VK_FALSE}, // BM_ADDC: RGB
+			{VK_TRUE, VK_TRUE},	 // BM_SUBTRACT: RGB and alpha
+			{VK_FALSE, VK_TRUE}, // BM_INVMODA: alpha
+			{VK_TRUE, VK_FALSE}, // BM_INVMODC: RGB
+			{VK_TRUE, VK_TRUE},	 // BM_PREMUL: RGB and alpha
+		};
+		const uint32_t				   specialization_data[] = {fade_channels[i][0], fade_channels[i][1], vulkan_globals.sample_count};
+		const VkSpecializationMapEntry specialization_entries[] = {
+			{0, 0, sizeof (uint32_t)}, {1, sizeof (uint32_t), sizeof (uint32_t)}, {2, 2 * sizeof (uint32_t), sizeof (uint32_t)}};
+		const VkSpecializationInfo specialization = {
+			.mapEntryCount = countof (specialization_entries),
+			.pMapEntries = specialization_entries,
+			.dataSize = sizeof (specialization_data),
+			.pData = specialization_data,
+		};
 		const int num_topologies = vulkan_globals.non_solid_fill ? 2 : 1;
 		for (int lines = 0; lines < num_topologies; ++lines)
 		{
@@ -3387,30 +3418,18 @@ static void R_CreateFTEParticlesPipelines ()
 			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 			{
 				R_CopyPipelineCreateInfos (&infos, &mode_base);
-				R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
+				R_SetPipelineRenderPassVariant (&infos, SUBPASS_FTE_PARTICLES, variant);
 				R_SetFTEParticleBlend (&infos.blend_attachment_states[0], i);
 				R_CreateGraphicsPipeline (
 					&vulkan_globals.fte_particle_pipelines[variant][mode], &infos, vulkan_globals.basic_pipeline_layout,
 					variant ? va ("%s_main_oit", fte_particle_pipeline_names[mode]) : fte_particle_pipeline_names[mode]);
-			}
 
-			R_CopyPipelineCreateInfos (&infos, &mode_base);
-			R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
-			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-			infos.shader_stages[1].module = basic_oit_frag_module;
-			R_SetWBOITBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (
-				&vulkan_globals.fte_particle_wboit_pipelines[mode], &infos, vulkan_globals.basic_pipeline_layout,
-				va ("%s_wboit", fte_particle_pipeline_names[mode]));
-
-			for (int variant = MAIN_RENDER_PASS_OIT; variant <= MAIN_RENDER_PASS_MBOIT; ++variant)
-			{
-				R_CopyPipelineCreateInfos (&infos, &mode_base);
-				R_SetPipelineRenderPassVariant (&infos, SUBPASS_OIT_RESOLVE, variant);
-				R_SetFTEParticleBlend (&infos.blend_attachment_states[0], i);
+				infos.shader_stages[1].module =
+					vulkan_globals.sample_count > VK_SAMPLE_COUNT_1_BIT ? fte_particles_msaa_frag_module : fte_particles_frag_module;
+				infos.shader_stages[1].pSpecializationInfo = &specialization;
 				R_CreateGraphicsPipeline (
-					&vulkan_globals.fte_particle_post_oit_pipelines[variant][mode], &infos, vulkan_globals.basic_pipeline_layout,
-					va ("%s_post_oit", fte_particle_pipeline_names[mode]));
+					&vulkan_globals.fte_soft_particle_pipelines[variant][mode], &infos, vulkan_globals.fte_particle_pipeline_layout,
+					va ("%s_soft_%d", fte_particle_pipeline_names[mode], variant));
 			}
 		}
 	}
@@ -4164,6 +4183,8 @@ static void R_CreateShaderModules ()
 {
 	CREATE_SHADER_MODULE (basic_vert);
 	CREATE_SHADER_MODULE (basic_frag);
+	CREATE_SHADER_MODULE (fte_particles_frag);
+	CREATE_SHADER_MODULE (fte_particles_msaa_frag);
 	CREATE_SHADER_MODULE (basic_oit_frag);
 	CREATE_SHADER_MODULE (basic_mboit_moment_frag);
 	CREATE_SHADER_MODULE (basic_mboit_composite_frag);
@@ -4263,6 +4284,8 @@ static void R_DestroyShaderModules ()
 {
 	DESTROY_SHADER_MODULE (basic_vert);
 	DESTROY_SHADER_MODULE (basic_frag);
+	DESTROY_SHADER_MODULE (fte_particles_frag);
+	DESTROY_SHADER_MODULE (fte_particles_msaa_frag);
 	DESTROY_SHADER_MODULE (basic_oit_frag);
 	DESTROY_SHADER_MODULE (basic_mboit_moment_frag);
 	DESTROY_SHADER_MODULE (basic_mboit_composite_frag);
@@ -4438,36 +4461,14 @@ void R_DestroyPipelines (void)
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.particle_mboit_composite_pipeline.handle, NULL);
 	vulkan_globals.particle_mboit_composite_pipeline.handle = VK_NULL_HANDLE;
 #ifdef PSET_SCRIPT
-	for (i = 0; i < 8; ++i)
-	{
-		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+		for (i = 0; i < (vulkan_globals.non_solid_fill ? 16 : 8); ++i)
 		{
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_pipelines[variant][i].handle, NULL);
 			vulkan_globals.fte_particle_pipelines[variant][i].handle = VK_NULL_HANDLE;
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_soft_particle_pipelines[variant][i].handle, NULL);
+			vulkan_globals.fte_soft_particle_pipelines[variant][i].handle = VK_NULL_HANDLE;
 		}
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_wboit_pipelines[i].handle, NULL);
-		vulkan_globals.fte_particle_wboit_pipelines[i].handle = VK_NULL_HANDLE;
-		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
-		{
-			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_post_oit_pipelines[variant][i].handle, NULL);
-			vulkan_globals.fte_particle_post_oit_pipelines[variant][i].handle = VK_NULL_HANDLE;
-		}
-		if (vulkan_globals.non_solid_fill)
-		{
-			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
-			{
-				vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_pipelines[variant][i + 8].handle, NULL);
-				vulkan_globals.fte_particle_pipelines[variant][i + 8].handle = VK_NULL_HANDLE;
-			}
-			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_wboit_pipelines[i + 8].handle, NULL);
-			vulkan_globals.fte_particle_wboit_pipelines[i + 8].handle = VK_NULL_HANDLE;
-			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
-			{
-				vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_post_oit_pipelines[variant][i + 8].handle, NULL);
-				vulkan_globals.fte_particle_post_oit_pipelines[variant][i + 8].handle = VK_NULL_HANDLE;
-			}
-		}
-	}
 #endif
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 	{

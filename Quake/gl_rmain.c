@@ -1458,15 +1458,9 @@ static void R_DrawParticlesTask (void *unused)
 		R_DrawParticles (composite_cbx);
 	}
 #ifdef PSET_SCRIPT
-	cb_context_t *fte_blend_cbx = NULL;
-	if (R_UseOIT ())
-	{
-		// the blend context is recorded for the resolve subpass, so only set the viewport here:
-		// R_SetupContext would bind a pipeline created for subpass 0
-		fte_blend_cbx = vulkan_globals.secondary_cb_contexts[SCBX_FTE_PARTICLES_BLEND];
-		R_SceneViewport (fte_blend_cbx, 0.0f);
-	}
-	PScript_DrawParticles (R_UseOIT () ? fte_blend_cbx : cbx, NULL);
+	cb_context_t *fte_blend_cbx = vulkan_globals.secondary_cb_contexts[SCBX_FTE_PARTICLES_BLEND];
+	R_SceneViewport (fte_blend_cbx, 0.0f);
+	PScript_DrawParticles (fte_blend_cbx);
 #endif
 }
 

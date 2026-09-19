@@ -224,7 +224,7 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 	}
 	R_AddGraphicsWork (&builder, DRAW_POST_ENTITIES, SCBX_SKY, SCBX_VIEW_MODEL);
 	if (!use_oit)
-		R_AddGraphicsWork (&builder, DRAW_TRANSPARENCY, SCBX_FTE_PARTICLES_BLEND, SCBX_MAIN_PASS_LAST);
+		R_AddGraphicsWork (&builder, DRAW_TRANSPARENCY, SCBX_ALPHA_ENTITIES_ACROSS_WATER, SCBX_MAIN_PASS_LAST);
 
 	if (variant == MAIN_RENDER_PASS_OIT)
 	{
@@ -232,7 +232,6 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 		R_AddGraphicsWork (&builder, DRAW_TRANSPARENCY, SCBX_ALPHA_ENTITIES_ACROSS_WATER, SCBX_MAIN_PASS_LAST);
 		R_NextSubpass (&builder, SUBPASS_OIT_RESOLVE);
 		R_AddGraphicsWork (&builder, DRAW_OIT_RESOLVE, SCBX_OIT_RESOLVE, SCBX_OIT_RESOLVE);
-		R_AddGraphicsWork (&builder, DRAW_BLENDED_PARTICLES, SCBX_FTE_PARTICLES_BLEND, SCBX_FTE_PARTICLES_BLEND);
 	}
 	else if (variant == MAIN_RENDER_PASS_MBOIT)
 	{
@@ -242,8 +241,9 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 		R_AddGraphicsWork (&builder, DRAW_TRANSPARENCY_COMPOSITE, SCBX_MBOIT_COMPOSITE_PASS_FIRST, SCBX_MBOIT_COMPOSITE_PASS_LAST);
 		R_NextSubpass (&builder, SUBPASS_OIT_RESOLVE);
 		R_AddGraphicsWork (&builder, DRAW_OIT_RESOLVE, SCBX_OIT_RESOLVE, SCBX_OIT_RESOLVE);
-		R_AddGraphicsWork (&builder, DRAW_BLENDED_PARTICLES, SCBX_FTE_PARTICLES_BLEND, SCBX_FTE_PARTICLES_BLEND);
 	}
+	R_NextSubpass (&builder, SUBPASS_FTE_PARTICLES);
+	R_AddGraphicsWork (&builder, DRAW_BLENDED_PARTICLES, SCBX_FTE_PARTICLES_BLEND, SCBX_FTE_PARTICLES_BLEND);
 	R_EndGraphicsPass (&builder);
 
 	// When disabled, this records the scene-to-GUI memory barrier instead.
@@ -1040,6 +1040,14 @@ static void R_CreateScenePasses (main_render_pass_variant_t variant)
 		if (resolve)
 			subpass_descriptions[SUBPASS_OIT_RESOLVE].pResolveAttachments = &resolve_attachment_reference;
 	}
+
+	// FTE particles read completed scene depth while retaining hardware depth testing.
+	subpass_descriptions[SUBPASS_FTE_PARTICLES] = subpass_descriptions[SUBPASS_MAIN];
+	subpass_descriptions[SUBPASS_FTE_PARTICLES].pDepthStencilAttachment = &depth_read_attachment_reference;
+	subpass_descriptions[SUBPASS_FTE_PARTICLES].inputAttachmentCount = 1;
+	subpass_descriptions[SUBPASS_FTE_PARTICLES].pInputAttachments = &depth_read_attachment_reference;
+	if (resolve)
+		subpass_descriptions[SUBPASS_FTE_PARTICLES].pResolveAttachments = &resolve_attachment_reference;
 
 	R_CreateGraphicsPasses (
 		variant, FRAME_TARGET_SCENE, attachment_descriptions,

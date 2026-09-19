@@ -1681,7 +1681,7 @@ static void GL_CreateDepthBuffer (void)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = vulkan_globals.sample_count;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 	if (r_ssao.value > 0)
 		image_create_info.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -1733,6 +1733,17 @@ static void GL_CreateDepthBuffer (void)
 		Sys_Error ("vkCreateImageView failed with code %i", (int)err);
 
 	GL_SetObjectName ((uint64_t)depth_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "Depth Buffer View");
+	vulkan_globals.particle_depth_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.input_attachment_set_layout);
+	const VkDescriptorImageInfo depth_info = {VK_NULL_HANDLE, depth_buffer_view, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL};
+	const VkWriteDescriptorSet	depth_write = {
+		 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		 .dstSet = vulkan_globals.particle_depth_descriptor_set,
+		 .dstBinding = 0,
+		 .descriptorCount = 1,
+		 .descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+		 .pImageInfo = &depth_info,
+	 };
+	vkUpdateDescriptorSets (vulkan_globals.device, 1, &depth_write, 0, NULL);
 }
 
 /*
@@ -2910,6 +2921,11 @@ static void GL_DestroyRenderResources (void)
 		vulkan_globals.color_buffers[i] = VK_NULL_HANDLE;
 	}
 
+	if (vulkan_globals.particle_depth_descriptor_set != VK_NULL_HANDLE)
+	{
+		R_FreeDescriptorSet (vulkan_globals.particle_depth_descriptor_set, &vulkan_globals.input_attachment_set_layout);
+		vulkan_globals.particle_depth_descriptor_set = VK_NULL_HANDLE;
+	}
 	vkDestroyImageView (vulkan_globals.device, depth_buffer_view, NULL);
 	R_DestroySSAO ();
 	vkDestroyImage (vulkan_globals.device, depth_buffer, NULL);
