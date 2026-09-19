@@ -1285,9 +1285,7 @@ void Host_Init (void)
 		Tests_Init ();
 	}
 
-#ifdef PSET_SCRIPT
 	PScript_InitParticles ();
-#endif
 	LOC_Init (); // for 2021 rerelease support.
 
 	host_initialized = true;

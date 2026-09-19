@@ -3091,10 +3091,8 @@ static void Mod_SetupSubmodels (qmodel_t *mod)
 			qmodel_t *submodel = Mod_FindName (name);
 			*submodel = *mod;
 			strcpy (submodel->name, name);
-#ifdef PSET_SCRIPT
 			// Need to NULL this otherwise we double delete in PScript_ClearSurfaceParticles
 			submodel->skytrimem = NULL;
-#endif
 			mod = submodel;
 		}
 	}
@@ -4040,9 +4038,7 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 			mod->flags |= MOD_FBRIGHTHACK;
 	}
 
-#ifdef PSET_SCRIPT
 	PScript_UpdateModelEffects (mod);
-#endif
 }
 
 static void check_tris_size (size_t numtris)

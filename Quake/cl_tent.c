@@ -61,7 +61,6 @@ void CL_UpdateBeam (qmodel_t *m, const char *trailname, const char *impactname, 
 	beam_t *b;
 	int		i;
 
-#ifdef PSET_SCRIPT
 	{
 		vec3_t normal, extra, impact;
 		VectorSubtract (end, start, normal);
@@ -70,7 +69,6 @@ void CL_UpdateBeam (qmodel_t *m, const char *trailname, const char *impactname, 
 		if (CL_TraceLine (start, extra, impact, normal, NULL) < 1)
 			PScript_RunParticleEffectTypeString (impact, normal, 1, impactname);
 	}
-#endif
 
 	// override any beam with the same entity
 	for (i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)

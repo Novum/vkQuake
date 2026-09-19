@@ -110,7 +110,6 @@ typedef struct particle_s
 } particle_t;
 
 #define P_INVALID -1
-#ifdef PSET_SCRIPT
 void PScript_InitParticles (void);
 void PScript_Shutdown (void);
 void PScript_FlushDlightsTask (void *unused);				// serial: dlights queued by last frame's deferred effect spawns; must
@@ -141,18 +140,6 @@ extern int r_trace_line_cache_counter;
 	{                                 \
 		++r_trace_line_cache_counter; \
 	} while (0);
-#else
-#define PScript_RunParticleEffectState(o, d, c, t, s)	true
-#define PScript_RunParticleEffectTypeString(o, d, c, n) true // just unconditionally returns an error
-#define PScript_EntParticleTrail(o, e, n)				true
-#define PScript_ParticleTrail(o, e, t, d, a, s)			true
-#define PScript_EntParticleTrail(o, e, n)				true
-#define PScript_RunParticleEffect(o, d, p, c)			true
-#define PScript_RunParticleWeather(min, max, d, c, p, n)
-#define PScript_ClearSurfaceParticles(m)
-#define PScript_DelinkTrailstate(tsp)
-#define InvalidateTraceLineCache()
-#endif
 
 typedef struct vulkan_pipeline_layout_s
 {
@@ -454,10 +441,8 @@ typedef struct
 	vulkan_pipeline_t		 mesh_interpolate_pipeline;
 	vulkan_pipeline_t		 skinning_pipeline;
 	vulkan_pipeline_t		 skinning_8_pipeline;
-#ifdef PSET_SCRIPT
-	vulkan_pipeline_t fte_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
-	vulkan_pipeline_t fte_soft_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
-#endif
+	vulkan_pipeline_t		 fte_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
+	vulkan_pipeline_t		 fte_soft_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
 
 	// Descriptors
 	VkDescriptorPool		 descriptor_pool;

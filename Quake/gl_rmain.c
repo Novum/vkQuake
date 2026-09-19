@@ -1222,9 +1222,7 @@ void R_ShowTris (cb_context_t *cbx)
 	if (r_particles.value)
 	{
 		R_DrawParticles_ShowTris (cbx);
-#ifdef PSET_SCRIPT
 		PScript_DrawParticles_ShowTris (cbx);
-#endif
 	}
 
 	R_EndDebugUtilsLabel (cbx);
@@ -1457,11 +1455,9 @@ static void R_DrawParticlesTask (void *unused)
 		Fog_EnableGFog (composite_cbx);
 		R_DrawParticles (composite_cbx);
 	}
-#ifdef PSET_SCRIPT
 	cb_context_t *fte_blend_cbx = vulkan_globals.secondary_cb_contexts[SCBX_FTE_PARTICLES_BLEND];
 	R_SceneViewport (fte_blend_cbx, 0.0f);
 	PScript_DrawParticles (fte_blend_cbx);
-#endif
 }
 
 /*
@@ -1617,7 +1613,6 @@ void R_RenderView (
 		Task_AddDependency (sort_transparents, draw_alpha_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_alpha_entities_task);
 
-#ifdef PSET_SCRIPT
 		// dlights queued by last frame's deferred effect spawns; must run before
 		// anything reads cl_dlights and before layout refills the queues
 		task_handle_t flush_dlights_task = Task_AllocateAndAssignFunc (PScript_FlushDlightsTask, NULL, 0);
@@ -1640,13 +1635,10 @@ void R_RenderView (
 
 		task_handle_t emit_particles_task = Task_AllocateAndAssignIndexedFunc (PScript_EmitParticlesTask, Tasks_NumWorkers (), NULL, 0);
 		Task_AddDependency (layout_particles_task, emit_particles_task);
-#endif
 
 		task_handle_t draw_particles_task = Task_AllocateAndAssignFunc (R_DrawParticlesTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_particles_task);
-#ifdef PSET_SCRIPT
 		Task_AddDependency (emit_particles_task, draw_particles_task);
-#endif
 		Task_AddDependency (begin_rendering_task, draw_particles_task);
 		Task_AddDependency (draw_particles_task, draw_done_task);
 
@@ -1659,9 +1651,7 @@ void R_RenderView (
 		Task_AddDependency (cull_surfaces, update_lightmaps_task);
 		Task_AddDependency (draw_entities_task, update_lightmaps_task);
 		Task_AddDependency (draw_alpha_entities_task, update_lightmaps_task);
-#ifdef PSET_SCRIPT
 		Task_AddDependency (flush_dlights_task, update_lightmaps_task);
-#endif
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
 
 		if (r_showtris.value)
@@ -1672,23 +1662,13 @@ void R_RenderView (
 			Task_AddDependency (draw_entities_task, draw_view_model_task);		 // not dependent, but mutually exclusive
 			Task_AddDependency (draw_alpha_entities_task, draw_view_model_task); // not dependent, but mutually exclusive
 
-#ifdef PSET_SCRIPT
 			Task_AddDependency (draw_particles_task, draw_view_model_task); // only scriptable particles are dependent
-#endif
 		}
 
-		task_handle_t tasks[] = {before_mark,			store_efrags,
-								 update_warp_textures,	draw_world_task,
-								 sort_transparents,		draw_sky_task,
-								 draw_water_task,		draw_view_model_task,
-								 draw_entities_task,	draw_alpha_entities_task,
-#ifdef PSET_SCRIPT
-								 flush_dlights_task,	update_particles_setup_task,
-								 update_particles_task, layout_particles_task,
-								 emit_particles_task,
-#endif
-								 draw_particles_task,	build_tlas_task,
-								 update_lightmaps_task};
+		task_handle_t tasks[] = {
+			before_mark,		   store_efrags,		  update_warp_textures, draw_world_task,		  sort_transparents,  draw_sky_task,
+			draw_water_task,	   draw_view_model_task,  draw_entities_task,	draw_alpha_entities_task, flush_dlights_task, update_particles_setup_task,
+			update_particles_task, layout_particles_task, emit_particles_task,	draw_particles_task,	  build_tlas_task,	  update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (cull_surfaces != chain_surfaces)
 		{
@@ -1709,7 +1689,6 @@ void R_RenderView (
 			R_DrawSSAOTask (NULL);
 		R_SortAlphaEntitiesTask (NULL);
 		R_DrawAlphaEntitiesTask (0, NULL);
-#ifdef PSET_SCRIPT
 		PScript_FlushDlightsTask (NULL); // no-op here (spawns run on the main thread), but keeps the queues drained across mode switches
 		PScript_UpdateParticlesSetupTask (NULL);
 		for (int pi = 0; pi < q_max (Tasks_NumWorkers (), 1); pi++)
@@ -1717,7 +1696,6 @@ void R_RenderView (
 		PScript_LayoutParticlesTask (NULL);
 		for (int pi = 0; pi < q_max (Tasks_NumWorkers (), 1); pi++)
 			PScript_EmitParticlesTask (pi, NULL);
-#endif
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
 		if (r_gpulightmapupdate.value)

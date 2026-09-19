@@ -3353,7 +3353,6 @@ static void R_SetFTEParticleBlend (VkPipelineColorBlendAttachmentState *blend_at
 
 static void R_CreateFTEParticlesPipelines ()
 {
-#ifdef PSET_SCRIPT
 	static const char *fte_particle_pipeline_names[16] = {"fte_particles_blend_tris",
 														  "fte_particles_blend_color_tris",
 														  "fte_particles_add_color_tris",
@@ -3433,7 +3432,6 @@ static void R_CreateFTEParticlesPipelines ()
 			}
 		}
 	}
-#endif
 }
 
 /*
@@ -4460,7 +4458,6 @@ void R_DestroyPipelines (void)
 	vulkan_globals.particle_mboit_moment_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.particle_mboit_composite_pipeline.handle, NULL);
 	vulkan_globals.particle_mboit_composite_pipeline.handle = VK_NULL_HANDLE;
-#ifdef PSET_SCRIPT
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		for (i = 0; i < (vulkan_globals.non_solid_fill ? 16 : 8); ++i)
 		{
@@ -4469,7 +4466,6 @@ void R_DestroyPipelines (void)
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_soft_particle_pipelines[variant][i].handle, NULL);
 			vulkan_globals.fte_soft_particle_pipelines[variant][i].handle = VK_NULL_HANDLE;
 		}
-#endif
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sprite_pipeline[variant].handle, NULL);
@@ -4921,9 +4917,7 @@ void R_NewMap (void)
 
 	r_viewleaf = NULL;
 	R_ClearParticles ();
-#ifdef PSET_SCRIPT
 	PScript_ClearParticles (true);
-#endif
 	GL_DeleteBModelVertexBuffer ();
 
 	GL_BuildLightmaps ();

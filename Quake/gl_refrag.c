@@ -240,7 +240,6 @@ void R_StoreEfrags (efrag_t **ppefrag)
 		pent = pefrag->entity;
 		if ((pent->visframe != r_framecount) && (cl_numvisedicts < cl_maxvisedicts))
 		{
-#ifdef PSET_SCRIPT
 			if (pent->netstate.emiteffectnum > 0)
 			{
 				float  t = cl.time - cl.oldtime;
@@ -274,7 +273,6 @@ void R_StoreEfrags (efrag_t **ppefrag)
 				if (pent->model->flags & MOD_EMITREPLACE)
 					continue;
 			}
-#endif
 			R_AllocateEntityBLAS (pent);
 			cl_visedicts[cl_numvisedicts++] = pent;
 			pent->visframe = r_framecount;

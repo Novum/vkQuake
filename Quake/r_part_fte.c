@@ -30,7 +30,6 @@ The engine has a few builtins.
 
 cvar_t r_fteparticles = {"r_fteparticles", "1", CVAR_ARCHIVE_GAME};
 
-#ifdef PSET_SCRIPT
 #define USE_DECALS
 #define Con_Printf Con_SafePrintf
 
@@ -2758,7 +2757,6 @@ static void FinishParticleType (part_type_t *ptype)
 	r_plooksdirty = true;
 }
 
-#ifdef PSET_SCRIPT_EFFECTINFO
 static void FinishEffectinfoParticleType (part_type_t *ptype, qboolean blooddecalonimpact)
 {
 	if (ptype->looks.type == PT_CDECAL)
@@ -3258,7 +3256,6 @@ static qboolean P_ImportEffectInfo_Name (char *config)
 	Mem_Free (file);
 	return true;
 }
-#endif
 
 /*
 ===============
@@ -3584,7 +3581,6 @@ static qboolean P_LoadParticleSet (char *name, qboolean implicit, qboolean showw
 	}
 	else
 	{
-#ifdef PSET_SCRIPT_EFFECTINFO
 		if (!strcmp (name, "effectinfo") || !strncmp (name, "effectinfo_", 11))
 		{
 			// FIXME: we're loading this too early to deal with per-map stuff.
@@ -3592,7 +3588,6 @@ static qboolean P_LoadParticleSet (char *name, qboolean implicit, qboolean showw
 			P_ImportEffectInfo_Name (name);
 			return true;
 		}
-#endif
 		if (showwarning)
 			Con_Printf (CON_WARNING "Couldn't find particle description %s\n", name);
 		return false;
@@ -7410,5 +7405,4 @@ void PScript_DrawParticles_ShowTris (cb_context_t *cbx)
 	}
 }
 
-#endif
 #endif
