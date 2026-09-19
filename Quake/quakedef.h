@@ -35,9 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define GAMENAME "id1" // directory to look in by default
 
-#define PSET_SCRIPT			   // enable the scriptable particle system (poorly ported from FTE)
-#define PSET_SCRIPT_EFFECTINFO // scripted particle system can load dp's effects
-
 #define LERP_BANDAID // HACK: send think interval over FTE protocol (loopback only, no demos)
 
 #define BSP29_VALVE // enable Half-Life map support

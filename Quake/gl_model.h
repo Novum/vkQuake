@@ -629,19 +629,17 @@ typedef struct qmodel_s
 
 	int flags;
 
-#ifdef PSET_SCRIPT
 	int					  emiteffect;  // spike -- this effect is emitted per-frame by entities with this model
 	int					  traileffect; // spike -- this effect is used when entities move
 	struct skytris_s	 *skytris;	   // spike -- surface-based particle emission for this model
 	struct skytriblock_s *skytrimem;   // spike -- surface-based particle emission for this model (for better cache performance+less allocs)
 	double				  skytime;	   // doesn't really cope with multiples. oh well...
-#endif
 	//
 	// volume occupied by the model graphics
 	//
-	vec3_t mins, maxs;
-	vec3_t ymins, ymaxs; // johnfitz -- bounds for entities with nonzero yaw
-	vec3_t rmins, rmaxs; // johnfitz -- bounds for entities with nonzero pitch or roll
+	vec3_t				  mins, maxs;
+	vec3_t				  ymins, ymaxs; // johnfitz -- bounds for entities with nonzero yaw
+	vec3_t				  rmins, rmaxs; // johnfitz -- bounds for entities with nonzero pitch or roll
 	// johnfitz -- removed float radius;
 
 	//

@@ -115,13 +115,11 @@ typedef struct entity_s
 	byte	  alpha;  // johnfitz -- alpha
 	entlerp_t lerp;
 
-#ifdef PSET_SCRIPT
 	struct trailstate_s *trailstate; // spike -- managed by the particle system, so we don't loose our position and spawn the wrong number of particles, and we
 									 // can track beams etc
 	struct trailstate_s *emitstate;	 // spike -- for effects which are not so static.
-#endif
-	float  traildelay; // time left until next particle trail update
-	vec3_t trailorg;   // previous particle trail point
+	float				 traildelay; // time left until next particle trail update
+	vec3_t				 trailorg;	 // previous particle trail point
 
 	lightcache_t lightcache; // alias light trace cache
 

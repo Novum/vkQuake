@@ -1126,12 +1126,10 @@ static void CL_ParseServerInfo (void)
 	cl.ackframes_count = 0;
 	if (cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
 		cl.ackframes[cl.ackframes_count++] = -1;
-#ifdef PSET_SCRIPT
 	// the protocol changing depending upon files found on the client's computer is of course a really shit way to design things
 	// especially when users have a nasty habit of changing config files.
 	if (cl.protocol_pext2 || (cl.protocol_pext1 & PEXT1_CSQC))
 		cl.protocol_particles = true; // doesn't have a pext flag of its own, but at least we know what it is.
-#endif
 }
 
 /*
@@ -1628,7 +1626,6 @@ static void CL_ParsePrecache (void)
 			// FIXME: update static entities with that modelindex
 		}
 		break;
-#ifdef PSET_SCRIPT
 	case 1: // particles
 		if (index < MAX_PARTICLETYPES)
 		{
@@ -1644,7 +1641,6 @@ static void CL_ParsePrecache (void)
 			}
 		}
 		break;
-#endif
 	case 2: // sounds
 		if (index < MAX_SOUNDS)
 			cl.sound_precache[index] = S_PrecacheSound (name);
@@ -1655,7 +1651,6 @@ static void CL_ParsePrecache (void)
 		break;
 	}
 }
-#ifdef PSET_SCRIPT
 int			CL_GenerateRandomParticlePrecache (const char *pname);
 // small function for simpler reuse
 static void CL_ForceProtocolParticles (void)
@@ -1740,7 +1735,6 @@ static void CL_ParseParticles (int type)
 		}
 	}
 }
-#endif
 
 #define SHOWNET(x)             \
 	if (cl_shownet.value == 2) \
@@ -2129,7 +2123,6 @@ void CL_ParseServerMessage (void)
 		case svc_localsound:
 			CL_ParseLocalSound ();
 			break;
-#ifdef PSET_SCRIPT
 		case svcdp_trailparticles:
 			if (!cl.protocol_particles)
 				CL_ForceProtocolParticles ();
@@ -2145,7 +2138,6 @@ void CL_ParseServerMessage (void)
 				CL_ForceProtocolParticles ();
 			CL_ParseParticles (1);
 			break;
-#endif
 
 		// spike -- for particles more than anything else
 		case svcdp_precache:

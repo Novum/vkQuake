@@ -85,14 +85,12 @@ typedef struct
 #define MAX_BEAMS 32 // johnfitz -- was 24
 typedef struct
 {
-	int				 entity;
-	struct qmodel_s *model;
-	float			 endtime;
-	vec3_t			 start, end;
-#ifdef PSET_SCRIPT
+	int					 entity;
+	struct qmodel_s		*model;
+	float				 endtime;
+	vec3_t				 start, end;
 	const char			*trailname;
 	struct trailstate_s *trailstate;
-#endif
 } beam_t;
 
 #define MAX_MAPSTRING 2048
@@ -261,7 +259,6 @@ typedef struct
 	unsigned protocol_pext1; // spike -- flag of fte protocol extensions
 	unsigned protocol_pext2; // spike -- flag of fte protocol extensions
 
-#ifdef PSET_SCRIPT
 	qboolean protocol_particles;
 	struct
 	{
@@ -273,7 +270,6 @@ typedef struct
 		const char *name;
 		int			index;
 	} local_particle_precache[MAX_PARTICLETYPES];
-#endif
 	int			 ackframes[8]; // big enough to cover burst
 	unsigned int ackframes_count;
 	qboolean	 requestresend;

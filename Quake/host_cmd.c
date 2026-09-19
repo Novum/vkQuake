@@ -2317,9 +2317,7 @@ static void Host_Loadgame_f (void)
 		V_ResetBlend ();
 		Fog_ResetFade ();
 		R_ClearParticles ();
-#ifdef PSET_SCRIPT
 		PScript_ClearParticles (false);
-#endif
 		SCR_CenterPrintClear ();
 
 		Send_Spawn_Info (svs.clients, true);

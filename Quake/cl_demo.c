@@ -216,9 +216,7 @@ void		 CL_Seek_f (void)
 		Fog_NewMap ();
 		Sky_NewMap ();
 		R_ClearParticles ();
-#ifdef PSET_SCRIPT
 		PScript_ClearParticles (false);
-#endif
 		SCR_CenterPrintClear ();
 		if (cl.intermission)
 		{
@@ -406,7 +404,6 @@ static void CL_Record_Prespawn (void)
 		}
 	}
 
-#ifdef PSET_SCRIPT
 	// particleindexes
 	for (idx = 0; idx < MAX_PARTICLETYPES; idx++)
 	{
@@ -422,7 +419,6 @@ static void CL_Record_Prespawn (void)
 			SZ_Clear (&net_message);
 		}
 	}
-#endif
 
 	MSG_WriteByte (&net_message, svc_signonnum);
 	MSG_WriteByte (&net_message, 2);

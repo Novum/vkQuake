@@ -4001,7 +4001,6 @@ qfilesize_t FS_filelength (fshandle_t *fh)
 	return fh->length;
 }
 
-#ifdef PSET_SCRIPT
 // for compat with dpp7 protocols, and mods that cba to precache things.
 void COM_Effectinfo_Enumerate (int (*cb) (const char *pname))
 {
@@ -4047,7 +4046,6 @@ void COM_Effectinfo_Enumerate (int (*cb) (const char *pname))
 	}
 	Mem_Free (buf);
 }
-#endif
 
 /*
 ============================================================================

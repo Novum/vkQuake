@@ -1554,7 +1554,6 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		key = ED_FindField (keyname);
 		if (!key)
 		{
-#ifdef PSET_SCRIPT
 			eval_t *val;
 			if (!strcmp (keyname, "traileffect") && qcvm == &sv.qcvm && sv.state == ss_loading)
 			{
@@ -1567,9 +1566,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 					val->_float = PF_SV_ForceParticlePrecache (com_token);
 			}
 			// johnfitz -- HACK -- suppress error becuase fog/sky/alpha fields might not be mentioned in defs.qc
-			else
-#endif
-				if (strncmp (keyname, "sky", 3) && strcmp (keyname, "fog") && strcmp (keyname, "alpha"))
+			else if (strncmp (keyname, "sky", 3) && strcmp (keyname, "fog") && strcmp (keyname, "alpha"))
 				Con_DPrintf ("\"%s\" is not a field\n", keyname); // johnfitz -- was Con_Printf
 			continue;
 		}

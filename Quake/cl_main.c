@@ -72,7 +72,6 @@ extern float  host_netinterval;			// Spike
 
 qboolean needs_relink;
 
-#ifdef PSET_SCRIPT
 void CL_ClearTrailStates (void)
 {
 	int i;
@@ -91,7 +90,6 @@ void CL_ClearTrailStates (void)
 		PScript_DelinkTrailstate (&(cl_beams[i].trailstate));
 	}
 }
-#endif
 
 void CL_FreeState (void)
 {
@@ -148,10 +146,8 @@ void CL_ClearState (void)
 	// johnfitz
 
 	cl.viewent.netstate = nullentitystate;
-#ifdef PSET_SCRIPT
 	// Spike -- this stuff needs to get reset to defaults.
 	PScript_Shutdown ();
-#endif
 }
 
 /*
@@ -834,7 +830,6 @@ void CL_RelinkEntities (void)
 			dl->color[2] = 0.25f;
 		}
 
-#ifdef PSET_SCRIPT
 		if (cl.paused)
 			;
 		else if (ent->netstate.traileffectnum > 0 && ent->netstate.traileffectnum < MAX_PARTICLETYPES)
@@ -849,11 +844,7 @@ void CL_RelinkEntities (void)
 			AngleVectors (ent->angles, axis[0], axis[1], axis[2]);
 			PScript_ParticleTrail (oldorg, ent->origin, ent->model->traileffect, frametime, i, axis, &ent->trailstate);
 		}
-		else
-#else
-#define PScript_EntParticleTrail(a, b, c) 1
-#endif
-			if (ent->model->flags & EF_GIB)
+		else if (ent->model->flags & EF_GIB)
 		{
 			if (PScript_EntParticleTrail (oldorg, ent, "TR_BLOOD"))
 				CL_RocketTrail (ent, 2);
@@ -895,7 +886,6 @@ void CL_RelinkEntities (void)
 
 		ent->forcelink = false;
 
-#ifdef PSET_SCRIPT
 		if (ent->netstate.emiteffectnum > 0)
 		{
 			vec3_t axis[3];
@@ -919,7 +909,6 @@ void CL_RelinkEntities (void)
 			if (ent->model->flags & MOD_EMITREPLACE)
 				continue;
 		}
-#endif
 
 		if (i == cl.viewentity && !chase_active.value)
 			continue;
@@ -935,7 +924,6 @@ void CL_RelinkEntities (void)
 	R_UpdateEntityDlights (); // 2021 rerelease shadow casting light entities
 }
 
-#ifdef PSET_SCRIPT
 int CL_GenerateRandomParticlePrecache (const char *pname)
 { // for dpp7 compat
 	size_t i;
@@ -953,7 +941,6 @@ int CL_GenerateRandomParticlePrecache (const char *pname)
 	}
 	return 0;
 }
-#endif
 
 /*
 ===============

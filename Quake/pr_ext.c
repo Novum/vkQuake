@@ -2892,7 +2892,6 @@ static void PF_cl_te_beam (void)
 
 	CL_UpdateBeam (Mod_ForName ("progs/beam.mdl", true), "TE_BEAM", "TE_BEAM_END", -NUM_FOR_EDICT (ed), start, end);
 }
-#ifdef PSET_SCRIPT
 static void PF_sv_te_particlerain (void)
 {
 	float *min = G_VECTOR (OFS_PARM0);
@@ -2951,10 +2950,6 @@ static void PF_sv_te_particlesnow (void)
 
 	SV_Multicast (MULTICAST_ALL_U, NULL, 0, PEXT2_REPLACEMENTDELTAS);
 }
-#else
-#define PF_sv_te_particlerain PF_void_stub
-#define PF_sv_te_particlesnow PF_void_stub
-#endif
 #define PF_sv_te_bloodshower	PF_void_stub
 #define PF_sv_te_explosionrgb	PF_void_stub
 #define PF_sv_te_particlecube	PF_void_stub
@@ -4445,7 +4440,6 @@ static void PF_isbackbuffered (void)
 	G_FLOAT (OFS_RETURN) = false; // okay to spam with more reliables.
 }
 
-#ifdef PSET_SCRIPT
 int PF_SV_ForceParticlePrecache (const char *s)
 {
 	unsigned int i;
@@ -4697,14 +4691,6 @@ static void PF_cl_pointparticles (void)
 	efnum = PF_CL_GetParticle (efnum);
 	PScript_RunParticleEffectState (org, vel, count, efnum, NULL);
 }
-#else
-#define PF_sv_particleeffectnum PF_void_stub
-#define PF_sv_trailparticles	PF_void_stub
-#define PF_sv_pointparticles	PF_void_stub
-#define PF_cl_particleeffectnum PF_void_stub
-#define PF_cl_trailparticles	PF_void_stub
-#define PF_cl_pointparticles	PF_void_stub
-#endif
 
 static void PF_cl_getstat_int (void)
 {
@@ -5877,22 +5863,16 @@ static struct
 	{"DP_SV_PRINT"},
 	{"DP_SV_SPAWNFUNC_PREFIX"},
 	{"DP_SV_WRITEUNTERMINATEDSTRING"},
-#ifdef PSET_SCRIPT
 	{"DP_TE_PARTICLERAIN", PR_Can_Particles},
 	{"DP_TE_PARTICLESNOW", PR_Can_Particles},
-#endif
 	{"DP_TE_STANDARDEFFECTBUILTINS"},
 	{"EXT_BITSHIFT"},
 	{"FRIK_FILE"},
-//	{"FTE_ENT_SKIN_CONTENTS"}, // SOLID_BSP&&skin==CONTENTS_FOO changes CONTENTS_SOLID to CONTENTS_FOO, allowing you to swim in moving ents without qc hacks,
-//							   // as well as correcting view cshifts etc.
-#ifdef PSET_SCRIPT
+	// {"FTE_ENT_SKIN_CONTENTS"}, // SOLID_BSP with CONTENTS_* skins changes CONTENTS_SOLID to CONTENTS_*.
+	// Allows swimming in moving entities without QC hacks and corrects view color shifts.
 	{"FTE_PART_SCRIPT"},
 	{"FTE_PART_NAMESPACES"},
-#ifdef PSET_SCRIPT_EFFECTINFO
 	{"FTE_PART_NAMESPACE_EFFECTINFO"},
-#endif
-#endif
 	{"FTE_QC_CHECKCOMMAND"},
 	{"FTE_QC_CROSSPRODUCT"},
 	{"FTE_QC_INFOKEY"},
@@ -5900,9 +5880,7 @@ static struct
 	{"FTE_QC_INTCONV"},
 	{"FTE_QC_MULTICAST"},
 	{"FTE_STRINGS"},
-#ifdef PSET_SCRIPT
 	{"FTE_SV_POINTPARTICLES", PR_Can_Particles},
-#endif
 	{"KRIMZON_SV_PARSECLIENTCOMMAND"},
 	{"ZQ_QC_STRINGS"},
 };
