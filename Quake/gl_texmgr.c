@@ -41,7 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // use comma operator to evaluate c, to avoid "unused parameter" warnings
 #define STBIR_MALLOC(sz, c) ((void)(c), Mem_Alloc (sz))
 #define STBIR_FREE(p, c)	((void)(c), Mem_Free (p))
-#include "stb_image_resize.h"
+#include "stb_image_resize2.h"
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
@@ -849,7 +849,7 @@ static unsigned *TexMgr_Downsample (unsigned *data, int in_width, int in_height,
 	assert ((out_height >= 1) && (out_height <= in_height));
 
 	TEMP_ALLOC (byte, image_resize_buffer, out_size_bytes);
-	stbir_resize_uint8 ((byte *)data, in_width, in_height, 0, image_resize_buffer, out_width, out_height, 0, 4);
+	stbir_resize_uint8_linear ((byte *)data, in_width, in_height, 0, image_resize_buffer, out_width, out_height, 0, STBIR_4CHANNEL);
 	memcpy (data, image_resize_buffer, out_size_bytes);
 	TEMP_FREE (image_resize_buffer);
 
@@ -1338,7 +1338,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			num_regions += 1;
 
 			if (mipwidth > 1 && mipheight > 1)
-				stbir_resize_uint8 (previous_mip, mipwidth, mipheight, 0, staging_memory + mip_offset, mipwidth / 2, mipheight / 2, 0, 4);
+				stbir_resize_uint8_linear (previous_mip, mipwidth, mipheight, 0, staging_memory + mip_offset, mipwidth / 2, mipheight / 2, 0, STBIR_4CHANNEL);
 
 			mipwidth /= 2;
 			mipheight /= 2;
