@@ -841,9 +841,9 @@ Sbar_DrawCSCQ
 */
 static void Sbar_DrawCSCQ (cb_context_t *cbx)
 {
-	qboolean deathmatchoverlay = false;
-	float	 s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-	int		 items = cl.stats[STAT_ITEMS];
+	qboolean	   deathmatchoverlay = false;
+	csqc_display_t display = SCR_GetCSQCDisplay ();
+	int			   items = cl.stats[STAT_ITEMS];
 	if (cl.time < cl.oldtime)
 		cl.stats[STAT_ITEMS] = 0;
 	GL_SetCanvas (cbx, CANVAS_CSQC); // johnfitz
@@ -859,12 +859,12 @@ static void Sbar_DrawCSCQ (cb_context_t *cbx)
 		*qcvm->extglobals.player_localentnum = cl.viewentity;
 	pr_global_struct->time = cl.time;
 	Sbar_SortFrags ();
-	G_VECTORSET (OFS_PARM0, vid.width / s, vid.height / s, 0);
+	G_VECTORSET (OFS_PARM0, display.width / display.scale, display.height / display.scale, 0);
 	G_FLOAT (OFS_PARM1) = sb_showscores;
 	PR_ExecuteProgram (cl.qcvm.extfuncs.CSQC_DrawHud);
 	if (cl.qcvm.extfuncs.CSQC_DrawScores)
 	{
-		G_VECTORSET (OFS_PARM0, vid.width / s, vid.height / s, 0);
+		G_VECTORSET (OFS_PARM0, display.width / display.scale, display.height / display.scale, 0);
 		G_FLOAT (OFS_PARM1) = sb_showscores;
 		if (key_dest != key_menu)
 			PR_ExecuteProgram (cl.qcvm.extfuncs.CSQC_DrawScores);
@@ -1569,7 +1569,7 @@ void Sbar_IntermissionOverlay (cb_context_t *cbx)
 
 	if ((scr_style.value < 1.0f) && cl.qcvm.extfuncs.CSQC_DrawScores && !qcvm)
 	{
-		float s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		csqc_display_t display = SCR_GetCSQCDisplay ();
 		GL_SetCanvas (cbx, CANVAS_CSQC);
 		PR_SwitchQCVM (&cl.qcvm);
 		if (qcvm->extglobals.cltime)
@@ -1585,7 +1585,7 @@ void Sbar_IntermissionOverlay (cb_context_t *cbx)
 		pr_global_struct->time = cl.time;
 		pr_global_struct->frametime = host_frametime;
 		Sbar_SortFrags ();
-		G_VECTORSET (OFS_PARM0, vid.width / s, vid.height / s, 0);
+		G_VECTORSET (OFS_PARM0, display.width / display.scale, display.height / display.scale, 0);
 		G_FLOAT (OFS_PARM1) = sb_showscores;
 		PR_ExecuteProgram (cl.qcvm.extfuncs.CSQC_DrawScores);
 		PR_SwitchQCVM (NULL);

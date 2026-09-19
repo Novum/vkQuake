@@ -922,11 +922,10 @@ float cvar (string)
 */
 static void PF_cvar (void)
 {
-	const char *str;
-
-	str = G_STRING (OFS_PARM0);
-
-	G_FLOAT (OFS_RETURN) = Cvar_VariableValue (str);
+	cvar_t *var = Cvar_FindVar (G_STRING (OFS_PARM0));
+	float	value = var ? var->value : 0.0f;
+	PR_GetCSQCCvarValue (var, &value);
+	G_FLOAT (OFS_RETURN) = value;
 }
 
 /*

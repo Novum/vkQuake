@@ -1241,10 +1241,12 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		GL_Viewport (cbx, 0, 0, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_CSQC:
-		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-		GL_OrthoMatrix (cbx, 0, glwidth / s, glheight / s, 0, -99999, 99999);
+	{
+		csqc_display_t display = SCR_GetCSQCDisplay ();
+		GL_OrthoMatrix (cbx, 0, glwidth / display.pixel_scale[0], glheight / display.pixel_scale[1], 0, -99999, 99999);
 		GL_Viewport (cbx, 0, 0, glwidth, glheight, 0.0f, 1.0f);
 		break;
+	}
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 		if (cl.gametype == GAME_DEATHMATCH && scr_style.value < 2.0f)

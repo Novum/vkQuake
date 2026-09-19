@@ -476,6 +476,42 @@ static void SCR_Conwidth_f (cvar_t *var)
 	vid.conheight = vid.conwidth * vid.height / vid.width;
 }
 
+static float SCR_GetRelativeScale (void)
+{
+	return CLAMP (1.0f, scr_relativescale.value, 3.0f) * 0.0013f;
+}
+
+/*
+==================
+SCR_GetCSQCDisplay
+==================
+*/
+csqc_display_t SCR_GetCSQCDisplay (void)
+{
+	csqc_display_t display;
+	if (scr_relativescale.value && vid.width > 0 && vid.height > 0)
+	{
+		// Some mods' HUDs assume resolutions around 1080p and lay out incorrectly at higher resolutions.
+		// Give them a roughly 1080p virtual display (two million pixels) at the actual aspect ratio,
+		// then scale their drawing to the framebuffer. Absolute scaling retains the original behavior.
+		float aspect = (float)vid.width / (float)vid.height;
+		display.width = (int)roundf (sqrtf (2000000.0f * aspect));
+		display.height = (int)roundf (sqrtf (2000000.0f / aspect));
+		float scale = display.height * scr_relsbarscale.value * SCR_GetRelativeScale ();
+		display.scale = CLAMP (1.0, scale, display.width / 320.0);
+		display.pixel_scale[0] = display.scale * glwidth / display.width;
+		display.pixel_scale[1] = display.scale * glheight / display.height;
+	}
+	else
+	{
+		display.width = vid.width;
+		display.height = vid.height;
+		display.scale = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		display.pixel_scale[0] = display.pixel_scale[1] = display.scale;
+	}
+	return display;
+}
+
 /*
 ==================
 SCR_UpdateRelativeScale
@@ -485,8 +521,7 @@ void SCR_UpdateRelativeScale ()
 {
 	if (scr_relativescale.value)
 	{
-		float normalization_scale = 0.0013f; // To make scr_relmenuscale etc. more user friendly
-		float relative_scale = CLAMP (1.0f, scr_relativescale.value, 3.0f) * normalization_scale;
+		float relative_scale = SCR_GetRelativeScale ();
 
 		scr_menuscale.flags &= ~(CVAR_ARCHIVE | CVAR_ROM);
 		Cvar_SetValue ("scr_menuscale", (float)vid.height * scr_relmenuscale.value * relative_scale);
@@ -516,6 +551,7 @@ void SCR_UpdateRelativeScale ()
 		scr_conscale.flags &= ~CVAR_ROM;
 	}
 	SCR_Conwidth_f (NULL);
+	PR_RefreshCSQCDisplay ();
 }
 
 /*

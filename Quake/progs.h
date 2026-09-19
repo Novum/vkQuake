@@ -101,6 +101,9 @@ void	 PR_ExecuteProgram (func_t fnum);
 void	 PR_ClearProgs (qcvm_t *vm);
 qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcrc, const builtin_t *builtins, size_t numbuiltins);
 
+qboolean PR_GetCSQCCvarValue (const cvar_t *var, float *value);
+void	 PR_RefreshCSQCDisplay (void);
+
 // from pr_ext.c
 void   PR_InitExtensions (void);
 void   PR_EnableExtensions (ddef_t *pr_globaldefs); // adds in the extra builtins etc

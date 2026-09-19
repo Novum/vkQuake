@@ -34,11 +34,29 @@ extern void PF_sv_CheckPlayerEXFlags (void);
 extern void PF_sv_walkpathtogoal (void);
 extern void PF_sv_localsound (void);
 
-static float PR_GetVMScale (void)
+qboolean PR_GetCSQCCvarValue (const cvar_t *var, float *value)
 {
-	// sigh, this is horrible (divides glwidth)
-	float s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-	return s;
+	// Keep client HUD queries consistent with its virtual display. Server QC and
+	// console/config values continue to describe the actual display.
+	if (!var || qcvm != &cl.qcvm || !scr_relativescale.value)
+		return false;
+	if (var != &scr_sbarscale && strcmp (var->name, "vid_width") && strcmp (var->name, "vid_height"))
+		return false;
+
+	csqc_display_t display = SCR_GetCSQCDisplay ();
+	if (var == &scr_sbarscale)
+		*value = display.scale;
+	else if (!strcmp (var->name, "vid_width"))
+		*value = display.width;
+	else
+		*value = display.height;
+	return true;
+}
+
+static const char *PR_GetCvarString (const cvar_t *var)
+{
+	float value;
+	return PR_GetCSQCCvarValue (var, &value) ? va ("%g", value) : var->string;
 }
 
 // there's a few different aproaches to tempstrings...
@@ -2473,7 +2491,7 @@ static void PF_cvar_string (void)
 		// this would result in leaks/exploits/slowdowns if the qc spams calls to cvar_string+changes.
 		// so keep performance consistent, even if this is going to be slower.
 		char *temp = PR_GetTempString ();
-		q_strlcpy (temp, var->string, STRINGTEMP_LENGTH);
+		q_strlcpy (temp, PR_GetCvarString (var), STRINGTEMP_LENGTH);
 		G_INT (OFS_RETURN) = PR_SetEngineString (temp);
 	}
 	else if (!strcmp (name, "game"))
@@ -4926,12 +4944,12 @@ static void PF_cl_stringwidth (void)
 
 static void PF_cl_drawsetclip (void)
 {
-	float s = PR_GetVMScale ();
+	csqc_display_t display = SCR_GetCSQCDisplay ();
 
-	float x = G_FLOAT (OFS_PARM0) * s;
-	float y = G_FLOAT (OFS_PARM1) * s;
-	float w = G_FLOAT (OFS_PARM2) * s;
-	float h = G_FLOAT (OFS_PARM3) * s;
+	float x = G_FLOAT (OFS_PARM0) * display.pixel_scale[0];
+	float y = G_FLOAT (OFS_PARM1) * display.pixel_scale[1];
+	float w = G_FLOAT (OFS_PARM2) * display.pixel_scale[0];
+	float h = G_FLOAT (OFS_PARM3) * display.pixel_scale[1];
 
 	VkRect2D render_area;
 	render_area.offset.x = x;
@@ -6099,7 +6117,7 @@ void PR_AutoCvarChanged (cvar_t *var)
 		glob = ED_FindGlobal (n);
 		if (glob)
 		{
-			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
+			if (!ED_ParseEpair ((void *)qcvm->globals, glob, PR_GetCvarString (var), true))
 				Con_Warning ("EXT: Unable to configure %s\n", n);
 		}
 		PR_SwitchQCVM (NULL);
@@ -6111,12 +6129,24 @@ void PR_AutoCvarChanged (cvar_t *var)
 		glob = ED_FindGlobal (n);
 		if (glob)
 		{
-			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
+			if (!ED_ParseEpair ((void *)qcvm->globals, glob, PR_GetCvarString (var), true))
 				Con_Warning ("EXT: Unable to configure %s\n", n);
 		}
 		PR_SwitchQCVM (NULL);
 	}
 	PR_SwitchQCVM (oldqcvm);
+}
+
+void PR_RefreshCSQCDisplay (void)
+{
+	// Resolution and mode changes also affect the client VM's virtual cvar values.
+	const char *names[] = {"vid_width", "vid_height", "scr_sbarscale"};
+	for (int i = 0; i < countof (names); i++)
+	{
+		cvar_t *var = Cvar_FindVar (names[i]);
+		if (var && (var->flags & CVAR_AUTOCVAR))
+			PR_AutoCvarChanged (var);
+	}
 }
 
 void PR_InitExtensions (void)
@@ -6237,7 +6267,7 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 			if (!var)
 				continue; // name conflicts with a command?
 
-			if (!ED_ParseEpair ((void *)qcvm->globals, &pr_globaldefs[i], var->string, true))
+			if (!ED_ParseEpair ((void *)qcvm->globals, &pr_globaldefs[i], PR_GetCvarString (var), true))
 				Con_Warning ("EXT: Unable to configure %s\n", n);
 			var->flags |= CVAR_AUTOCVAR;
 		}
