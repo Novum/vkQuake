@@ -442,7 +442,6 @@ typedef struct
 	vulkan_pipeline_t		 skinning_pipeline;
 	vulkan_pipeline_t		 skinning_8_pipeline;
 	vulkan_pipeline_t		 fte_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
-	vulkan_pipeline_t		 fte_soft_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
 
 	// Descriptors
 	VkDescriptorPool		 descriptor_pool;

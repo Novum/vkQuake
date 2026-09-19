@@ -3382,25 +3382,13 @@ static void R_CreateFTEParticlesPipelines ()
 	pipeline_create_infos_t mode_base, infos;
 	for (int i = 0; i < 8; ++i)
 	{
-		// Resolve the fade policy once for each blend mode, at pipeline creation.
-		static const VkBool32 fade_channels[8][2] = {
-			{VK_FALSE, VK_TRUE}, // BM_BLEND: alpha
-			{VK_TRUE, VK_FALSE}, // BM_BLENDCOLOUR: RGB
-			{VK_FALSE, VK_TRUE}, // BM_ADDA: alpha
-			{VK_TRUE, VK_FALSE}, // BM_ADDC: RGB
-			{VK_TRUE, VK_TRUE},	 // BM_SUBTRACT: RGB and alpha
-			{VK_FALSE, VK_TRUE}, // BM_INVMODA: alpha
-			{VK_TRUE, VK_FALSE}, // BM_INVMODC: RGB
-			{VK_TRUE, VK_TRUE},	 // BM_PREMUL: RGB and alpha
-		};
-		const uint32_t				   specialization_data[] = {fade_channels[i][0], fade_channels[i][1], vulkan_globals.sample_count};
-		const VkSpecializationMapEntry specialization_entries[] = {
-			{0, 0, sizeof (uint32_t)}, {1, sizeof (uint32_t), sizeof (uint32_t)}, {2, 2 * sizeof (uint32_t), sizeof (uint32_t)}};
-		const VkSpecializationInfo specialization = {
-			.mapEntryCount = countof (specialization_entries),
-			.pMapEntries = specialization_entries,
-			.dataSize = sizeof (specialization_data),
-			.pData = specialization_data,
+		const uint32_t				   specialization_data[] = {vulkan_globals.sample_count, i};
+		const VkSpecializationMapEntry specialization_entries[] = {{0, 0, sizeof (uint32_t)}, {1, sizeof (uint32_t), sizeof (uint32_t)}};
+		const VkSpecializationInfo	   specialization = {
+				.mapEntryCount = countof (specialization_entries),
+				.pMapEntries = specialization_entries,
+				.dataSize = sizeof (specialization_data),
+				.pData = specialization_data,
 		};
 		const int num_topologies = vulkan_globals.non_solid_fill ? 2 : 1;
 		for (int lines = 0; lines < num_topologies; ++lines)
@@ -3419,16 +3407,12 @@ static void R_CreateFTEParticlesPipelines ()
 				R_CopyPipelineCreateInfos (&infos, &mode_base);
 				R_SetPipelineRenderPassVariant (&infos, SUBPASS_FTE_PARTICLES, variant);
 				R_SetFTEParticleBlend (&infos.blend_attachment_states[0], i);
-				R_CreateGraphicsPipeline (
-					&vulkan_globals.fte_particle_pipelines[variant][mode], &infos, vulkan_globals.basic_pipeline_layout,
-					variant ? va ("%s_main_oit", fte_particle_pipeline_names[mode]) : fte_particle_pipeline_names[mode]);
-
 				infos.shader_stages[1].module =
 					vulkan_globals.sample_count > VK_SAMPLE_COUNT_1_BIT ? fte_particles_msaa_frag_module : fte_particles_frag_module;
 				infos.shader_stages[1].pSpecializationInfo = &specialization;
 				R_CreateGraphicsPipeline (
-					&vulkan_globals.fte_soft_particle_pipelines[variant][mode], &infos, vulkan_globals.fte_particle_pipeline_layout,
-					va ("%s_soft_%d", fte_particle_pipeline_names[mode], variant));
+					&vulkan_globals.fte_particle_pipelines[variant][mode], &infos, vulkan_globals.fte_particle_pipeline_layout,
+					variant ? va ("%s_main_oit", fte_particle_pipeline_names[mode]) : fte_particle_pipeline_names[mode]);
 			}
 		}
 	}
@@ -4463,8 +4447,6 @@ void R_DestroyPipelines (void)
 		{
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_pipelines[variant][i].handle, NULL);
 			vulkan_globals.fte_particle_pipelines[variant][i].handle = VK_NULL_HANDLE;
-			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_soft_particle_pipelines[variant][i].handle, NULL);
-			vulkan_globals.fte_soft_particle_pipelines[variant][i].handle = VK_NULL_HANDLE;
 		}
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 	{

@@ -6228,26 +6228,21 @@ static void PScript_DrawParticleBatches (cb_context_t *cbx)
 			const int						 pipeline_index = blend_mode + (draw_lines ? 8 : 0);
 			const main_render_pass_variant_t main_pass_variant = cbx->pipeline_variant;
 			const qboolean					 soft = (tris->beflags & BEF_SOFT) && r_softparticles.value;
-			const vulkan_pipeline_t			 pipeline = soft ? vulkan_globals.fte_soft_particle_pipelines[main_pass_variant][pipeline_index]
-															 : vulkan_globals.fte_particle_pipelines[main_pass_variant][pipeline_index];
+			const vulkan_pipeline_t			 pipeline = vulkan_globals.fte_particle_pipelines[main_pass_variant][pipeline_index];
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
-			if (soft)
+			Fog_EnableGFog (cbx);
+			const struct
 			{
-				const struct
-				{
-					float depth_scale;
-					float inverse_fade_distance;
-				} soft_constants = {
-					.depth_scale = vulkan_globals.projection_matrix[14],
-					.inverse_fade_distance = 1.0f / q_max (0.01f, r_softparticledistance.value),
-				};
-				R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), sizeof (soft_constants), &soft_constants);
-				vulkan_globals.vk_cmd_bind_descriptor_sets (
-					cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 1, 1, &vulkan_globals.particle_depth_descriptor_set, 0, NULL);
-			}
-			else
-				Fog_DisableGFog (cbx);
+				float depth_scale;
+				float inverse_fade_distance;
+			} particle_constants = {
+				.depth_scale = vulkan_globals.projection_matrix[14],
+				.inverse_fade_distance = soft ? 1.0f / q_max (0.01f, r_softparticledistance.value) : 0.0f,
+			};
+			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), sizeof (particle_constants), &particle_constants);
+			vulkan_globals.vk_cmd_bind_descriptor_sets (
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 1, 1, &vulkan_globals.particle_depth_descriptor_set, 0, NULL);
 			gltexture_t *tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
 
 			const int		   num_indices = tris->numidx;
