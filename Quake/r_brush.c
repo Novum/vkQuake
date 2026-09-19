@@ -1345,7 +1345,27 @@ static void R_AssignWorkgroupBounds (msurface_t *surf, int submodel)
 UpdateIndirectStructs
 ================
 */
-static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
+typedef struct
+{
+	texture_t *texture;
+	uint32_t   lightmap_idx;
+	uint32_t   is_bmodel;
+} indirectdraw_key_t;
+
+static uint32_t IndirectDrawHash (const void *const value)
+{
+	const indirectdraw_key_t *key = value;
+	return HashCombine (HashPtr (&key->texture), HashCombine (HashInt32 (&key->lightmap_idx), HashInt32 (&key->is_bmodel)));
+}
+
+static qboolean IndirectDrawEqual (const void *const a, const void *const b)
+{
+	const indirectdraw_key_t *ka = a;
+	const indirectdraw_key_t *kb = b;
+	return ka->texture == kb->texture && ka->lightmap_idx == kb->lightmap_idx && ka->is_bmodel == kb->is_bmodel;
+}
+
+static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel, hash_map_t *draw_map)
 {
 	static int	   last;
 	int			   i;
@@ -1359,16 +1379,14 @@ static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
 			indirect_draws[last + i].max_indices += 3 * (surf->numedges - 2);
 		return;
 	}
-	for (i = 0; i < used_indirect_draws; i++)
+	const indirectdraw_key_t key = {surf->texinfo->texture, surf->lightmaptexturenum, is_bmodel};
+	const int				*index = HashMap_Lookup (int, draw_map, &key);
+	if (index)
 	{
-		if (indirect_draws[i].lightmap_idx == surf->lightmaptexturenum && indirect_draws[i].texture == surf->texinfo->texture &&
-			indirect_draws[i].is_bmodel == is_bmodel && !indirect_draws[i].is_decal)
-		{
-			surf->indirect_idx = last = i;
-			for (int j = 0; j < num_draws; ++j)
-				indirect_draws[i + j].max_indices += 3 * (surf->numedges - 2);
-			return;
-		}
+		surf->indirect_idx = last = *index;
+		for (i = 0; i < num_draws; ++i)
+			indirect_draws[last + i].max_indices += 3 * (surf->numedges - 2);
+		return;
 	}
 	if (used_indirect_draws + num_draws > MAX_INDIRECT_DRAWS)
 	{
@@ -1376,6 +1394,8 @@ static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
 		return;
 	}
 	surf->indirect_idx = last = used_indirect_draws;
+	// Only the base draw is indexed; a cutout bmodel's decal draw follows it.
+	HashMap_Insert (draw_map, &key, &last);
 	for (i = 0; i < num_draws; ++i)
 	{
 		indirectdraw_t *draw = &indirect_draws[used_indirect_draws++];
@@ -1931,6 +1951,7 @@ void GL_BuildLightmaps (void)
 	TEMP_ALLOC_ZEROED (uint32_t, surface_submodels, num_surfaces);
 
 	surface_data = GL_AllocateSurfaceDataBuffer ();
+	hash_map_t *draw_map = HashMap_Create (indirectdraw_key_t, int, &IndirectDrawHash, &IndirectDrawEqual);
 
 	R_StagingBeginCopy ();
 	unsigned int varray_index = 0;
@@ -1965,7 +1986,7 @@ void GL_BuildLightmaps (void)
 					R_AssignWorkgroupBounds (surf, submodel);
 			}
 			if (indirect_ready)
-				UpdateIndirectStructs (surf, INDIRECT_ZBIAS && surface_index >= indirect_bmodel_start);
+				UpdateIndirectStructs (surf, INDIRECT_ZBIAS && surface_index >= indirect_bmodel_start, draw_map);
 
 			lm_compute_surface_data_t *surf_data = &surface_data[surface_index];
 			surf_data->packed_lightstyles = ((uint32_t)(surf->styles[0]) << 0) | ((uint32_t)(surf->styles[1]) << 8) | ((uint32_t)(surf->styles[2]) << 16) |
@@ -1994,6 +2015,7 @@ void GL_BuildLightmaps (void)
 
 	R_StagingUploadBuffer (surface_submodels_buffer, num_surfaces * sizeof (uint32_t), (byte *)surface_submodels);
 	TEMP_FREE (surface_submodels);
+	HashMap_Destroy (draw_map);
 }
 
 /*
