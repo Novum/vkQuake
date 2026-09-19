@@ -32,6 +32,8 @@ shaders = [
     'Shaders/alias.vert',
     'Shaders/md5.vert',
     'Shaders/basic.vert',
+    'Shaders/fte_particles.frag',
+    'Shaders/fte_particles_msaa.frag',
     'Shaders/basic_alphatest.frag',
     'Shaders/basic_notex.frag',
     'Shaders/draw_pic.frag',

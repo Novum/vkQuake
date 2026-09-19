@@ -119,7 +119,7 @@ void PScript_UpdateParticlesSetupTask (void *unused);		// serial: frame time ste
 void PScript_UpdateParticlesTask (int index, void *unused); // indexed over the worker count: the parallel particle update
 void PScript_LayoutParticlesTask (void *unused);			// serial: batch creation and vertex range reservation, beams, decals
 void PScript_EmitParticlesTask (int index, void *unused);	// indexed over the worker count: parallel vertex generation
-void PScript_DrawParticles (cb_context_t *blend_cbx, cb_context_t *wboit_cbx);
+void PScript_DrawParticles (cb_context_t *cbx);
 void PScript_DrawParticles_ShowTris (cb_context_t *cbx);
 struct trailstate_s;
 int	 PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinterval, int dlkey, vec3_t axis[3], struct trailstate_s **tsk);
@@ -399,6 +399,8 @@ typedef struct
 
 	// Pipelines
 	vulkan_pipeline_layout_t basic_pipeline_layout;
+	vulkan_pipeline_layout_t fte_particle_pipeline_layout;
+	VkDescriptorSet			 particle_depth_descriptor_set;
 	vulkan_pipeline_layout_t gui_pipeline_layout;
 	vulkan_pipeline_t		 world_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_wboit_pipelines[WORLD_PIPELINE_COUNT];
@@ -454,8 +456,7 @@ typedef struct
 	vulkan_pipeline_t		 skinning_8_pipeline;
 #ifdef PSET_SCRIPT
 	vulkan_pipeline_t fte_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
-	vulkan_pipeline_t fte_particle_wboit_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
-	vulkan_pipeline_t fte_particle_post_oit_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
+	vulkan_pipeline_t fte_soft_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
 #endif
 
 	// Descriptors

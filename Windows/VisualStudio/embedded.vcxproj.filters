@@ -13,6 +13,12 @@
     <CustomBuild Include="..\..\Shaders\basic.frag">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\fte_particles.frag">
+      <Filter>Shaders\World</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\fte_particles_msaa.frag">
+      <Filter>Shaders\World</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
@@ -236,6 +242,11 @@
     </None>
     <None Include="..\..\Shaders\draw_pic_xbr_common.inc">
       <Filter>Shaders\GUI</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Shaders\fte_particles.inc">
+      <Filter>Shaders\World</Filter>
     </None>
   </ItemGroup>
 </Project>

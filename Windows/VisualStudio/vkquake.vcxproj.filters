@@ -352,6 +352,12 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic.frag.c">
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\fte_particles_msaa.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\fte_particles.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_oit.frag.c">
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
@@ -497,6 +503,12 @@
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\fte_particles_msaa.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\fte_particles.frag.c">
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic_oit.frag.c">
@@ -1064,5 +1076,10 @@
     <ResourceCompile Include="..\vkQuake.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Shaders\fte_particles.inc">
+      <Filter>Shaders\World</Filter>
+    </None>
   </ItemGroup>
 </Project>

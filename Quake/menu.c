@@ -127,6 +127,9 @@ extern cvar_t autoload;
 extern cvar_t autofastload;
 extern cvar_t r_rtshadows;
 extern cvar_t r_particles;
+#ifdef PSET_SCRIPT
+extern cvar_t r_softparticles;
+#endif
 extern cvar_t r_oit;
 extern cvar_t r_enhancedmodels;
 extern cvar_t r_lerpmodels;
@@ -1967,6 +1970,9 @@ enum
 	GRAPHICS_OPT_MODELS,
 	GRAPHICS_OPT_MODEL_INTERPOLATION,
 	GRAPHICS_OPT_PARTICLES,
+#ifdef PSET_SCRIPT
+	GRAPHICS_OPT_SOFT_PARTICLES,
+#endif
 	GRAPHICS_OPT_SHADOWS,
 	GRAPHICS_OPT_AMBIENT_OCCLUSION,
 	GRAPHICS_OPTIONS_ITEMS,
@@ -2131,6 +2137,12 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_PARTICLES:
 		M_GraphicsOptions_ChooseNextParticles (dir);
 		break;
+
+#ifdef PSET_SCRIPT
+	case GRAPHICS_OPT_SOFT_PARTICLES:
+		Cvar_SetValueQuick (&r_softparticles, !r_softparticles.value);
+		break;
+#endif
 	case GRAPHICS_OPT_SHADOWS:
 		if (vulkan_globals.ray_query)
 			Cvar_SetValueQuick (&r_rtshadows, (float)(((int)r_rtshadows.value + 4 + dir) % 4));
@@ -2276,6 +2288,11 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PARTICLES,
 		((int)r_particles.value == 0) ? "off" : (((int)r_particles.value == 2) ? "Classic" : "glQuake"));
+
+#ifdef PSET_SCRIPT
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SOFT_PARTICLES, "Soft Particles");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SOFT_PARTICLES, r_softparticles.value);
+#endif
 
 	if (vulkan_globals.screen_effects_sops)
 	{

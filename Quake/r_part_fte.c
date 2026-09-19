@@ -155,6 +155,7 @@ typedef struct trailstate_s
 #define CON_WARNING "Warning: "
 entity_t *CL_EntityNum (int num);
 #define BEF_LINES 1
+#define BEF_SOFT  2
 
 #define PART_VALID(part) ((part) >= 0 && (part) < numparticletypes)
 
@@ -490,6 +491,9 @@ static cvar_t r_part_sparks_trifan = {"r_part_sparks_trifan", "1"};
 static cvar_t r_part_sparks_textured = {"r_part_sparks_textured", "1"};
 static cvar_t r_part_beams = {"r_part_beams", "1"};
 static cvar_t r_part_contentswitch = {"r_part_contentswitch", "1"};
+cvar_t		  r_softparticles = {"r_softparticles", "1", CVAR_ARCHIVE};
+// Billboard intersection fade distance in view-space units.
+static cvar_t r_softparticledistance = {"r_softparticledistance", "4", CVAR_ARCHIVE};
 static cvar_t r_part_density = {"r_part_density", "1"};
 static cvar_t r_part_maxparticles = {"r_part_maxparticles", "65536"};
 static cvar_t r_part_maxdecals = {"r_part_maxdecals", "8192"};
@@ -3278,6 +3282,8 @@ void PScript_InitParticles (void)
 	Cvar_RegisterVariable (&r_part_density);
 	Cvar_RegisterVariable (&r_part_maxparticles);
 	Cvar_RegisterVariable (&r_part_maxdecals);
+	Cvar_RegisterVariable (&r_softparticles);
+	Cvar_RegisterVariable (&r_softparticledistance);
 	Cvar_RegisterVariable (&r_lightflicker);
 
 	Cmd_AddCommand ("r_partredirect", P_PartRedirect_f);
@@ -6200,14 +6206,14 @@ static void R_AddTexturedParticle (scenetris_t *t, particle_t *p, plooks_t *type
 	t->numidx += 6;
 }
 
-static void PScript_DrawParticleBatches (cb_context_t *cbx, qboolean draw_oit_batches, qboolean split_batches)
+static void PScript_DrawParticleBatches (cb_context_t *cbx)
 {
 	unsigned int i, o;
 
 	if (!cbx || !cl_numstris)
 		return;
 
-	R_BeginDebugUtilsLabel (cbx, draw_oit_batches ? "FTE Particles OIT" : "FTE Particles");
+	R_BeginDebugUtilsLabel (cbx, "FTE Particles");
 
 	for (o = 0; o < 3; o++)
 	{
@@ -6216,8 +6222,6 @@ static void PScript_DrawParticleBatches (cb_context_t *cbx, qboolean draw_oit_ba
 		{
 			scenetris_t *tris = &cl_stris[i];
 			const int	 blend_mode = tris->blendmode;
-			if (split_batches && tris->use_oit != draw_oit_batches)
-				continue;
 			if (blend_modes_order[blend_mode] != o)
 				continue;
 			const qboolean draw_lines = ((tris->beflags & BEF_LINES) != 0);
@@ -6228,13 +6232,27 @@ static void PScript_DrawParticleBatches (cb_context_t *cbx, qboolean draw_oit_ba
 
 			const int						 pipeline_index = blend_mode + (draw_lines ? 8 : 0);
 			const main_render_pass_variant_t main_pass_variant = cbx->pipeline_variant;
-			const vulkan_pipeline_t			 pipeline = draw_oit_batches ? vulkan_globals.fte_particle_wboit_pipelines[pipeline_index]
-														: cbx->subpass_type == SUBPASS_OIT_RESOLVE
-															? vulkan_globals.fte_particle_post_oit_pipelines[main_pass_variant][pipeline_index]
-															: vulkan_globals.fte_particle_pipelines[main_pass_variant][pipeline_index];
+			const qboolean					 soft = (tris->beflags & BEF_SOFT) && r_softparticles.value;
+			const vulkan_pipeline_t			 pipeline = soft ? vulkan_globals.fte_soft_particle_pipelines[main_pass_variant][pipeline_index]
+															 : vulkan_globals.fte_particle_pipelines[main_pass_variant][pipeline_index];
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
-			Fog_DisableGFog (cbx);
+			if (soft)
+			{
+				const struct
+				{
+					float depth_scale;
+					float inverse_fade_distance;
+				} soft_constants = {
+					.depth_scale = vulkan_globals.projection_matrix[14],
+					.inverse_fade_distance = 1.0f / q_max (0.01f, r_softparticledistance.value),
+				};
+				R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), sizeof (soft_constants), &soft_constants);
+				vulkan_globals.vk_cmd_bind_descriptor_sets (
+					cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 1, 1, &vulkan_globals.particle_depth_descriptor_set, 0, NULL);
+			}
+			else
+				Fog_DisableGFog (cbx);
 			gltexture_t *tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
 
 			const int		   num_indices = tris->numidx;
@@ -6946,6 +6964,7 @@ static void PScript_UpdateParticleTypes (float pframetime)
 			ipp = 6;
 			break;
 		case PT_NORMAL:
+			batchflags = BEF_SOFT;
 			tdraw = R_AddTexturedParticle;
 			emit_core = R_EmitTexturedParticle;
 			vpp = 4;
@@ -7359,14 +7378,13 @@ void PScript_EmitParticlesTask (int index, void *unused)
 	}
 }
 
-void PScript_DrawParticles (cb_context_t *blend_cbx, cb_context_t *wboit_cbx)
+void PScript_DrawParticles (cb_context_t *cbx)
 {
 	if (!r_particles.value)
 		return;
 
 	// simulated and emitted by the PScript_*ParticlesTask graph nodes, this only records the draws
-	PScript_DrawParticleBatches (blend_cbx, false, wboit_cbx != NULL);
-	PScript_DrawParticleBatches (wboit_cbx, true, true);
+	PScript_DrawParticleBatches (cbx);
 }
 
 /*

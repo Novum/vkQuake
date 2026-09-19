@@ -27,6 +27,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 DECLARE_SHADER_SPV (basic_vert);
 DECLARE_SHADER_SPV (basic_frag);
+DECLARE_SHADER_SPV (fte_particles_frag);
+DECLARE_SHADER_SPV (fte_particles_msaa_frag);
 DECLARE_SHADER_SPV (basic_oit_frag);
 DECLARE_SHADER_SPV (basic_mboit_moment_frag);
 DECLARE_SHADER_SPV (basic_mboit_composite_frag);
