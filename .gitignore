@@ -40,5 +40,6 @@ helgrind.log
 
 # clangd index
 .cache/
-*.user
+
+# Visual Studio per-user settings
 *.user
