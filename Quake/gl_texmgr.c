@@ -39,7 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // STB_IMAGERESIZE config:
 // plug our Mem_Alloc in stb_image_resize:
 // use comma operator to evaluate c, to avoid "unused parameter" warnings
-#define STBIR_MALLOC(sz, c) ((void)(c), Mem_Alloc (sz))
+#define STBIR_MALLOC(sz, c) ((void)(c), Mem_AllocNonZero (sz))
 #define STBIR_FREE(p, c)	((void)(c), Mem_Free (p))
 #include "stb_image_resize2.h"
 
