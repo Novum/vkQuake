@@ -14,10 +14,10 @@
       <Filter>Shaders\World</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\fte_particles.frag">
-      <Filter>Shaders\World</Filter>
+      <Filter>Shaders\Particles</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\fte_particles_msaa.frag">
-      <Filter>Shaders\World</Filter>
+      <Filter>Shaders\Particles</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
       <Filter>Shaders\World</Filter>
@@ -169,6 +169,9 @@
     <Filter Include="Shaders\World">
       <UniqueIdentifier>{2b7c0f93-0a3d-4e76-a127-fd00ad96c033}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Particles">
+      <UniqueIdentifier>{cffeb9dc-d35b-4de1-8d30-417e70912987}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shaders\Screen Effects">
       <UniqueIdentifier>{549275b0-79ae-4d53-b728-d7afd0194ed7}</UniqueIdentifier>
     </Filter>
@@ -246,7 +249,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Shaders\fte_particles.inc">
-      <Filter>Shaders\World</Filter>
+      <Filter>Shaders\Particles</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -35,6 +35,9 @@
     <Filter Include="Shaders\Debug\World">
       <UniqueIdentifier>{670d4b67-3db2-4fca-b994-df4bdd9e8ef8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Debug\Particles">
+      <UniqueIdentifier>{46f75d9e-e7ce-442a-88be-1a5aec95741d}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shaders\Debug\Screen Effects">
       <UniqueIdentifier>{270530b0-cb95-48a1-9c5d-122f90f6d58b}</UniqueIdentifier>
     </Filter>
@@ -52,6 +55,9 @@
     </Filter>
     <Filter Include="Shaders\Release\World">
       <UniqueIdentifier>{bc19c9dc-94b6-4209-856f-c3654c9c7a59}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Release\Particles">
+      <UniqueIdentifier>{fd7ecfce-0165-470e-b201-f36584fd5439}</UniqueIdentifier>
     </Filter>
     <Filter Include="Shaders\Release\Screen Effects">
       <UniqueIdentifier>{ca993cdd-bce2-48fe-83ec-f98bdd94febb}</UniqueIdentifier>
@@ -353,10 +359,10 @@
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\fte_particles_msaa.frag.c">
-      <Filter>Shaders\Debug\World</Filter>
+      <Filter>Shaders\Debug\Particles</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\fte_particles.frag.c">
-      <Filter>Shaders\Debug\World</Filter>
+      <Filter>Shaders\Debug\Particles</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_oit.frag.c">
       <Filter>Shaders\Debug\World</Filter>
@@ -506,10 +512,10 @@
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\fte_particles_msaa.frag.c">
-      <Filter>Shaders\Release\World</Filter>
+      <Filter>Shaders\Release\Particles</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\fte_particles.frag.c">
-      <Filter>Shaders\Release\World</Filter>
+      <Filter>Shaders\Release\Particles</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic_oit.frag.c">
       <Filter>Shaders\Release\World</Filter>
@@ -1076,10 +1082,5 @@
     <ResourceCompile Include="..\vkQuake.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\Shaders\fte_particles.inc">
-      <Filter>Shaders\World</Filter>
-    </None>
   </ItemGroup>
 </Project>
