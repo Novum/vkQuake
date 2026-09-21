@@ -534,7 +534,7 @@ void SVFTE_Ack (client_t *client, int sequence)
 	client->lastacksequence = sequence;
 
 	frame = &client->frames[sequence & (client->numframes - 1)];
-	if (frame->sequence >= 0)
+	if (frame->sequence == sequence)
 	{
 		frame->sequence = -1;
 		host_client->ping_times[host_client->num_pings % NUM_PING_TIMES] = qcvm->time - frame->timestamp;
