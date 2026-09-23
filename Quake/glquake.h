@@ -914,18 +914,18 @@ void  R_StagingBeginCopy (void);
 void  R_StagingEndCopy (void);
 void  R_StagingUploadBuffer (const VkBuffer buffer, const size_t size, const byte *data);
 
-void		   R_InitGPUBuffers (void);
-void		   R_InitMeshHeap (void);
-glheapstats_t *R_GetMeshHeapStats (void);
-void		   R_AddDynamicBufferGarbage (vulkan_memory_t memory, dynbuffer_t *buffers, int num_buffers, VkDescriptorSet *descriptor_sets);
-void		   R_SwapDynamicBuffers (void);
-void		   R_FlushDynamicBuffers (void);
-void		   R_CollectDynamicBufferGarbage (void);
-void		   R_CollectMeshBufferGarbage (void);
-byte		  *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
-byte		  *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
-byte		  *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, VkDescriptorSet *descriptor_set);
-byte		  *R_StorageAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address);
+void		  R_InitGPUBuffers (void);
+void		  R_InitMeshHeap (void);
+glheapstats_t R_GetMeshHeapStats (void);
+void		  R_AddDynamicBufferGarbage (vulkan_memory_t memory, dynbuffer_t *buffers, int num_buffers, VkDescriptorSet *descriptor_sets);
+void		  R_SwapDynamicBuffers (void);
+void		  R_FlushDynamicBuffers (void);
+void		  R_CollectDynamicBufferGarbage (void);
+void		  R_CollectMeshBufferGarbage (void);
+byte		 *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
+byte		 *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
+byte		 *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, VkDescriptorSet *descriptor_set);
+byte		 *R_StorageAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address);
 
 void R_AllocateLightmapComputeBuffers ();
 

@@ -1816,7 +1816,10 @@ mutex_unlock:
 	SDL_UnlockMutex (texmgr_mutex);
 }
 
-glheapstats_t *TexMgr_GetHeapStats (void)
+glheapstats_t TexMgr_GetHeapStats (void)
 {
-	return GL_HeapGetStats (texmgr_heap);
+	SDL_LockMutex (texmgr_mutex);
+	glheapstats_t stats = *GL_HeapGetStats (texmgr_heap);
+	SDL_UnlockMutex (texmgr_mutex);
+	return stats;
 }

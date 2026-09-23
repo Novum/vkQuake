@@ -41,7 +41,8 @@ ALIAS MODEL DISPLAY LIST GENERATION
 extern cvar_t r_lerpmodels;
 extern cvar_t r_rtshadows;
 
-static glheap_t *mesh_buffer_heap;
+static glheap_t	 *mesh_buffer_heap;
+static SDL_Mutex *mesh_mutex;
 
 typedef struct
 {
@@ -73,6 +74,8 @@ AddBufferGarbage
 static void AddBufferGarbage (
 	VkBuffer buffer, VkDescriptorSet descriptor_set, glheapallocation_t *allocation, const VkDescriptorSet desc_set, vulkan_desc_set_layout_t *desc_set_layout)
 {
+	SDL_LockMutex (mesh_mutex);
+
 	int *num_garbage = &num_garbage_buffers[current_garbage_index];
 	int	 old_num_garbage = *num_garbage;
 	*num_garbage += 1;
@@ -86,6 +89,7 @@ static void AddBufferGarbage (
 	garbage->allocation = allocation;
 	garbage->desc_set = desc_set;
 	garbage->desc_set_layout = desc_set_layout;
+	SDL_UnlockMutex (mesh_mutex);
 }
 
 /*
@@ -95,6 +99,8 @@ AddBLASGarbage
 */
 static void AddBLASGarbage (VkAccelerationStructureKHR blas, VkBuffer buffer, glheapallocation_t *allocation)
 {
+	SDL_LockMutex (mesh_mutex);
+
 	int *num_garbage = &num_garbage_blas[current_garbage_index];
 	int	 old_num_garbage = *num_garbage;
 	*num_garbage += 1;
@@ -106,6 +112,7 @@ static void AddBLASGarbage (VkAccelerationStructureKHR blas, VkBuffer buffer, gl
 	g->blas = blas;
 	g->buffer = buffer;
 	g->allocation = allocation;
+	SDL_UnlockMutex (mesh_mutex);
 }
 
 /*
@@ -115,6 +122,8 @@ R_InitMeshHeap
 */
 void R_InitMeshHeap (void)
 {
+	mesh_mutex = SDL_CreateMutex ();
+
 	// Allocate index buffer & upload to GPU
 	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -143,9 +152,12 @@ void R_InitMeshHeap (void)
 R_GetMeshHeapStats
 ================
 */
-glheapstats_t *R_GetMeshHeapStats (void)
+glheapstats_t R_GetMeshHeapStats (void)
 {
-	return GL_HeapGetStats (mesh_buffer_heap);
+	SDL_LockMutex (mesh_mutex);
+	glheapstats_t stats = *GL_HeapGetStats (mesh_buffer_heap);
+	SDL_UnlockMutex (mesh_mutex);
+	return stats;
 }
 
 /*
@@ -155,6 +167,8 @@ R_CollectMeshBufferGarbage
 */
 void R_CollectMeshBufferGarbage (void)
 {
+	SDL_LockMutex (mesh_mutex);
+
 	current_garbage_index = (current_garbage_index + 1) % 2;
 
 	if (num_garbage_buffers[current_garbage_index] > 0)
@@ -185,6 +199,7 @@ void R_CollectMeshBufferGarbage (void)
 		blas_garbage[current_garbage_index] = NULL;
 		num_garbage_blas[current_garbage_index] = 0;
 	}
+	SDL_UnlockMutex (mesh_mutex);
 }
 
 /*
@@ -300,6 +315,7 @@ void GLMesh_DeleteMeshBuffers (aliashdr_t *mainhdr)
 		else
 		{
 			GL_WaitForDeviceIdle ();
+			SDL_LockMutex (mesh_mutex);
 
 			vkDestroyBuffer (vulkan_globals.device, hdr->vertex_buffer, NULL);
 			GL_HeapFree (mesh_buffer_heap, hdr->vertex_allocation, &num_vulkan_mesh_allocations);
@@ -319,6 +335,7 @@ void GLMesh_DeleteMeshBuffers (aliashdr_t *mainhdr)
 				GL_HeapFree (mesh_buffer_heap, hdr->joints_allocation, &num_vulkan_mesh_allocations);
 				R_FreeDescriptorSet (hdr->joints_set, &vulkan_globals.joints_buffer_set_layout);
 			}
+			SDL_UnlockMutex (mesh_mutex);
 		}
 
 		hdr->vertex_buffer = VK_NULL_HANDLE;
@@ -425,7 +442,9 @@ void GLMesh_UploadBuffers (
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, hdr->index_buffer, &memory_requirements);
 
+		SDL_LockMutex (mesh_mutex);
 		hdr->index_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+		SDL_UnlockMutex (mesh_mutex);
 		err = vkBindBufferMemory (
 			vulkan_globals.device, hdr->index_buffer, GL_HeapGetAllocationMemory (hdr->index_allocation), GL_HeapGetAllocationOffset (hdr->index_allocation));
 		if (err != VK_SUCCESS)
@@ -460,8 +479,10 @@ void GLMesh_UploadBuffers (
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, hdr->skeleton_index_buffer, &memory_requirements);
 
+		SDL_LockMutex (mesh_mutex);
 		hdr->skeleton_index_allocation =
 			GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+		SDL_UnlockMutex (mesh_mutex);
 		err = vkBindBufferMemory (
 			vulkan_globals.device, hdr->skeleton_index_buffer, GL_HeapGetAllocationMemory (hdr->skeleton_index_allocation),
 			GL_HeapGetAllocationOffset (hdr->skeleton_index_allocation));
@@ -585,7 +606,9 @@ void GLMesh_UploadBuffers (
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, hdr->vertex_buffer, &memory_requirements);
 
+		SDL_LockMutex (mesh_mutex);
 		hdr->vertex_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+		SDL_UnlockMutex (mesh_mutex);
 		err = vkBindBufferMemory (
 			vulkan_globals.device, hdr->vertex_buffer, GL_HeapGetAllocationMemory (hdr->vertex_allocation),
 			GL_HeapGetAllocationOffset (hdr->vertex_allocation));
@@ -622,7 +645,9 @@ void GLMesh_UploadBuffers (
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, hdr->joints_buffer, &memory_requirements);
 
+		SDL_LockMutex (mesh_mutex);
 		hdr->joints_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+		SDL_UnlockMutex (mesh_mutex);
 		err = vkBindBufferMemory (
 			vulkan_globals.device, hdr->joints_buffer, GL_HeapGetAllocationMemory (hdr->joints_allocation),
 			GL_HeapGetAllocationOffset (hdr->joints_allocation));
@@ -766,7 +791,9 @@ void R_AllocateEntityBLAS (entity_t *e)
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, e->blas_data->buffer, &memory_requirements);
 
+	SDL_LockMutex (mesh_mutex);
 	e->blas_data->allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+	SDL_UnlockMutex (mesh_mutex);
 	err = vkBindBufferMemory (
 		vulkan_globals.device, e->blas_data->buffer, GL_HeapGetAllocationMemory (e->blas_data->allocation),
 		GL_HeapGetAllocationOffset (e->blas_data->allocation));

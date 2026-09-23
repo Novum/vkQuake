@@ -5268,8 +5268,10 @@ void R_VulkanMemStats_f (void)
 	Con_Printf (" DynBuf: %" SDL_PRIu32 "\n", num_dynbuf_allocations);
 
 	Con_Printf ("Heaps:\n");
-	R_PrintHeapStats ("Tex", TexMgr_GetHeapStats ());
-	R_PrintHeapStats ("Mesh", R_GetMeshHeapStats ());
+	glheapstats_t tex_stats = TexMgr_GetHeapStats ();
+	R_PrintHeapStats ("Tex", &tex_stats);
+	glheapstats_t mesh_stats = R_GetMeshHeapStats ();
+	R_PrintHeapStats ("Mesh", &mesh_stats);
 
 	Con_Printf ("Descriptors:\n");
 	Con_Printf (" Samplers: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_samplers));
