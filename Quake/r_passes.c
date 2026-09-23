@@ -758,8 +758,8 @@ static void R_BindFrameContexts (main_render_pass_variant_t variant)
 // Execute only the already-compiled description. Late frame values such as
 // clear colors, swapchain image indices and compute constants are not topology.
 uint32_t R_RecordFrame (
-	end_rendering_parms_t *parms, uint32_t swapchain_index, VkCommandBuffer *submit_buffers, uint32_t submit_capacity, void (*record_readback) (void *),
-	void *readback_data)
+	end_rendering_parms_t *parms, bool swapchain_acquired, uint32_t swapchain_index, VkCommandBuffer *submit_buffers, uint32_t submit_capacity,
+	void (*record_readback) (void *), void *readback_data)
 {
 	const main_render_pass_variant_t variant = parms->use_mboit ? MAIN_RENDER_PASS_MBOIT : parms->use_oit ? MAIN_RENDER_PASS_OIT : MAIN_RENDER_PASS_STANDARD;
 	const frame_desc_t				*frame = &current_layout.variants[variant];
@@ -779,6 +779,10 @@ uint32_t R_RecordFrame (
 	for (uint32_t i = 0; i < frame->step_count; ++i)
 	{
 		const frame_step_t *step = &frame->steps[i];
+		// The UI pass includes the swapchain attachment even without a postprocess draw.
+		// Skip the entire pass and its readback unless we own an acquired image.
+		if (!swapchain_acquired && (step->type == FRAME_READBACK || frame->passes[step->pass].target == FRAME_TARGET_UI))
+			continue;
 		if (step->type == FRAME_PREPARED_COMMANDS || !recording_started)
 		{
 			if (submit_count == submit_capacity)

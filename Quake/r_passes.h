@@ -96,8 +96,8 @@ typedef struct
 void	 R_CreateFrameBuffers (const render_framebuffer_images_t *images);
 void	 R_DestroyFrameBuffers (void);
 uint32_t R_RecordFrame (
-	end_rendering_parms_t *parms, uint32_t swapchain_index, VkCommandBuffer *submit_buffers, uint32_t submit_capacity, void (*record_readback) (void *),
-	void *readback_data);
+	end_rendering_parms_t *parms, bool swapchain_acquired, uint32_t swapchain_index, VkCommandBuffer *submit_buffers, uint32_t submit_capacity,
+	void (*record_readback) (void *), void *readback_data);
 
 bool R_SetupRenderPasses (void);
 void R_CreateRenderPasses (void);

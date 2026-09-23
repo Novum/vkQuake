@@ -128,6 +128,7 @@ static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 static VkInstance				vulkan_instance;
 static VkPhysicalDevice			vulkan_physical_device;
 static VkSurfaceKHR				vulkan_surface;
+static qboolean					surface_lost;
 static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
 static VkSwapchainKHR			vulkan_swapchain;
 
@@ -178,6 +179,7 @@ static VkBuffer			palette_octree_buffer;
 
 static PFN_vkGetInstanceProcAddr					  fpGetInstanceProcAddr;
 static PFN_vkGetDeviceProcAddr						  fpGetDeviceProcAddr;
+static PFN_vkDestroySurfaceKHR						  fpDestroySurfaceKHR;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR		  fpGetPhysicalDeviceSurfaceSupportKHR;
 static PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR  fpGetPhysicalDeviceSurfaceCapabilitiesKHR;
 static PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR fpGetPhysicalDeviceSurfaceCapabilities2KHR;
@@ -810,6 +812,22 @@ void GL_SetObjectName (uint64_t object, VkObjectType object_type, const char *na
 
 /*
 ===============
+GL_CreateSurface
+===============
+*/
+static void GL_CreateSurface (void)
+{
+#ifdef USE_SDL3
+	if (!SDL_Vulkan_CreateSurface (draw_context, vulkan_instance, NULL, &vulkan_surface))
+		Sys_Error ("Couldn't create Vulkan surface: %s", SDL_GetError ());
+#else
+	if (!SDL_Vulkan_CreateSurface (draw_context, vulkan_instance, &vulkan_surface))
+		Sys_Error ("Couldn't create Vulkan surface: %s", SDL_GetError ());
+#endif
+}
+
+/*
+===============
 GL_InitInstance
 ===============
 */
@@ -962,15 +980,10 @@ static void GL_InitInstance (void)
 	}
 #endif
 
-#ifdef USE_SDL3
-	if (!SDL_Vulkan_CreateSurface (draw_context, vulkan_instance, NULL, &vulkan_surface))
-		Sys_Error ("Couldn't create Vulkan surface");
-#else
-	if (!SDL_Vulkan_CreateSurface (draw_context, vulkan_instance, &vulkan_surface))
-		Sys_Error ("Couldn't create Vulkan surface");
-#endif
+	GL_CreateSurface ();
 
 	GET_INSTANCE_PROC_ADDR (GetDeviceProcAddr);
+	GET_INSTANCE_PROC_ADDR (DestroySurfaceKHR);
 	GET_INSTANCE_PROC_ADDR (GetPhysicalDeviceSurfaceSupportKHR);
 	GET_INSTANCE_PROC_ADDR (GetPhysicalDeviceSurfaceCapabilitiesKHR);
 	GET_INSTANCE_PROC_ADDR (GetPhysicalDeviceSurfaceFormatsKHR);
@@ -3240,6 +3253,8 @@ qboolean GL_AcquireNextSwapChainImage (void)
 #endif
 	{
 		vid.restart_next_frame = true;
+		if (err == VK_ERROR_SURFACE_LOST_KHR)
+			surface_lost = true;
 		return false;
 	}
 	else if (err == VK_SUBOPTIMAL_KHR)
@@ -3485,8 +3500,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	frame_readback_t readback = {.commands = render_passes_cb};
 	VkCommandBuffer	 submit_cbs[PCBX_NUM];
-	const uint32_t	 submit_count =
-		R_RecordFrame (parms, current_swapchain_buffer, submit_cbs, countof (submit_cbs), take_screenshot ? GL_RecordFrameReadback : NULL, &readback);
+	const uint32_t	 submit_count = R_RecordFrame (
+		  parms, swapchain_acquired, current_swapchain_buffer, submit_cbs, countof (submit_cbs), take_screenshot ? GL_RecordFrameReadback : NULL, &readback);
 
 	if (frame_timing_enabled && (timestamp_query_pool != VK_NULL_HANDLE))
 	{
@@ -3563,6 +3578,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 #endif
 		{
 			vid.restart_next_frame = true;
+			if (err == VK_ERROR_SURFACE_LOST_KHR)
+				surface_lost = true;
 		}
 		else if (err != VK_SUCCESS)
 			Sys_Error ("vkQueuePresentKHR failed with code %i", (int)err);
@@ -4147,6 +4164,20 @@ void VID_Restart (qboolean set_mode)
 	//
 	if (set_mode)
 		VID_SetMode (width, height, refreshrate, fullscreen);
+
+	if (surface_lost)
+	{
+		fpDestroySurfaceKHR (vulkan_instance, vulkan_surface, NULL);
+		vulkan_surface = VK_NULL_HANDLE;
+		GL_CreateSurface ();
+
+		VkBool32	   supported = VK_FALSE;
+		const VkResult result =
+			fpGetPhysicalDeviceSurfaceSupportKHR (vulkan_physical_device, vulkan_globals.gfx_queue_family_index, vulkan_surface, &supported);
+		if (result != VK_SUCCESS || !supported)
+			Sys_Error ("Recreated Vulkan surface does not support the current presentation queue (code %i)", (int)result);
+		surface_lost = false;
+	}
 
 	GL_CreateRenderResources ();
 
