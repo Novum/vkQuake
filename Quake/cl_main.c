@@ -911,7 +911,11 @@ void CL_RelinkEntities (void)
 		}
 
 		if (i == cl.viewentity && !chase_active.value)
+		{
+			// Keep the first-person body in the ray tracing scene only.
+			R_AllocateEntityBLAS (ent);
 			continue;
+		}
 
 		if (cl_numvisedicts < cl_maxvisedicts)
 		{

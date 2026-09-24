@@ -2892,6 +2892,8 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 			VectorCopy (e->angles, lerped_angles);
 		}
 		lerped_angles[0] = -lerped_angles[0]; // quake bug
+		if (e == &cl.entities[cl.viewentity] && !chase_active.value)
+			lerped_angles[PITCH] *= 0.3f; // Match the chasecam player pitch without changing the entity.
 
 		float model_matrix[16];
 		IdentityMatrix (model_matrix);
