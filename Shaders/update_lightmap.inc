@@ -250,8 +250,9 @@ void main ()
 
 	if (dlights && surface_index < 0x80000000)
 	{
-		const float s = float (coords.x - (surf.packed_light_st & 0xFFFF)) - 0.5f;
-		const float t = float (coords.y - (surf.packed_light_st >> 16)) - 0.5f;
+		// Evaluate lighting at the lightmap sample center.
+		const float s = float (coords.x - (surf.packed_light_st & 0xFFFF));
+		const float t = float (coords.y - (surf.packed_light_st >> 16));
 		vec3		tangent = vec3 (0.0f);
 		vec3		bitangent = vec3 (0.0f);
 		vec3		world_pos = CalculateWorldPos (surf, s, t, tangent, bitangent);
@@ -346,7 +347,7 @@ void main ()
 
 					for (uint i = 0; i < push_constants.shadow_samples; ++i)
 					{
-						const vec2	sample_offset = fract (texel_offset + float (i) * vec2 (R2_ALPHA1, R2_ALPHA2));
+						const vec2	sample_offset = fract (texel_offset + float (i) * vec2 (R2_ALPHA1, R2_ALPHA2)) - 0.5f;
 						const vec3	pos = world_pos + (sample_offset.x * tangent) + (sample_offset.y * bitangent);
 						const vec3	light_vec = pos - light.origin;
 						const float light_dist = length (light_vec);
