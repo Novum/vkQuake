@@ -1122,7 +1122,7 @@ static void Con_Print (const char *txt)
 	int		   c, l;
 	static int cr;
 	int		   mask;
-	qboolean   boundary;
+	qboolean   boundary, skipnotify;
 
 	SDL_LockMutex (con_mutex);
 
@@ -1143,6 +1143,12 @@ static void Con_Print (const char *txt)
 		mask = 0;
 
 	boundary = true;
+	skipnotify = false;
+	if (!strncmp (txt, "[skipnotify]", 12))
+	{
+		skipnotify = true;
+		txt += 12;
+	}
 
 	while ((c = *txt))
 	{
@@ -1177,7 +1183,7 @@ static void Con_Print (const char *txt)
 			Con_Linefeed ();
 			// mark time for transparent overlay
 			if (con_current >= 0)
-				con_times[con_current % NUM_CON_TIMES] = realtime;
+				con_times[con_current % NUM_CON_TIMES] = skipnotify ? 0 : realtime;
 		}
 
 		switch (c)
@@ -1231,6 +1237,10 @@ static const char *Con_StripControlPrefixes (const char *txt)
 	// colored text
 	if (txt[0] == 1 || txt[0] == 2)
 		txt++;
+
+	// [skipnotify]
+	if (!strncmp (txt, "[skipnotify]", 12))
+		txt += 12;
 
 	return txt;
 }
