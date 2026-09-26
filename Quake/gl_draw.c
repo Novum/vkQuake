@@ -388,8 +388,10 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags, int picflags)
 
 	q_strlcpy (pic->name, path, countof (pic->name));
 
+	// layout code expects the original .lmp size even when a high-res replacement supplies the texture
 	pic->pic.width = pic_width;
 	pic->pic.height = pic_height;
+	Image_GetLMPSize (npath, &pic->pic.width, &pic->pic.height);
 
 	// pass the extensionless name as the source so TexMgr_ReloadImage can find the image
 	// again through Image_LoadImage (needed to recolor gfx/menuplyr.lmp in the setup menu)
