@@ -276,6 +276,7 @@ void V_ResetBlend (void)
 	memset (&cl.cshift_empty, 0, sizeof (cl.cshift_empty));
 	memset (cl.cshifts, 0, sizeof (cl.cshifts));
 	cl.v_dmg_time = cl.v_dmg_roll = cl.v_dmg_pitch = 0.f;
+	cl.faceanimtime = 0.f;
 }
 
 /*
