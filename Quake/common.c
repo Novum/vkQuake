@@ -3718,6 +3718,146 @@ static void COM_InitSteamAPI (void)
 
 /*
 =================
+COM_AddArg
+=================
+*/
+static void COM_AddArg (const char *arg)
+{
+	if (com_argc >= MAX_NUM_ARGVS)
+		return;
+	largv[com_argc++] = (char *)arg;
+	largv[com_argc] = argvdummy;
+}
+
+/*
+=================
+COM_FindStartArgBaseDir
+
+Looks for game data in the ancestors of the path passed as the only command-line argument
+=================
+*/
+static qboolean COM_FindStartArgBaseDir (const char *startarg)
+{
+	char   dir[MAX_OSPATH];
+	size_t i;
+
+	q_strlcpy (dir, startarg, sizeof (dir));
+	for (i = strlen (dir); i > 1; i--)
+	{
+		if (dir[i - 1] != '/' && dir[i - 1] != '\\')
+			continue;
+		dir[i - 1] = '\0';
+		if (COM_IsValidFlavorDir (dir, COM_RequestedQuakeFlavor ()))
+		{
+			q_strlcpy (com_basedir, dir, sizeof (com_basedir));
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/*
+=================
+COM_HandleStartArg
+
+Turns a mod dir or a map/save/demo file passed as the only command-line argument
+into -game and the matching command, so the executable can be associated with
+these files or have them dropped onto it
+=================
+*/
+static void COM_HandleStartArg (const char *fullpath)
+{
+	static char game[MAX_QPATH];
+	char		qpath[MAX_QPATH];
+	char		printpath[MAX_OSPATH];
+	const char *relpath = NULL;
+	const char *sep;
+	const char *ext;
+	int			type = Sys_FileType (fullpath);
+	int			i;
+	char	   *c;
+
+	for (i = 0; i < com_numbasedirs && !relpath; i++)
+	{
+		if (COM_IsPathPrefix (com_basedirs[i], fullpath))
+		{
+			relpath = fullpath + strlen (com_basedirs[i]);
+			while (*relpath == '/' || *relpath == '\\')
+				++relpath;
+		}
+	}
+	if (!relpath)
+	{
+		UTF8_ToQuake (printpath, sizeof (printpath), fullpath);
+		Con_Printf ("\"%s\" does not belong to an existing Quake installation\n", printpath);
+		return;
+	}
+
+	// game dir is the first component of the relative path
+	for (sep = relpath; *sep && *sep != '/' && *sep != '\\'; sep++)
+		;
+	if ((size_t)(sep - relpath) >= sizeof (game))
+	{
+		UTF8_ToQuake (printpath, sizeof (printpath), relpath);
+		Con_Printf ("\"%s\" is too long\n", printpath);
+		return;
+	}
+	memcpy (game, relpath, sep - relpath);
+	game[sep - relpath] = '\0';
+	if (!*sep && type == FS_ENT_FILE)
+		game[0] = '\0';
+
+	if (game[0] && q_strcasecmp (game, GAMENAME))
+	{
+		COM_AddArg ("-game");
+		COM_AddArg (game);
+	}
+
+	if (type == FS_ENT_DIRECTORY && !*sep)
+		return;
+
+	q_strlcpy (qpath, *sep ? sep + 1 : relpath, sizeof (qpath));
+	for (c = qpath; *c; c++)
+		if (*c == '\\')
+			*c = '/';
+	UTF8_ToQuake (printpath, sizeof (printpath), qpath);
+
+	if (type == FS_ENT_DIRECTORY)
+	{
+		if (!q_strcasecmp (qpath, "maps"))
+			Cbuf_AddText ("menu_maps\n");
+		else
+			Con_Printf ("subdir \"%s\" ignored\n", printpath);
+		return;
+	}
+
+	if (!game[0])
+	{
+		Con_Printf ("File \"%s\" not in a mod dir, ignoring.\n", printpath);
+		return;
+	}
+
+	ext = COM_FileGetExtension (qpath);
+	if (!q_strcasecmp (ext, "bsp"))
+	{
+		if (q_strncasecmp (qpath, "maps/", 5))
+		{
+			Con_Printf ("Map \"%s\" not in the \"maps\" dir, ignoring.\n", printpath);
+			return;
+		}
+		Cbuf_AddText (va ("menu_maps \"%s\"\n", qpath + 5));
+	}
+	else if (!q_strcasecmp (ext, "sav"))
+		Cbuf_AddText (va ("load \"%s\"\n", qpath));
+	else if (!q_strcasecmp (ext, "dem"))
+		Cbuf_AddText (va ("playdemo \"%s\"\n", qpath));
+	else
+		Con_Printf ("Unsupported file type \"%s\", ignoring.\n", printpath);
+}
+
+/*
+=================
 COM_InitFilesystem
 =================
 */
@@ -3725,6 +3865,7 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 {
 	int			i, j;
 	const char *p;
+	const char *startarg = (com_argc == 2 && Sys_FileType (com_argv[1]) != FS_ENT_NONE) ? com_argv[1] : NULL;
 
 	Cvar_RegisterVariable (&registered);
 	Cvar_RegisterVariable (&cmdline);
@@ -3734,7 +3875,7 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 	i = COM_CheckParm ("-basedir");
 	if (i && i < com_argc - 1)
 		q_strlcpy (com_basedir, com_argv[i + 1], sizeof (com_basedir));
-	else
+	else if (!startarg || !COM_FindStartArgBaseDir (startarg))
 		q_strlcpy (com_basedir, host_parms->basedir, sizeof (com_basedir));
 
 	j = strlen (com_basedir);
@@ -3766,6 +3907,9 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 	COM_AddBaseDir (com_basedir);
 	if (host_parms->userdir != host_parms->basedir)
 		COM_AddBaseDir (host_parms->userdir);
+
+	if (startarg)
+		COM_HandleStartArg (startarg);
 
 	i = COM_CheckParmNext (i, "-basegame");
 	if (i)
