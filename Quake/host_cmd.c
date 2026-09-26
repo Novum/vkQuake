@@ -1714,7 +1714,7 @@ static void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1])
 	// Remove CR/LFs from level name to avoid broken saves, e.g. with autumn_sp map:
 	// sanitize Level name:
 	char cleanname[sizeof (cl.levelname)];
-	COM_SanitizeDescriptionString (cleanname, sizeof (cleanname), cl.levelname, true);
+	COM_SanitizeDescriptionString (cleanname, sizeof (cleanname), cl.levelname[0] ? cl.levelname : cl.mapname, true);
 
 	i = (int)strlen (cleanname);
 	if (i > SAVEGAME_LEVEL_LENGTH)
