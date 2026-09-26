@@ -71,6 +71,8 @@ typedef struct edict_s
 
 	entity_state_t	baseline;
 	unsigned char	alpha;				  /* johnfitz -- hack to support alpha since it's not part of entvars_t */
+	qboolean		forcewater;			  /* mod overrides waterlevel */
+	qboolean		sendforcewater;		  /* waterlevel override has changed and needs to be sent over to the client */
 	qboolean		sendinterval;		  /* johnfitz -- send time until nextthink to client for better lerp timing */
 	qboolean		sendinterval_default; /* interval is the 0.1 the client assumes anyway; only sent where datagram size is unconstrained */
 	float			oldframe;

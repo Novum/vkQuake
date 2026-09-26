@@ -2669,6 +2669,20 @@ qboolean SV_SendClientDatagram (client_t *client)
 
 /*
 =======================
+SV_WriteUnderwaterOverride
+=======================
+*/
+static void SV_WriteUnderwaterOverride (client_t *client)
+{
+	if (!client->edict->sendforcewater)
+		return;
+	client->edict->sendforcewater = false;
+	MSG_WriteByte (&client->message, svc_stufftext);
+	MSG_WriteString (&client->message, va ("//v_water %i\n", client->edict->forcewater));
+}
+
+/*
+=======================
 SV_UpdateToReliableMessages
 =======================
 */
@@ -2699,6 +2713,7 @@ void SV_UpdateToReliableMessages (void)
 	{
 		if (!client->active)
 			continue;
+		SV_WriteUnderwaterOverride (client);
 		SZ_Write (&client->message, sv.reliable_datagram.data, sv.reliable_datagram.cursize);
 	}
 

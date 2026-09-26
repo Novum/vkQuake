@@ -700,7 +700,10 @@ static void S_UpdateAmbientSounds (void)
 		goto unlock_mutex;
 
 	l = Mod_PointInLeaf (listener_origin, cl.worldmodel);
-	S_SetUnderwaterIntensity (l ? S_UnderwaterIntensityForContents (l->contents) : 0.f);
+	if (cl.forceunderwater)
+		S_SetUnderwaterIntensity (1.f);
+	else
+		S_SetUnderwaterIntensity (l ? S_UnderwaterIntensityForContents (l->contents) : 0.f);
 	if (!l || !ambient_level.value)
 	{
 		for (ambient_channel = 0; ambient_channel < NUM_AMBIENTS; ambient_channel++)

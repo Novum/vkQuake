@@ -420,7 +420,7 @@ static void R_SetupViewBeforeMark (void *unused)
 	if (r_waterwarp.value)
 	{
 		int contents = r_viewleaf->contents;
-		if (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA)
+		if (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA || cl.forceunderwater)
 		{
 			if (r_waterwarp.value == 1)
 				render_warp = true;

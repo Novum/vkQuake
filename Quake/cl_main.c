@@ -1344,6 +1344,18 @@ static void CL_LegacyColor_f (void)
 
 /*
 =================
+V_Water_f
+=================
+*/
+static void V_Water_f (void)
+{
+	if (Cmd_Argc () < 2)
+		return;
+	cl.forceunderwater = atoi (Cmd_Argv (1));
+}
+
+/*
+=================
 CL_Init
 =================
 */
@@ -1425,4 +1437,6 @@ void CL_Init (void)
 	Cmd_AddCommand_ServerCommand ("cl_serverextension_download", CL_ServerExtension_Ignore_f); // spike
 	Cmd_AddCommand_ServerCommand ("cl_downloadbegin", CL_ServerExtension_Ignore_f);			   // spike
 	Cmd_AddCommand_ServerCommand ("cl_downloadfinished", CL_ServerExtension_Ignore_f);		   // spike
+
+	Cmd_AddCommand_ServerCommand ("v_water", V_Water_f);
 }
