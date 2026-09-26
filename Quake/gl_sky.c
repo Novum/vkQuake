@@ -81,7 +81,8 @@ typedef struct skybox_s
 	float		 wind_period;
 } skybox_t;
 
-static skybox_t skybox;
+static skybox_t	 skybox;
+static skybox_t *skybox_cache; // skyboxes loaded for the current map, to avoid reloading when a map switches between them
 
 //==============================================================================
 //
@@ -462,22 +463,46 @@ void Sky_LoadSkyBox (const char *name)
 	if (strcmp (skybox.name, name) == 0)
 		return; // no change
 
-	// purge old textures
-	for (i = 0; i < 6; i++)
+	// keep wind changes made to the outgoing skybox
+	for (i = 0; i < (int)VEC_SIZE (skybox_cache); i++)
 	{
-		if (skybox.textures[i] && skybox.textures[i] != notexture)
-			TexMgr_FreeTexture (skybox.textures[i]);
-		skybox.textures[i] = NULL;
+		if (strcmp (skybox_cache[i].name, skybox.name) == 0)
+		{
+			skybox_cache[i].wind_dist = skybox.wind_dist;
+			skybox_cache[i].wind_yaw = skybox.wind_yaw;
+			skybox_cache[i].wind_pitch = skybox.wind_pitch;
+			skybox_cache[i].wind_period = skybox.wind_period;
+			break;
+		}
 	}
-	if (skybox.cubemap)
-		TexMgr_FreeTexture (skybox.cubemap);
+
+	// the textures stay alive in the cache
+	for (i = 0; i < 6; i++)
+		skybox.textures[i] = NULL;
 	skybox.cubemap = NULL;
+	Skywind_Clear ();
 
 	// turn off skybox if sky is set to ""
 	if (name[0] == 0)
 	{
 		skybox.name[0] = 0;
 		return;
+	}
+
+	// check if already loaded
+	for (i = 0; i < (int)VEC_SIZE (skybox_cache); i++)
+	{
+		if (strcmp (skybox_cache[i].name, name) == 0)
+		{
+			q_strlcpy (skybox.name, name, sizeof (skybox.name));
+			memcpy (skybox.textures, skybox_cache[i].textures, sizeof (skybox.textures));
+			skybox.cubemap = skybox_cache[i].cubemap;
+			skybox.wind_dist = skybox_cache[i].wind_dist;
+			skybox.wind_yaw = skybox_cache[i].wind_yaw;
+			skybox.wind_pitch = skybox_cache[i].wind_pitch;
+			skybox.wind_period = skybox_cache[i].wind_period;
+			return;
+		}
 	}
 
 	// load textures
@@ -526,6 +551,8 @@ void Sky_LoadSkyBox (const char *name)
 	q_strlcpy (skybox.name, name, sizeof (skybox.name));
 
 	Skywind_Load_f ();
+
+	VEC_PUSH (skybox_cache, skybox);
 }
 
 /*
@@ -567,6 +594,7 @@ void Sky_ClearAll (void)
 		skybox.textures[i] = NULL;
 
 	skybox.cubemap = NULL;
+	VEC_CLEAR (skybox_cache); // textures are owned by the world model
 
 	Skywind_Clear ();
 
