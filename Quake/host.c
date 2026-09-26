@@ -347,6 +347,8 @@ void Host_Callback_Notify (cvar_t *var)
 		SV_BroadcastPrintf ("\"%s\" changed to \"%s\"\n", var->name, var->string);
 }
 
+static void Host_WriteConfig_f (void);
+
 /*
 =======================
 Host_InitLocal
@@ -355,6 +357,7 @@ Host_InitLocal
 void Host_InitLocal (void)
 {
 	Cmd_AddCommand ("version", Host_Version_f);
+	Cmd_AddCommand ("writeconfig", Host_WriteConfig_f);
 
 	Host_InitCommands ();
 
@@ -445,6 +448,55 @@ void Host_WriteConfiguration (void)
 		fprintf (f, "+mlook\n"); // always enable mouse look on config, can be overriden by -mlook in autoexec.cfg
 		fclose (f);
 	}
+}
+
+/*
+=======================
+Host_WriteConfig_f
+
+Writes the global and game configs, or everything into a single named file in the game directory
+=======================
+*/
+static void Host_WriteConfig_f (void)
+{
+	char  name[MAX_QPATH];
+	char  fullname[MAX_OSPATH];
+	FILE *f;
+
+	if (Cmd_Argc () < 2)
+	{
+		Host_WriteConfiguration ();
+		return;
+	}
+
+	q_strlcpy (name, Cmd_Argv (1), sizeof (name));
+	if (strstr (name, "..") || strchr (name, ':') || name[0] == '/' || name[0] == '\\')
+	{
+		Con_Printf ("Invalid config name \"%s\".\n", name);
+		return;
+	}
+	COM_AddExtension (name, ".cfg", sizeof (name));
+
+	if (!host_initialized || isDedicated || host_parms->errstate)
+		return;
+
+	q_snprintf (fullname, sizeof (fullname), "%s/%s", com_gamedir, name);
+	f = Sys_fopen (fullname, "w");
+	if (!f)
+	{
+		Con_Printf ("Couldn't write %s.\n", name);
+		return;
+	}
+
+	Key_WriteBindings (f);
+	Cvar_WriteVariables (f, CVAR_ARCHIVE | CVAR_ARCHIVE_GAME);
+	fprintf (f, "vid_restart\n");
+	fprintf (f, "+mlook\n");
+	fclose (f);
+
+	Con_SafePrintf ("Wrote ");
+	Con_LinkPrintf (fullname, "%s", name);
+	Con_SafePrintf (".\n");
 }
 
 /*
