@@ -886,6 +886,133 @@ void SaveList_Init (void)
 	FileList_Init ("", "sav", &savelist);
 }
 
+//==============================================================================
+// sky list management
+//==============================================================================
+
+filelist_item_t *skylist;
+
+static void SkyList_Clear (void)
+{
+	FileList_Clear (&skylist);
+}
+
+void SkyList_Rebuild (void)
+{
+	SkyList_Clear ();
+	SkyList_Init ();
+}
+
+static void SkyList_AddFile (const char *path)
+{
+	static const char *const suffixes[] = {"up", "cube"}; // Sky_LoadSkyBox accepts six faces or a single cubemap image
+	const char				 prefix[] = "gfx/env/";
+	char					 skyname[MAX_QPATH];
+	size_t					 len;
+	int						 i;
+
+	// pak files are passed in without any path filtering
+	if (q_strncasecmp (path, prefix, sizeof (prefix) - 1) != 0)
+		return;
+	path += sizeof (prefix) - 1;
+
+	if (!Image_IsSupportedExtension (COM_FileGetExtension (path)))
+		return;
+
+	COM_StripExtension (path, skyname, sizeof (skyname));
+	len = strlen (skyname);
+	for (i = 0; i < (int)countof (suffixes); i++)
+	{
+		size_t suffixlen = strlen (suffixes[i]);
+		if (len > suffixlen && !q_strcasecmp (skyname + len - suffixlen, suffixes[i]))
+		{
+			skyname[len - suffixlen] = '\0';
+			FileList_Add (skyname, &skylist);
+			return;
+		}
+	}
+}
+
+static void SkyList_AddDirRec (const char *root, const char *relpath)
+{
+	findfile_t *find;
+	char		child[MAX_OSPATH];
+	char		fullpath[MAX_OSPATH];
+
+	q_snprintf (fullpath, sizeof (fullpath), "%s/%s", root, relpath);
+	for (find = Sys_FindFirst (fullpath, NULL); find; find = Sys_FindNext (find))
+	{
+		q_snprintf (child, sizeof (child), "%s/%s", relpath, find->name);
+		if (find->attribs & FA_DIRECTORY)
+		{
+			if (find->name[0] == '.')
+				continue;
+			SkyList_AddDirRec (root, child);
+			continue;
+		}
+		SkyList_AddFile (child);
+	}
+}
+
+void SkyList_Init (void)
+{
+	searchpath_t *search;
+	pack_t		 *pak;
+	int			  i;
+
+	for (search = com_searchpaths; search; search = search->next)
+	{
+		if (*search->filename) // directory
+			SkyList_AddDirRec (search->filename, "gfx/env");
+		else // pakfile
+			for (i = 0, pak = search->pack; i < pak->numfiles; i++)
+				SkyList_AddFile (pak->files[i].name);
+	}
+}
+
+/*
+==================
+Host_Skies_f
+
+list all potential skies
+==================
+*/
+static void Host_Skies_f (void)
+{
+	int				 i;
+	filelist_item_t *item;
+	const char		*substr = Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL;
+	char			 buf[256];
+
+	for (item = skylist, i = 0; item; item = item->next)
+	{
+		if (substr && *substr)
+		{
+			if (!q_strcasestr (item->name, substr))
+				continue;
+			Con_SafePrintf ("   %s\n", COM_TintSubstring (item->name, substr, buf, sizeof (buf)));
+		}
+		else
+			Con_SafePrintf ("   %s\n", item->name);
+		i++;
+	}
+
+	if (substr && *substr)
+	{
+		if (i)
+			Con_SafePrintf ("%i %s containing \"%s\"\n", i, i == 1 ? "sky" : "skies", substr);
+		else
+			Con_SafePrintf ("no skies found containing \"%s\"\n", substr);
+	}
+	else
+	{
+		if (i)
+			Con_SafePrintf ("%i %s\n", i, i == 1 ? "sky" : "skies");
+		else
+			Con_SafePrintf ("no skies found\n");
+	}
+}
+
 /*
 ==================
 Host_Mods_f -- johnfitz
@@ -3510,7 +3637,8 @@ Host_InitCommands
 */
 void Host_InitCommands (void)
 {
-	Cmd_AddCommand ("maps", Host_Maps_f);		// johnfitz
+	Cmd_AddCommand ("maps", Host_Maps_f); // johnfitz
+	Cmd_AddCommand ("skies", Host_Skies_f);
 	Cmd_AddCommand ("mods", Host_Mods_f);		// johnfitz
 	Cmd_AddCommand ("games", Host_Mods_f);		// as an alias to "mods" -- S.A. / QuakeSpasm
 	Cmd_AddCommand ("mapname", Host_Mapname_f); // johnfitz

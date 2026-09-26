@@ -162,6 +162,14 @@ static struct
 
 const int num_supported_image_formats = countof (supported_image_formats);
 
+qboolean Image_IsSupportedExtension (const char *ext)
+{
+	for (int i = 0; i < num_supported_image_formats; i++)
+		if (!q_strcasecmp (ext, supported_image_formats[i].file_extension))
+			return true;
+	return false;
+}
+
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt, unsigned int min_path_id)
 {
 	// 1. Search 'name' image by supported_image_formats, keeping only the best, as:

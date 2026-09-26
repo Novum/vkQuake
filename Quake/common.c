@@ -3078,6 +3078,7 @@ void COM_SwitchGame (const char *paths)
 	Host_Resetdemos ();
 	DemoList_Rebuild ();
 	SaveList_Rebuild ();
+	SkyList_Rebuild ();
 	M_CheckMods ();
 	S_ClearAll ();
 

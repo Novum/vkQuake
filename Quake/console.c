@@ -1823,6 +1823,7 @@ static const arg_completion_type_t arg_completion_types[] = {
 	{"load", CompleteFileListSingle, &savelist},
 	{"save", CompleteFileListSingle, &savelist},
 	{"fastload", CompleteFileListSingle, &savelist},
+	{"sky", CompleteFileListSingle, &skylist},
 	{"bind", CompleteBindKeys, NULL},
 	{"unbind", CompleteUnbindKeys, NULL},
 };
