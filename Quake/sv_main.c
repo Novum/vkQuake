@@ -1141,6 +1141,7 @@ void SV_Init (void)
 	extern cvar_t sv_gameplayfix_spawnbeforethinks;
 	extern cvar_t sv_gameplayfix_bouncedownslopes;
 	extern cvar_t sv_gameplayfix_elevators;
+	extern cvar_t sv_gameplayfix_setmodelrealbox;
 	extern cvar_t sv_fastpushmove;
 	extern cvar_t sv_analyticphysics;
 	extern cvar_t sv_friction;
@@ -1173,6 +1174,7 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_gameplayfix_spawnbeforethinks);
 	Cvar_RegisterVariable (&sv_gameplayfix_bouncedownslopes);
 	Cvar_RegisterVariable (&sv_gameplayfix_elevators);
+	Cvar_RegisterVariable (&sv_gameplayfix_setmodelrealbox);
 	Cvar_RegisterVariable (&sv_fastpushmove);
 	Cvar_RegisterVariable (&sv_analyticphysics);
 	Cvar_RegisterVariable (&pr_checkextension);
