@@ -1588,7 +1588,7 @@ sizebuf_t *WriteDest (void)
 		return &sv.reliable_datagram;
 
 	case MSG_INIT:
-		return &sv.signon;
+		return sv.signon;
 
 	case MSG_EXT_MULTICAST:
 	case MSG_EXT_ENTITY: // just reuse it...

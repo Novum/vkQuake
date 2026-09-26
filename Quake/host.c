@@ -686,6 +686,8 @@ void Host_ClearMemory (void)
 	cls.signon = 0;
 	PR_ClearProgs (&sv.qcvm);
 	Mem_Free (sv.static_entities); // spike -- this is dynamic too, now
+	for (int i = 0; i < sv.num_signon_buffers; ++i)
+		Mem_Free (sv.signon_buffers[i]);
 	for (int i = 1; i < MAX_PARTICLETYPES; ++i)
 		Mem_Free (sv.particle_precache[i]);
 	memset (&sv, 0, sizeof (sv));

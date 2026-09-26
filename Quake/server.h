@@ -40,6 +40,8 @@ typedef struct
 
 //=============================================================================
 
+#define MAX_SIGNON_BUFFERS 256
+
 typedef enum
 {
 	ss_loading,
@@ -75,8 +77,9 @@ typedef struct
 	sizebuf_t reliable_datagram; // copied to all clients at end of frame
 	byte	  reliable_datagram_buf[MAX_DATAGRAM];
 
-	sizebuf_t signon;
-	byte	  signon_buf[MAX_MSGLEN - 2]; // johnfitz -- was 8192, now uses MAX_MSGLEN
+	sizebuf_t *signon; // current buffer for MSG_INIT writes
+	int		   num_signon_buffers;
+	sizebuf_t *signon_buffers[MAX_SIGNON_BUFFERS];
 
 	unsigned protocol; // johnfitz
 	unsigned protocolflags;
@@ -360,6 +363,7 @@ void SVFTE_DestroyFrames (client_t *client);
 void SV_BuildEntityState (edict_t *ent, entity_state_t *state);
 void SV_SendClientMessages (void);
 void SV_ClearDatagram (void);
+void SV_ReserveSignonSpace (int numbytes);
 
 int SV_ModelIndex (const char *name);
 

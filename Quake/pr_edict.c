@@ -1742,6 +1742,8 @@ void ED_LoadFromFile (const char *data)
 			continue;
 		}
 
+		SV_ReserveSignonSpace (512);
+
 		pr_global_struct->self = EDICT_TO_PROG (ent);
 		PR_ExecuteProgram (func - qcvm->functions);
 	}
