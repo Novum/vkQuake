@@ -55,6 +55,9 @@ void IN_Deactivate (qboolean free_cursor);
 // called when the console is opened; always frees the cursor so it can be used in the console
 void IN_DeactivateForConsole (void);
 
+// called when a menu is opened; keeps the fullscreen cursor hidden when ui_mouse is 0
+void IN_DeactivateForMenu (void);
+
 // called when switching to fullscreen while in menu or console
 void IN_HideCursor ();
 

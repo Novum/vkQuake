@@ -4892,7 +4892,7 @@ M_Menu_Video_f
 void M_Menu_Video_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_video;
 	m_entersound = true;

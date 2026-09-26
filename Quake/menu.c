@@ -114,6 +114,8 @@ static int scrollbar_x;
 static int scrollbar_y;
 static int scrollbar_size;
 
+cvar_t ui_mouse = {"ui_mouse", "1", CVAR_ARCHIVE};
+
 void		M_ConfigureNetSubsystem (void);
 static void M_SetSkillMenuMap (const char *name);
 
@@ -701,7 +703,7 @@ void M_Menu_Main_f (void)
 		m_save_demonum = cls.demonum;
 		cls.demonum = -1;
 	}
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_main;
 }
@@ -883,7 +885,7 @@ static qboolean m_singleplayer_showlevels;
 static void M_Menu_SinglePlayer_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_singleplayer;
 	if (m_singleplayer_cursor >= SINGLEPLAYER_ITEMS)
@@ -1058,7 +1060,7 @@ static void M_Menu_Load_f (void)
 	M_MenuChanged ();
 	m_state = m_load;
 
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	M_ScanSaves ();
 	if (load_cursor >= MAX_SAVEGAMES + quicksave_available)
@@ -1076,7 +1078,7 @@ static void M_Menu_Save_f (void)
 	M_MenuChanged ();
 	m_state = m_save;
 
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	M_ScanSaves ();
 	if (load_cursor >= MAX_SAVEGAMES)
@@ -1218,7 +1220,7 @@ int m_multiplayer_cursor;
 
 static void M_Menu_MultiPlayer_f (void)
 {
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_multiplayer;
 	m_entersound = true;
@@ -1307,7 +1309,7 @@ int	 setup_bottom;
 
 static void M_Menu_Setup_f (void)
 {
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_setup;
 	m_entersound = true;
@@ -1491,7 +1493,7 @@ static const char *net_helpMessage[] = {
 static void M_Menu_Net_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_net;
 
@@ -1612,7 +1614,7 @@ static int first_game_option = 0;
 
 static void M_Menu_GameOptions_f (void)
 {
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_game;
 	m_entersound = true;
@@ -1983,7 +1985,7 @@ static int graphics_options_cursor = 0;
 
 static void M_Menu_GraphicsOptions_f (void)
 {
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_graphics;
 	m_entersound = true;
@@ -2322,7 +2324,7 @@ static int sound_options_cursor = 0;
 
 static void M_Menu_SoundOptions_f (void)
 {
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_sound;
 	m_entersound = true;
@@ -2470,7 +2472,7 @@ static cvar_t *M_ControllerCvar (const char *name)
 static void M_Menu_ControllerOptions_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_controller;
 }
@@ -2661,7 +2663,7 @@ static int options_cursor;
 void M_Menu_Options_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_options;
 }
@@ -2957,7 +2959,7 @@ void M_Menu_Keys_f (void)
 	}
 
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_keys;
 
@@ -3082,7 +3084,7 @@ void M_Keys_Key (int k)
 		}
 
 		bind_grab = false;
-		IN_Deactivate (true); // deactivate because we're returning to the menu
+		IN_DeactivateForMenu (); // deactivate because we're returning to the menu
 		return;
 	}
 
@@ -3129,7 +3131,7 @@ int help_page;
 static void M_Menu_Help_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_help;
 	m_entersound = true;
@@ -3197,7 +3199,7 @@ static int M_Mods_Compare (const void *a, const void *b)
 static void M_Menu_Mods_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_mods;
 	m_entersound = true;
@@ -3562,7 +3564,7 @@ static void M_Maps_Init (void)
 static void M_Menu_Maps_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_maps;
 	m_entersound = true;
@@ -4014,7 +4016,7 @@ static void M_SetSkillMenuMap (const char *name)
 static void M_Menu_Skill_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_skill_prevmenu = m_state;
 	m_state = m_skill;
@@ -4126,7 +4128,7 @@ void M_Menu_Quit_f (void)
 	if (!mod_loaded_from_menu)
 	{
 		was_in_menus = (key_dest == key_menu);
-		IN_Deactivate (true);
+		IN_DeactivateForMenu ();
 		key_dest = key_menu;
 		m_quit_prevstate = m_state;
 		m_state = m_quit;
@@ -4181,7 +4183,7 @@ static void M_Quit_Char (int key)
 	case 'Y':
 	case ' ':
 		m_is_quitting = true;
-		IN_Deactivate (true);
+		IN_DeactivateForMenu ();
 		key_dest = key_console;
 		Cbuf_InsertText ("quit");
 		break;
@@ -4243,7 +4245,7 @@ static char lan_config_joinname[36 + 1];
 static void M_Menu_LanConfig_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_lanconfig;
 	if (lan_config_cursor == -1)
@@ -4660,7 +4662,7 @@ static int mpgameoptions_cursor;
 static void M_Menu_MPGameOptions_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_mpgameoptions;
 	if (maxplayers == 0)
@@ -4977,7 +4979,7 @@ static enum slistScope_e search_last_scope = SLIST_LAN;
 static void M_Menu_Search_f (enum slistScope_e scope)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_search;
 	slist_silent = true;
@@ -5035,7 +5037,7 @@ static qboolean slist_sorted;
 static void M_Menu_ServerList_f (void)
 {
 	M_MenuChanged ();
-	IN_Deactivate (true);
+	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_slist;
 	slist_cursor = 0;
@@ -5182,6 +5184,8 @@ void M_Init (void)
 	Cmd_AddCommand ("help", M_Menu_Help_f);
 	Cmd_AddCommand ("menu_quit", M_Menu_Quit_f);
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
+
+	Cvar_RegisterVariable (&ui_mouse);
 }
 
 void M_NewGame (void)
@@ -5197,6 +5201,16 @@ void M_UpdateMouse (void)
 	// M_PixelToMenuCanvasCoord expects; the two differ on high pixel density displays
 	int new_mouse_x;
 	int new_mouse_y;
+
+	if (!ui_mouse.value)
+	{
+		m_mouse_moved = false;
+		m_mouse_x = m_mouse_y = INT_MIN;
+		scrollbar_grab = slider_grab = false;
+		scrollbar_size = 0;
+		return;
+	}
+
 	IN_GetMousePos (&new_mouse_x, &new_mouse_y);
 
 	m_mouse_moved = !menu_changed && ((m_mouse_x_pixels != new_mouse_x) || (m_mouse_y_pixels != new_mouse_y));
@@ -5381,8 +5395,29 @@ static qboolean M_Mouse_ClickValid (void)
 	return bind_grab || m_state == m_help || m_mouse_hover_state == m_state || M_InScrollbar ();
 }
 
+static qboolean M_IsMouseKey (int key)
+{
+	switch (key)
+	{
+	case K_MOUSE1:
+	case K_MOUSE2:
+	case K_MOUSE3:
+	case K_MOUSE4:
+	case K_MOUSE5:
+	case K_MWHEELUP:
+	case K_MWHEELDOWN:
+		return true;
+	default:
+		return false;
+	}
+}
+
 void M_Keydown (int key, qboolean repeat)
 {
+	// mouse buttons can still be bound in the keys menu
+	if (!ui_mouse.value && !bind_grab && M_IsMouseKey (key))
+		return;
+
 	// Repeat navigation and editing, but never menu activation or binding capture.
 	if (repeat)
 	{
