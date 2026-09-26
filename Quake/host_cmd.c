@@ -183,9 +183,9 @@ static const char *RightPad (const char *str, size_t minlen, char c)
 	return buf;
 }
 
-filelist_item_t	 *extralevels;
-filelist_item_t **extralevels_sorted;
-static size_t	  maxlevelnamelen;
+filelist_item_t			*extralevels;
+static filelist_item_t **extralevels_sorted;
+static size_t			 maxlevelnamelen;
 
 static SDL_Thread	  *extralevels_parsing_thread;
 static atomic_uint32_t extralevels_cancel_parsing;
@@ -298,6 +298,47 @@ ExtraMaps_IsStart
 qboolean ExtraMaps_IsStart (maptype_t type)
 {
 	return type == MAPTYPE_CUSTOM_MOD_START || type == MAPTYPE_MOD_START || type == MAPTYPE_CUSTOM_ID_START || type == MAPTYPE_ID_START;
+}
+
+/*
+==================
+ExtraMaps_NextLevel
+
+Iterates the playable levels in display order; start with *index = 0.
+==================
+*/
+filelist_item_t *ExtraMaps_NextLevel (int *index)
+{
+	filelist_item_t *item;
+
+	if (!extralevels_sorted)
+		return NULL;
+
+	// the description parser can turn entries into MAPTYPE_BMODEL after sorting
+	while ((item = extralevels_sorted[*index]) != NULL)
+	{
+		++*index;
+		if (ExtraMaps_GetType (item) < MAPTYPE_BMODEL)
+			return item;
+	}
+
+	return NULL;
+}
+
+/*
+==================
+ExtraMaps_Match
+==================
+*/
+qboolean ExtraMaps_Match (const filelist_item_t *item, const char *substr)
+{
+	const char *message;
+
+	if (!substr || !*substr || q_strcasestr (item->name, substr))
+		return true;
+
+	message = ExtraMaps_GetMessage (item);
+	return message && q_strcasestr (message, substr);
 }
 
 /*
@@ -501,7 +542,7 @@ Host_Maps_f
 */
 static void Host_Maps_f (void)
 {
-	int				 i;
+	int				 i, j;
 	filelist_item_t *item;
 	const char		*desc;
 	const char		*substr = Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL;
@@ -509,17 +550,15 @@ static void Host_Maps_f (void)
 	char			 padchar = '.' - 0x80; // same bits as ('.' | 0x80) without truncating a constant
 	size_t			 ofsdesc = maxlevelnamelen + 2;
 
-	for (item = extralevels, i = 0; item; item = item->next)
+	for (j = 0, i = 0; (item = ExtraMaps_NextLevel (&j)) != NULL;)
 	{
-		if (ExtraMaps_GetType (item) >= MAPTYPE_ID_START)
+		if (!ExtraMaps_Match (item, substr))
 			continue;
 		desc = ExtraMaps_GetMessage (item);
 		if (!desc)
 			desc = "";
 		if (substr && *substr)
 		{
-			if (!q_strcasestr (item->name, substr) && !q_strcasestr (desc, substr))
-				continue;
 			const char *tinted_name = COM_TintSubstring (item->name, substr, buf, sizeof (buf));
 			const char *tinted_desc = COM_TintSubstring (desc, substr, buf2, sizeof (buf2));
 			if (*desc)
@@ -1501,7 +1540,7 @@ static void Host_Randmap_f (void)
 	if (cmd_source != src_command)
 		return;
 
-	for (level = extralevels, numlevels = 0; level; level = level->next)
+	for (i = 0, numlevels = 0; ExtraMaps_NextLevel (&i);)
 		numlevels++;
 
 	if (numlevels == 0)
@@ -1512,9 +1551,9 @@ static void Host_Randmap_f (void)
 
 	randlevel = (COM_Rand () % numlevels);
 
-	for (level = extralevels, i = 0; level; level = level->next, i++)
+	for (i = 0; (level = ExtraMaps_NextLevel (&i)) != NULL;)
 	{
-		if (i == randlevel)
+		if (--randlevel < 0)
 		{
 			Con_Printf ("Starting map %s...\n", level->name);
 			Cbuf_AddText (va ("map %s\n", level->name));

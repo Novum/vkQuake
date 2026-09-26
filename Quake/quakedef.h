@@ -468,11 +468,11 @@ typedef enum
 	MAPTYPE_COUNT,
 } maptype_t;
 
-maptype_t	ExtraMaps_GetType (const filelist_item_t *item);
-qboolean	ExtraMaps_IsStart (maptype_t type);
-const char *ExtraMaps_GetMessage (const filelist_item_t *item);
-
-extern filelist_item_t **extralevels_sorted;
+maptype_t		 ExtraMaps_GetType (const filelist_item_t *item);
+qboolean		 ExtraMaps_IsStart (maptype_t type);
+const char		*ExtraMaps_GetMessage (const filelist_item_t *item);
+filelist_item_t *ExtraMaps_NextLevel (int *index);
+qboolean		 ExtraMaps_Match (const filelist_item_t *item, const char *substr);
 
 // friendly display name for a mod list entry (only valid for modlist items), NULL if unknown
 const char *Modlist_GetFullName (const filelist_item_t *item);

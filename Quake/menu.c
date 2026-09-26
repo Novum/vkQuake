@@ -3416,15 +3416,7 @@ static qboolean M_Maps_IsSelectable (int index)
 
 static qboolean M_Maps_Match (int index)
 {
-	const char *message;
-	if (mapsmenu.items[index].mapidx < 0)
-		return false;
-
-	if (q_strcasestr (mapsmenu.items[index].name, mapsmenu.search.text))
-		return true;
-
-	message = M_Maps_GetMessage (&mapsmenu.items[index]);
-	return message && q_strcasestr (message, mapsmenu.search.text);
+	return mapsmenu.items[index].mapidx >= 0 && ExtraMaps_Match (mapsmenu.items[index].source, mapsmenu.search.text);
 }
 
 static void M_Maps_ClearSearch (void)
@@ -3538,14 +3530,11 @@ static void M_Maps_Init (void)
 
 	M_Ticker_Init (&mapsmenu.ticker);
 
-	for (i = 0, active = -1, prev_type = (maptype_t)-1; extralevels_sorted && extralevels_sorted[i]; i++)
+	for (i = 0, active = -1, prev_type = (maptype_t)-1; (item = ExtraMaps_NextLevel (&i)) != NULL;)
 	{
 		mapitem_t map;
 
-		item = extralevels_sorted[i];
 		type = ExtraMaps_GetType (item);
-		if (type >= MAPTYPE_BMODEL)
-			continue;
 		if (prev_type != (maptype_t)-1 && prev_type != type)
 			M_Maps_AddSeparator (prev_type, type);
 		prev_type = type;
