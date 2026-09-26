@@ -324,6 +324,7 @@ extern cvar_t m_forward;
 extern cvar_t m_side;
 
 extern cvar_t cl_startdemos;
+extern cvar_t cl_startmenu;
 
 #define MAX_TEMP_ENTITIES 256 // johnfitz -- was 64
 

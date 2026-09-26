@@ -51,6 +51,7 @@ cvar_t cl_maxpitch = {"cl_maxpitch", "90", CVAR_ARCHIVE_GAME};	// johnfitz -- va
 cvar_t cl_minpitch = {"cl_minpitch", "-90", CVAR_ARCHIVE_GAME}; // johnfitz -- variable pitch clamping
 
 cvar_t cl_startdemos = {"cl_startdemos", "1", CVAR_ARCHIVE};
+cvar_t cl_startmenu = {"cl_startmenu", "1", CVAR_ARCHIVE};
 cvar_t cl_confirmquit = {"cl_confirmquit", "0", CVAR_ARCHIVE};
 
 client_static_t cls;
@@ -1399,6 +1400,7 @@ void CL_Init (void)
 	Cvar_RegisterVariable (&cl_minpitch); // johnfitz -- variable pitch clamping
 
 	Cvar_RegisterVariable (&cl_startdemos);
+	Cvar_RegisterVariable (&cl_startmenu);
 	Cvar_RegisterVariable (&cl_confirmquit);
 
 	Cmd_AddCommand ("entities", CL_PrintEntities_f);
