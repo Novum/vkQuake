@@ -47,6 +47,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SDL_Condition							SDL_cond
 #define SDL_CreateCondition						SDL_CreateCond
 #define SDL_BroadcastCondition					SDL_CondBroadcast
+#define SDL_SignalCondition						SDL_CondSignal
+#define SDL_DestroyCondition					SDL_DestroyCond
 #define SDL_WaitCondition						SDL_CondWait
 #define SDL_WaitConditionTimeout(cond, mtx, ms) (SDL_CondWaitTimeout (cond, mtx, ms) == 0)
 
@@ -491,6 +493,10 @@ void			   Host_Quit_f (void);
 void			   Host_ClientCommands (const char *fmt, ...) FUNC_PRINTF (1, 2);
 void			   Host_ShutdownServer (qboolean crash);
 void			   Host_WriteConfiguration (void);
+void			   Host_WaitForSaveThread (void);
+void			   Host_ShutdownSave (void);
+qboolean		   Host_IsSaving (void);
+void			   Host_CheckSaveResult (void);
 void			   Host_Resetdemos (void);
 
 void ExtraMaps_Init (void);

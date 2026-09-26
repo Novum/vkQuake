@@ -115,6 +115,11 @@ FILE *Sys_fopen (const char *path, const char *mode)
 	return fopen (path, mode);
 }
 
+int Sys_remove (const char *path)
+{
+	return remove (path);
+}
+
 static qboolean Sys_Exec (const char *cmd, ...)
 {
 	pid_t p = fork ();

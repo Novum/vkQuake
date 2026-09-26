@@ -150,11 +150,32 @@ typedef void (*ED_AllocHook_func) (edict_t *allocated_ed);
 // passing the newly allocated allocated_ed. Returns the previously registered ED_AllocHook.
 ED_AllocHook_func ED_AllocSetHook (ED_AllocHook_func alloc_hook);
 
+// snapshot of the server state for writing a savegame on the save thread
+typedef struct savedata_s
+{
+	qcvm_t		*vm; // only immutable progs data is read through this while saving
+	FILE		*file;
+	qboolean	 error;
+	char		 path[MAX_OSPATH];
+	char		*header;  // VEC of preformatted text before the globals
+	char		*trailer; // VEC of preformatted text after the edicts
+	int			 numknownstrings;
+	const char **knownstrings;
+	int			 num_edicts;
+	edict_t		*edicts;
+	float		*globals;
+	byte		*buffer;
+	size_t		 buffersize;
+} savedata_t;
+
+void SaveData_Fill (savedata_t *save);
+void SaveData_Clear (savedata_t *save);
+
 void		ED_Print (edict_t *ed);
-void		ED_Write (FILE *f, edict_t *ed);
+void		ED_Write (savedata_t *save, edict_t *ed);
 const char *ED_ParseEdict (const char *data, edict_t *ent);
 
-void		ED_WriteGlobals (FILE *f);
+void		ED_WriteGlobals (savedata_t *save);
 const char *ED_ParseGlobals (const char *data);
 
 void ED_LoadFromFile (const char *data);

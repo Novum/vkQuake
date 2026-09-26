@@ -741,6 +741,13 @@ void Sys_Init (void)
 	}
 }
 
+int Sys_remove (const char *path)
+{
+	wchar_t wpath[MAX_PATH];
+	UTF8ToWideString (path, wpath, countof (wpath));
+	return _wremove (wpath);
+}
+
 void Sys_mkdir (const char *path)
 {
 	wchar_t wpath[MAX_PATH];

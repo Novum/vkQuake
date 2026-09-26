@@ -81,6 +81,7 @@ int Sys_FileWrite (int handle, const void *data, int count);
 /* fopen replacement (from Ironwail): handles non-ASCII paths on Windows and
  * creates missing directories when opening a file for writing */
 FILE *Sys_fopen (const char *path, const char *mode);
+int	  Sys_remove (const char *path);
 
 void Sys_mkdir (const char *path);
 

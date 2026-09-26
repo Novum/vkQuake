@@ -3045,6 +3045,8 @@ void COM_SwitchGame (const char *paths)
 		return;
 	}
 
+	Host_WaitForSaveThread ();
+
 	com_modified = true;
 
 	// Kill the server

@@ -1104,6 +1104,20 @@ static void SCR_DrawPause (cb_context_t *cbx)
 }
 
 /*
+==============
+SCR_DrawSaving
+==============
+*/
+static void SCR_DrawSaving (cb_context_t *cbx)
+{
+	if (!Host_IsSaving () || scr_viewsize.value >= 130)
+		return;
+
+	GL_SetCanvas (cbx, CANVAS_TOPRIGHT);
+	Draw_Pic (cbx, 320 - 16 - draw_disc->width, 8, draw_disc, 1.0f, false);
+}
+
+/*
 =============
 SCR_DrawLoadingPic
 =============
@@ -1482,6 +1496,7 @@ static void SCR_DrawGUI (void *unused)
 		SCR_DrawNet (cbx);
 		SCR_DrawTurtle (cbx);
 		SCR_DrawPause (cbx);
+		SCR_DrawSaving (cbx);
 		SCR_CheckDrawCenterString (cbx);
 		Sbar_Draw (cbx);
 		SCR_DrawDevStats (cbx); // johnfitz

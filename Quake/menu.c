@@ -980,6 +980,8 @@ char			m_filenames[MAX_SAVEGAMES][SAVEGAME_COMMENT_LENGTH + 1];
 int				loadable[MAX_SAVEGAMES];
 static char		quicksave_filename[SAVEGAME_COMMENT_LENGTH + 1];
 static qboolean quicksave_available;
+static char		autosave_filename[SAVEGAME_COMMENT_LENGTH + 1];
+static qboolean autosave_available;
 
 static qboolean M_ScanSave (const char *save_name, char *comment, size_t comment_size, const char *legacy_dir, qboolean have_legacy_saves)
 {
@@ -1026,6 +1028,7 @@ static void M_ScanSaves (void)
 	qboolean have_legacy_saves = COM_GetLegacySaveDir (legacy_dir, sizeof (legacy_dir));
 
 	quicksave_available = M_ScanSave ("quick", quicksave_filename, sizeof (quicksave_filename), legacy_dir, have_legacy_saves);
+	autosave_available = M_ScanSave ("autosave", autosave_filename, sizeof (autosave_filename), legacy_dir, have_legacy_saves);
 
 	for (i = 0; i < MAX_SAVEGAMES; i++)
 	{
@@ -1063,8 +1066,8 @@ static void M_Menu_Load_f (void)
 	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	M_ScanSaves ();
-	if (load_cursor >= MAX_SAVEGAMES + quicksave_available)
-		load_cursor = MAX_SAVEGAMES + quicksave_available - 1;
+	if (load_cursor >= MAX_SAVEGAMES + quicksave_available + autosave_available)
+		load_cursor = MAX_SAVEGAMES + quicksave_available + autosave_available - 1;
 }
 
 static void M_Menu_Save_f (void)
@@ -1096,11 +1099,13 @@ static void M_Load_Draw (cb_context_t *cbx)
 	row = 0;
 	if (quicksave_available)
 		M_PrintSavegame (cbx, 16, 32 + 8 * row++, quicksave_filename, "Quicksave");
+	if (autosave_available)
+		M_PrintSavegame (cbx, 16, 32 + 8 * row++, autosave_filename, "Autosave");
 	for (i = 0; i < MAX_SAVEGAMES; i++, row++)
 		M_PrintSavegame (cbx, 16, 32 + 8 * row, m_filenames[i], NULL);
 
 	// line cursor
-	M_Mouse_UpdateListCursor (&load_cursor, 16, 320, 32, 8, MAX_SAVEGAMES + quicksave_available, 0);
+	M_Mouse_UpdateListCursor (&load_cursor, 16, 320, 32, 8, MAX_SAVEGAMES + quicksave_available + autosave_available, 0);
 	Draw_Character (cbx, 8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
@@ -1122,9 +1127,10 @@ static void M_Save_Draw (cb_context_t *cbx)
 
 static void M_Load_Key (int k)
 {
-	int		 num_items = MAX_SAVEGAMES + quicksave_available;
-	int		 save_slot = load_cursor - quicksave_available;
+	int		 num_items = MAX_SAVEGAMES + quicksave_available + autosave_available;
+	int		 save_slot = load_cursor - quicksave_available - autosave_available;
 	qboolean quicksave_selected = quicksave_available && load_cursor == 0;
+	qboolean autosave_selected = autosave_available && load_cursor == quicksave_available;
 
 	switch (k)
 	{
@@ -1139,7 +1145,7 @@ static void M_Load_Key (int k)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 		S_LocalSound ("misc/menu2.wav");
-		if (!quicksave_selected && (save_slot < 0 || save_slot >= MAX_SAVEGAMES || !loadable[save_slot]))
+		if (!quicksave_selected && !autosave_selected && (save_slot < 0 || save_slot >= MAX_SAVEGAMES || !loadable[save_slot]))
 			return;
 
 		// Draw before leaving the menu so disconnected loads don't expose the console.
@@ -1152,6 +1158,8 @@ static void M_Load_Key (int k)
 		// issue the load command
 		if (quicksave_selected)
 			Cbuf_AddText ("load quick\n");
+		else if (autosave_selected)
+			Cbuf_AddText ("load autosave\n");
 		else
 			Cbuf_AddText (va ("load s%i\n", save_slot));
 		return;
