@@ -87,6 +87,7 @@ cvar_t scr_sbaralpha = {"scr_sbaralpha", "0.75", CVAR_ARCHIVE};
 cvar_t scr_conwidth = {"scr_conwidth", "0", CVAR_ARCHIVE};
 cvar_t scr_conscale = {"scr_conscale", "1", CVAR_ARCHIVE};
 cvar_t scr_crosshairscale = {"scr_crosshairscale", "1", CVAR_ARCHIVE};
+cvar_t scr_centerprintbg = {"scr_centerprintbg", "2", CVAR_ARCHIVE}; // 0=off, 1=text box, 2=menu box, 3=menu strip
 cvar_t scr_infoscale = {"scr_infoscale", "2.0", CVAR_ARCHIVE};
 cvar_t scr_showfps = {"scr_showfps", "0", CVAR_ARCHIVE};
 cvar_t scr_clock = {"scr_clock", "0", CVAR_NONE};
@@ -199,6 +200,54 @@ void SCR_CenterPrint (const char *str) // update centerprint data
 	}
 }
 
+// From Ironwail: ignore empty padding lines when sizing the background.
+static void SCR_DrawCenterBackground (cb_context_t *cbx, const char *text, int y)
+{
+	int			lines = 1, cols = 0, width = 0;
+	const char *end;
+	if (cl.intermission || !scr_centerprintbg.value)
+		return;
+	while (*text == '\n')
+	{
+		++text;
+		y += CHARACTER_SIZE;
+	}
+	end = text + strlen (text);
+	while (end > text && end[-1] == '\n')
+		--end;
+	if (end == text)
+		return;
+	for (const char *p = text; p < end; ++p)
+	{
+		if (*p == '\n')
+		{
+			width = q_max (width, cols);
+			cols = 0;
+			++lines;
+		}
+		else
+			++cols;
+	}
+	width = q_max (width, cols);
+	switch ((int)scr_centerprintbg.value)
+	{
+	case 1:
+		width = (width + 3) & ~1;
+		M_DrawTextBoxAlpha (cbx, (320 - width * 8) / 2 - 8, y - 12, width, lines + 1, 0.5f);
+		break;
+	case 2:
+		Draw_Fill (cbx, (320 - (width + 2) * 8) / 2, y - 4, (width + 2) * 8, lines * 8 + 8, 0, 0.5f);
+		break;
+	case 3:
+	{
+		float scale = CLAMP (1.0f, M_GetScale (), q_min (glwidth / 320.0f, glheight / 200.0f));
+		float extent = glwidth / scale;
+		Draw_Fill (cbx, (320 - extent) / 2, y - 4, extent, lines * 8 + 8, 0, 0.5f);
+		break;
+	}
+	}
+}
+
 static void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 {
 	char *start;
@@ -224,6 +273,8 @@ static void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 		y = 48;
 	if (crosshair.value)
 		y -= CHARACTER_SIZE;
+
+	SCR_DrawCenterBackground (cbx, start, y);
 
 	do
 	{
@@ -595,6 +646,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_conscale);
 	Cvar_RegisterVariable (&scr_crosshairscale);
 	Cvar_RegisterVariable (&scr_infoscale);
+	Cvar_RegisterVariable (&scr_centerprintbg);
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_clock);
 	Cvar_RegisterVariable (&scr_autoclock);

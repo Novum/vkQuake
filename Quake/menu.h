@@ -119,4 +119,6 @@ const char *M_GetCrosshairColorName (float crosshair_color_value);
 void		M_GetCrosshairColor (float crosshair_color_value, float *rgb);
 void		M_DrawCrosshair (cb_context_t *cbx, float x, float y, float size);
 
+void M_DrawTextBoxAlpha (cb_context_t *cbx, int x, int y, int width, int lines, float alpha);
+
 #endif /* _QUAKE_MENU_H */

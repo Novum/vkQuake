@@ -354,7 +354,7 @@ static void M_DrawTransPicTranslate (cb_context_t *cbx, int x, int y, qpic_t *pi
 M_DrawTextBox
 ================
 */
-static void M_DrawTextBox (cb_context_t *cbx, int x, int y, int width, int lines)
+void M_DrawTextBoxAlpha (cb_context_t *cbx, int x, int y, int width, int lines, float alpha)
 {
 	qpic_t *p;
 	int		cx, cy;
@@ -364,15 +364,15 @@ static void M_DrawTextBox (cb_context_t *cbx, int x, int y, int width, int lines
 	cx = x;
 	cy = y;
 	p = Draw_CachePic ("gfx/box_tl.lmp");
-	M_DrawTransPic (cbx, cx, cy, p);
+	Draw_Pic (cbx, cx, cy, p, alpha, true);
 	p = Draw_CachePic ("gfx/box_ml.lmp");
 	for (n = 0; n < lines; n++)
 	{
 		cy += 8;
-		M_DrawTransPic (cbx, cx, cy, p);
+		Draw_Pic (cbx, cx, cy, p, alpha, true);
 	}
 	p = Draw_CachePic ("gfx/box_bl.lmp");
-	M_DrawTransPic (cbx, cx, cy + 8, p);
+	Draw_Pic (cbx, cx, cy + 8, p, alpha, true);
 
 	// draw middle
 	cx += 8;
@@ -380,17 +380,17 @@ static void M_DrawTextBox (cb_context_t *cbx, int x, int y, int width, int lines
 	{
 		cy = y;
 		p = Draw_CachePic ("gfx/box_tm.lmp");
-		M_DrawTransPic (cbx, cx, cy, p);
+		Draw_Pic (cbx, cx, cy, p, alpha, true);
 		p = Draw_CachePic ("gfx/box_mm.lmp");
 		for (n = 0; n < lines; n++)
 		{
 			cy += 8;
 			if (n == 1)
 				p = Draw_CachePic ("gfx/box_mm2.lmp");
-			M_DrawTransPic (cbx, cx, cy, p);
+			Draw_Pic (cbx, cx, cy, p, alpha, true);
 		}
 		p = Draw_CachePic ("gfx/box_bm.lmp");
-		M_DrawTransPic (cbx, cx, cy + 8, p);
+		Draw_Pic (cbx, cx, cy + 8, p, alpha, true);
 		width -= 2;
 		cx += 16;
 	}
@@ -398,15 +398,20 @@ static void M_DrawTextBox (cb_context_t *cbx, int x, int y, int width, int lines
 	// draw right side
 	cy = y;
 	p = Draw_CachePic ("gfx/box_tr.lmp");
-	M_DrawTransPic (cbx, cx, cy, p);
+	Draw_Pic (cbx, cx, cy, p, alpha, true);
 	p = Draw_CachePic ("gfx/box_mr.lmp");
 	for (n = 0; n < lines; n++)
 	{
 		cy += 8;
-		M_DrawTransPic (cbx, cx, cy, p);
+		Draw_Pic (cbx, cx, cy, p, alpha, true);
 	}
 	p = Draw_CachePic ("gfx/box_br.lmp");
-	M_DrawTransPic (cbx, cx, cy + 8, p);
+	Draw_Pic (cbx, cx, cy + 8, p, alpha, true);
+}
+
+static void M_DrawTextBox (cb_context_t *cbx, int x, int y, int width, int lines)
+{
+	M_DrawTextBoxAlpha (cbx, x, y, width, lines, 1.0f);
 }
 
 /*
@@ -1611,6 +1616,7 @@ enum
 	GAME_OPT_AUTOLOAD,
 	GAME_OPT_STARTUP_DEMOS,
 	GAME_OPT_SHOWFPS,
+	GAME_OPT_CENTERPRINTBG,
 	GAME_OPT_CONFIRMQUIT,
 	GAME_OPT_LANGUAGE,
 	GAME_OPTIONS_ITEMS
@@ -1761,6 +1767,9 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GAME_OPT_SHOWFPS:
 		Cvar_SetValue ("scr_showfps", ((int)scr_showfps.value + 2 + dir) % 2);
+		break;
+	case GAME_OPT_CENTERPRINTBG:
+		Cvar_SetValueQuick (&scr_centerprintbg, ((int)scr_centerprintbg.value + 4 + dir) % 4);
 		break;
 	case GAME_OPT_LANGUAGE:
 		LOC_CycleLanguage (dir);
@@ -1937,6 +1946,13 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 			M_DrawCheckbox (cbx, MENU_VALUE_X, y, scr_showfps.value);
 			break;
 
+		case GAME_OPT_CENTERPRINTBG:
+		{
+			static const char *names[] = {"Off", "Text box", "Menu box", "Menu strip"};
+			M_Print (cbx, MENU_LABEL_X, y, "Message Background");
+			M_Print (cbx, MENU_VALUE_X, y, names[(int)CLAMP (0, scr_centerprintbg.value, 3)]);
+			break;
+		}
 		case GAME_OPT_LANGUAGE:
 			M_Print (cbx, MENU_LABEL_X, y, "Language");
 			M_Print (cbx, MENU_VALUE_X, y, language.string);
