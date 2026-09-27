@@ -8,6 +8,11 @@ typedef enum
 	SSAO_AO,
 	SSAO_FILTERED,
 	SSAO_EDGES,
+	SSAO_HALF_AO,
+	SSAO_HALF_FILTERED,
+	SSAO_HALF_EDGES,
+	SSAO_HALF_DEPTH_PYRAMID,
+	SSAO_HALF_DEPTH_MISMATCH,
 	SSAO_DEPTH_MISMATCH,
 	SSAO_HILBERT,
 	SSAO_IMAGE_COUNT
@@ -38,16 +43,16 @@ static cvar_t r_ssao_debug = {"r_ssao_debug", "0", CVAR_NONE};
 vulkan_pipeline_t		 ssao_mip_pipeline;
 vulkan_desc_set_layout_t ssao_mip_set_layout;
 vulkan_desc_set_layout_t ssao_lookup_set_layout;
-static VkDescriptorSet	 lookup_descriptors;
-static VkDescriptorSet	 mip_descriptors;
+static VkDescriptorSet	 lookup_descriptors[2];
+static VkDescriptorSet	 mip_descriptors[2];
 
 static VkImage		   working_images[SSAO_IMAGE_COUNT];
 static VkImageView	   working_views[SSAO_IMAGE_COUNT];
 static vulkan_memory_t working_memory[SSAO_IMAGE_COUNT];
 static VkDescriptorSet working_read[SSAO_IMAGE_COUNT], working_write[SSAO_IMAGE_COUNT];
 
-static VkImageView	   mip_views[5];
-static VkDescriptorSet prepared_read, prepared_write;
+static VkImageView	   mip_views[2][5];
+static VkDescriptorSet prepared_read[2], prepared_write[2];
 
 void R_InitSSAO (void)
 {
@@ -130,33 +135,38 @@ void R_CreateSSAO (VkImage depth)
 	{
 		const bool working = i >= SSAO_DEPTH_COUNT;
 		const int  image_index = i - SSAO_DEPTH_COUNT;
+		const bool half_resolution = image_index >= SSAO_HALF_AO && image_index <= SSAO_HALF_DEPTH_MISMATCH;
 
 		VkImage				   *target = working ? &working_images[image_index] : &scene_depth;
 		VkImageView			   *view = working ? &working_views[image_index] : &views[i];
 		vulkan_memory_t		   *allocation_memory = working ? &working_memory[image_index] : NULL;
 		VkDescriptorSet		   *descriptor = working ? &working_read[image_index] : &descriptors[i];
+		const bool				depth_pyramid = image_index == SSAO_DEPTH_PYRAMID || image_index == SSAO_HALF_DEPTH_PYRAMID;
+		const bool				depth_mismatch = image_index == SSAO_DEPTH_MISMATCH || image_index == SSAO_HALF_DEPTH_MISMATCH;
+		const int				width = half_resolution ? (vid.render_width + 1) / 2 : vid.render_width;
+		const int				height = half_resolution ? (vid.render_height + 1) / 2 : vid.render_height;
 		const VkImageCreateInfo image_info = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 			.imageType = VK_IMAGE_TYPE_2D,
-			.format = !working							   ? vulkan_globals.depth_format
-					  : image_index == SSAO_DEPTH_MISMATCH ? VK_FORMAT_R32_UINT
-					  : image_index == SSAO_DEPTH_PYRAMID  ? VK_FORMAT_R16G16_SFLOAT
-					  : image_index == SSAO_EDGES		   ? VK_FORMAT_R8_UNORM
-					  : image_index == SSAO_HILBERT		   ? VK_FORMAT_R16_UINT
-														   : VK_FORMAT_R8_UNORM,
+			.format = !working						? vulkan_globals.depth_format
+					  : depth_mismatch				? VK_FORMAT_R32_UINT
+					  : depth_pyramid				? VK_FORMAT_R16G16_SFLOAT
+					  : image_index == SSAO_EDGES	? VK_FORMAT_R8_UNORM
+					  : image_index == SSAO_HILBERT ? VK_FORMAT_R16_UINT
+													: VK_FORMAT_R8_UNORM,
 			.extent =
-				{image_index == SSAO_HILBERT		  ? 64
-				 : image_index == SSAO_DEPTH_MISMATCH ? (vid.render_width + 1023) / 1024
-													  : vid.render_width,
-				 image_index == SSAO_HILBERT		  ? 64
-				 : image_index == SSAO_DEPTH_MISMATCH ? (vid.render_height + 511) / 512
-													  : vid.render_height,
+				{image_index == SSAO_HILBERT ? 64
+				 : depth_mismatch			 ? (width + 1023) / 1024
+											 : width,
+				 image_index == SSAO_HILBERT ? 64
+				 : depth_mismatch			 ? (height + 511) / 512
+											 : height,
 				 1},
-			.mipLevels = image_index == SSAO_DEPTH_PYRAMID ? 5 : 1,
+			.mipLevels = depth_pyramid ? 5 : 1,
 			.arrayLayers = 1,
 			.samples = working ? VK_SAMPLE_COUNT_1_BIT : vulkan_globals.sample_count,
 			.tiling = VK_IMAGE_TILING_OPTIMAL,
-			.usage = VK_IMAGE_USAGE_SAMPLED_BIT | (image_index == SSAO_DEPTH_MISMATCH ? VK_IMAGE_USAGE_TRANSFER_DST_BIT : 0) |
+			.usage = VK_IMAGE_USAGE_SAMPLED_BIT | (depth_mismatch ? VK_IMAGE_USAGE_TRANSFER_DST_BIT : 0) |
 					 (image_index == SSAO_HILBERT ? VK_IMAGE_USAGE_TRANSFER_DST_BIT : VK_IMAGE_USAGE_STORAGE_BIT),
 		};
 		// Depth and stencil views both borrow the main attachment; only working images own memory.
@@ -205,7 +215,7 @@ void R_CreateSSAO (VkImage depth)
 		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
 		if (working)
 		{
-			if (image_index == SSAO_DEPTH_PYRAMID || image_index == SSAO_HILBERT)
+			if (depth_pyramid || image_index == SSAO_HILBERT)
 				continue; // The LUT is read-only; depth storage uses the individual mip views below.
 			working_write[image_index] = R_AllocateDescriptorSet (&vulkan_globals.single_texture_cs_write_set_layout);
 			write.dstSet = working_write[image_index];
@@ -214,82 +224,94 @@ void R_CreateSSAO (VkImage depth)
 		}
 	}
 	R_UploadSSAOHilbert ();
-	for (int mip = 0; mip < 5; ++mip)
+	for (int resolution = 0; resolution < 2; ++resolution)
 	{
-		const VkImageViewCreateInfo info = {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-			.image = working_images[SSAO_DEPTH_PYRAMID],
-			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = VK_FORMAT_R16G16_SFLOAT,
-			.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, mip, 1, 0, 1}};
-		if (vkCreateImageView (vulkan_globals.device, &info, NULL, &mip_views[mip]) != VK_SUCCESS)
-			Sys_Error ("Couldn't create GTAO mip view");
-		if (mip != 0)
-			continue;
-		prepared_read = R_AllocateDescriptorSet (&vulkan_globals.single_texture_set_layout);
-		prepared_write = R_AllocateDescriptorSet (&vulkan_globals.single_texture_cs_write_set_layout);
-		const VkDescriptorImageInfo image = {sampler, mip_views[mip], VK_IMAGE_LAYOUT_GENERAL};
-		VkWriteDescriptorSet		write = {
-				   .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				   .dstSet = prepared_read,
-				   .descriptorCount = 1,
-				   .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				   .pImageInfo = &image};
-		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
-		write.dstSet = prepared_write;
-		write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
-	}
-	mip_descriptors = R_AllocateDescriptorSet (&ssao_mip_set_layout);
-	for (int binding = 0; binding < 7; ++binding)
-	{
-		const VkDescriptorImageInfo image = {
-			sampler,
-			binding == 0   ? views[SSAO_SCENE_DEPTH]
-			: binding == 6 ? working_views[SSAO_DEPTH_MISMATCH]
-						   : mip_views[binding - 1],
-			binding == 0 ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL};
-		const VkWriteDescriptorSet write = {
-			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = mip_descriptors,
-			.dstBinding = binding,
-			.descriptorCount = 1,
-			.descriptorType = binding == 0 ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-			.pImageInfo = &image};
-		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
-	}
-	lookup_descriptors = R_AllocateDescriptorSet (&ssao_lookup_set_layout);
-	for (int binding = 0; binding < 2; ++binding)
-	{
-		const VkDescriptorImageInfo image = {sampler, working_views[binding == 0 ? SSAO_HILBERT : SSAO_DEPTH_MISMATCH], VK_IMAGE_LAYOUT_GENERAL};
-		const VkWriteDescriptorSet	write = {
-			 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			 .dstSet = lookup_descriptors,
-			 .dstBinding = binding,
-			 .descriptorCount = 1,
-			 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			 .pImageInfo = &image};
-		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
+		for (int mip = 0; mip < 5; ++mip)
+		{
+			const VkImageViewCreateInfo info = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+				.image = working_images[resolution ? SSAO_HALF_DEPTH_PYRAMID : SSAO_DEPTH_PYRAMID],
+				.viewType = VK_IMAGE_VIEW_TYPE_2D,
+				.format = VK_FORMAT_R16G16_SFLOAT,
+				.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, mip, 1, 0, 1}};
+			if (vkCreateImageView (vulkan_globals.device, &info, NULL, &mip_views[resolution][mip]) != VK_SUCCESS)
+				Sys_Error ("Couldn't create GTAO mip view");
+			if (mip != 0)
+				continue;
+			prepared_read[resolution] = R_AllocateDescriptorSet (&vulkan_globals.single_texture_set_layout);
+			prepared_write[resolution] = R_AllocateDescriptorSet (&vulkan_globals.single_texture_cs_write_set_layout);
+			const VkDescriptorImageInfo image = {sampler, mip_views[resolution][mip], VK_IMAGE_LAYOUT_GENERAL};
+			VkWriteDescriptorSet		write = {
+					   .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					   .dstSet = prepared_read[resolution],
+					   .descriptorCount = 1,
+					   .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+					   .pImageInfo = &image};
+			vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
+			write.dstSet = prepared_write[resolution];
+			write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
+		}
+		mip_descriptors[resolution] = R_AllocateDescriptorSet (&ssao_mip_set_layout);
+		for (int binding = 0; binding < 7; ++binding)
+		{
+			const VkDescriptorImageInfo image = {
+				sampler,
+				binding == 0   ? views[SSAO_SCENE_DEPTH]
+				: binding == 6 ? working_views[resolution ? SSAO_HALF_DEPTH_MISMATCH : SSAO_DEPTH_MISMATCH]
+							   : mip_views[resolution][binding - 1],
+				binding == 0 ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL};
+			const VkWriteDescriptorSet write = {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = mip_descriptors[resolution],
+				.dstBinding = binding,
+				.descriptorCount = 1,
+				.descriptorType = binding == 0 ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+				.pImageInfo = &image};
+			vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
+		}
+		lookup_descriptors[resolution] = R_AllocateDescriptorSet (&ssao_lookup_set_layout);
+		for (int binding = 0; binding < 2; ++binding)
+		{
+			const VkDescriptorImageInfo image = {
+				sampler,
+				working_views
+					[binding == 0 ? SSAO_HILBERT
+					 : resolution ? SSAO_HALF_DEPTH_MISMATCH
+								  : SSAO_DEPTH_MISMATCH],
+				VK_IMAGE_LAYOUT_GENERAL};
+			const VkWriteDescriptorSet write = {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = lookup_descriptors[resolution],
+				.dstBinding = binding,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				.pImageInfo = &image};
+			vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
+		}
 	}
 }
 
 void R_DestroySSAO (void)
 {
-	if (lookup_descriptors)
-		R_FreeDescriptorSet (lookup_descriptors, &ssao_lookup_set_layout);
-	lookup_descriptors = VK_NULL_HANDLE;
-	if (mip_descriptors)
-		R_FreeDescriptorSet (mip_descriptors, &ssao_mip_set_layout);
-	mip_descriptors = VK_NULL_HANDLE;
-	if (prepared_read)
-		R_FreeDescriptorSet (prepared_read, &vulkan_globals.single_texture_set_layout);
-	if (prepared_write)
-		R_FreeDescriptorSet (prepared_write, &vulkan_globals.single_texture_cs_write_set_layout);
-	prepared_read = prepared_write = VK_NULL_HANDLE;
-	for (int i = 0; i < countof (mip_views); ++i)
+	for (int resolution = 0; resolution < 2; ++resolution)
 	{
-		vkDestroyImageView (vulkan_globals.device, mip_views[i], NULL);
-		mip_views[i] = VK_NULL_HANDLE;
+		if (lookup_descriptors[resolution])
+			R_FreeDescriptorSet (lookup_descriptors[resolution], &ssao_lookup_set_layout);
+		lookup_descriptors[resolution] = VK_NULL_HANDLE;
+		if (mip_descriptors[resolution])
+			R_FreeDescriptorSet (mip_descriptors[resolution], &ssao_mip_set_layout);
+		mip_descriptors[resolution] = VK_NULL_HANDLE;
+		if (prepared_read[resolution])
+			R_FreeDescriptorSet (prepared_read[resolution], &vulkan_globals.single_texture_set_layout);
+		if (prepared_write[resolution])
+			R_FreeDescriptorSet (prepared_write[resolution], &vulkan_globals.single_texture_cs_write_set_layout);
+		prepared_read[resolution] = prepared_write[resolution] = VK_NULL_HANDLE;
+		for (int i = 0; i < countof (mip_views[resolution]); ++i)
+		{
+			vkDestroyImageView (vulkan_globals.device, mip_views[resolution][i], NULL);
+			mip_views[resolution][i] = VK_NULL_HANDLE;
+		}
 	}
 	for (int i = 0; i < SSAO_IMAGE_COUNT; ++i)
 	{
@@ -339,6 +361,8 @@ static ssao_constants_t R_SSAOConstants (void)
 void R_PrepareSSAOWorldDepth (cb_context_t *cbx)
 {
 	const VkCommandBuffer cb = cbx->cb;
+	const int			  resolution = (int)CLAMP (1, r_ssao.value, 3) == 1;
+	const int			  scale = resolution ? 2 : 1;
 	if (!r_scene_vrect.width || !r_scene_vrect.height)
 		return;
 	VkImageMemoryBarrier barriers[] = {
@@ -358,16 +382,17 @@ void R_PrepareSSAOWorldDepth (cb_context_t *cbx)
 		 .newLayout = VK_IMAGE_LAYOUT_GENERAL,
 		 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 		 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-		 .image = working_images[SSAO_DEPTH_PYRAMID],
+		 .image = working_images[resolution ? SSAO_HALF_DEPTH_PYRAMID : SSAO_DEPTH_PYRAMID],
 		 .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 5, 0, 1}}};
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, countof (barriers), barriers);
-	ssao_constants_t	  constants = R_SSAOConstants ();
-	const VkDescriptorSet sets[] = {descriptors[SSAO_ENTITY_MASK], descriptors[SSAO_SCENE_DEPTH], prepared_write};
+	ssao_constants_t constants = R_SSAOConstants ();
+	constants.settings[3] = scale;
+	const VkDescriptorSet sets[] = {descriptors[SSAO_ENTITY_MASK], descriptors[SSAO_SCENE_DEPTH], prepared_write[resolution]};
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_prepare_pipeline.handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_prepare_pipeline.layout.handle, 0, countof (sets), sets, 0, NULL);
 	vulkan_globals.vk_cmd_push_constants (cb, ssao_prepare_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-	vulkan_globals.vk_cmd_dispatch (cb, (vid.render_width + 7) / 8, (vid.render_height + 7) / 8, 1);
+	vulkan_globals.vk_cmd_dispatch (cb, ((vid.render_width + scale - 1) / scale + 7) / 8, ((vid.render_height + scale - 1) / scale + 7) / 8, 1);
 	barriers[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	barriers[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 	barriers[0].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -397,31 +422,44 @@ void R_ComputeSSAO (cb_context_t *cbx)
 		&depth_barrier);
 	if (!r_scene_vrect.width || !r_scene_vrect.height)
 		return;
-	ssao_constants_t	 constants = R_SSAOConstants ();
+	ssao_constants_t   constants = R_SSAOConstants ();
+	const uint32_t	   width = vid.render_width, height = vid.render_height;
+	const int		   quality = (int)CLAMP (1, r_ssao.value, 3);
+	const bool		   half_resolution = quality == 1;
+	const int		   resolution = half_resolution ? 1 : 0;
+	const int		   scale = half_resolution ? 2 : 1;
+	const ssao_image_t depth_image = half_resolution ? SSAO_HALF_DEPTH_PYRAMID : SSAO_DEPTH_PYRAMID;
+	const ssao_image_t tag_image = half_resolution ? SSAO_HALF_DEPTH_MISMATCH : SSAO_DEPTH_MISMATCH;
+	const uint32_t	   ao_width = half_resolution ? (width + 1) / 2 : width;
+	const uint32_t	   ao_height = half_resolution ? (height + 1) / 2 : height;
+	const ssao_image_t ao_image = half_resolution ? SSAO_HALF_AO : SSAO_AO;
+	const ssao_image_t edges_image = half_resolution ? SSAO_HALF_EDGES : SSAO_EDGES;
+	const ssao_image_t filtered_image = half_resolution ? SSAO_HALF_FILTERED : SSAO_FILTERED;
+	constants.settings[3] = scale;
 	// Preserve prepared world depth; discard the other outputs after previous readers finish.
 	VkImageMemoryBarrier barriers[SSAO_HILBERT];
 	for (int i = 0; i < SSAO_HILBERT; ++i)
 		barriers[i] = (VkImageMemoryBarrier){
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 			.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
-			.dstAccessMask = i == SSAO_DEPTH_MISMATCH ? VK_ACCESS_TRANSFER_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
-			.oldLayout = i == SSAO_DEPTH_PYRAMID ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_UNDEFINED,
+			.dstAccessMask = (i == SSAO_DEPTH_MISMATCH || i == SSAO_HALF_DEPTH_MISMATCH) ? VK_ACCESS_TRANSFER_WRITE_BIT
+																						 : VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+			.oldLayout = i == depth_image ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_UNDEFINED,
 			.newLayout = VK_IMAGE_LAYOUT_GENERAL,
 			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.image = working_images[i],
-			.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, i == SSAO_DEPTH_PYRAMID ? 5 : 1, 0, 1}};
+			.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, (i == SSAO_DEPTH_PYRAMID || i == SSAO_HALF_DEPTH_PYRAMID) ? 5 : 1, 0, 1}};
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
 		0, 0, NULL, 0, NULL, countof (barriers), barriers);
-	const uint32_t		  width = vid.render_width, height = vid.render_height;
-	const uint32_t		  groups_x = (width + 7) / 8, groups_y = (height + 7) / 8;
+
 	const VkMemoryBarrier read_barrier = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER, .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT, .dstAccessMask = VK_ACCESS_SHADER_READ_BIT};
 
 	const VkClearColorValue		  clear = {.uint32 = {0, 0, 0, 0}};
 	const VkImageSubresourceRange tag_range = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-	vkCmdClearColorImage (cb, working_images[SSAO_DEPTH_MISMATCH], VK_IMAGE_LAYOUT_GENERAL, &clear, 1, &tag_range);
+	vkCmdClearColorImage (cb, working_images[tag_image], VK_IMAGE_LAYOUT_GENERAL, &clear, 1, &tag_range);
 	const VkMemoryBarrier clear_barrier = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
 		.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -430,43 +468,45 @@ void R_ComputeSSAO (cb_context_t *cbx)
 
 	// Resolve combined depth and build all depth levels in one dispatch.
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_mip_pipeline.handle);
-	vulkan_globals.vk_cmd_bind_descriptor_sets (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_mip_pipeline.layout.handle, 0, 1, &mip_descriptors, 0, NULL);
+	vulkan_globals.vk_cmd_bind_descriptor_sets (
+		cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_mip_pipeline.layout.handle, 0, 1, &mip_descriptors[resolution], 0, NULL);
 	vulkan_globals.vk_cmd_push_constants (cb, ssao_mip_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-	vulkan_globals.vk_cmd_dispatch (cb, (width + 15) / 16, (height + 15) / 16, 1);
+	vulkan_globals.vk_cmd_dispatch (cb, (ao_width + 15) / 16, (ao_height + 15) / 16, 1);
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &read_barrier, 0, NULL, 0, NULL);
 
 	// Match texture coordinates to the actual view rectangle.
 	constants.settings[2] = 0; // Only the second denoiser pass applies final weighting and visibility scaling.
-	constants.viewport[0] = width;
-	constants.viewport[1] = height;
-	constants.viewport[2] = 2.0f * width / r_scene_vrect.width / vulkan_globals.projection_matrix[0];
-	constants.viewport[3] = 2.0f * height / r_scene_vrect.height / vulkan_globals.projection_matrix[5];
-	constants.projection[0] = (-1.0f - 2.0f * r_scene_vrect.x / r_scene_vrect.width) / vulkan_globals.projection_matrix[0];
-	constants.projection[1] = (-1.0f - 2.0f * (r_scene_vrect.y) / r_scene_vrect.height) / vulkan_globals.projection_matrix[5];
+	constants.viewport[0] = ao_width;
+	constants.viewport[1] = ao_height;
+	constants.viewport[2] = 2.0f * ao_width * scale / r_scene_vrect.width / vulkan_globals.projection_matrix[0];
+	constants.viewport[3] = 2.0f * ao_height * scale / r_scene_vrect.height / vulkan_globals.projection_matrix[5];
+	constants.projection[0] = (-1.0f - (2.0f * r_scene_vrect.x + scale - 1) / r_scene_vrect.width) / vulkan_globals.projection_matrix[0];
+	constants.projection[1] = (-1.0f - (2.0f * r_scene_vrect.y + scale - 1) / r_scene_vrect.height) / vulkan_globals.projection_matrix[5];
 
 	// The evaluator uses settings.w for quality; the composite gets its own debug constants.
-	const int quality = (int)CLAMP (1, r_ssao.value, 3);
-	constants.settings[3] = quality;
+	constants.settings[3] = q_max (quality, 2);
 	const vulkan_pipeline_t *evaluate_pipeline = &ssao_evaluate_pipelines[quality - 1];
 	// Evaluate AO and receiver edges.
-	const VkDescriptorSet	 evaluate_sets[] = {working_read[SSAO_DEPTH_PYRAMID], lookup_descriptors, working_write[SSAO_AO], working_write[SSAO_EDGES]};
+	const VkDescriptorSet	 evaluate_sets[] = {working_read[depth_image], lookup_descriptors[resolution], working_write[ao_image], working_write[edges_image]};
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, evaluate_pipeline->handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cb, VK_PIPELINE_BIND_POINT_COMPUTE, evaluate_pipeline->layout.handle, 0, countof (evaluate_sets), evaluate_sets, 0, NULL);
 	vulkan_globals.vk_cmd_push_constants (cb, evaluate_pipeline->layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-	vulkan_globals.vk_cmd_dispatch (cb, groups_x, groups_y, 1);
+	vulkan_globals.vk_cmd_dispatch (cb, (ao_width + 7) / 8, (ao_height + 7) / 8, 1);
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &read_barrier, 0, NULL, 0, NULL);
 
 	// Each denoiser invocation writes two horizontal pixels.
-	const uint32_t		  filter_groups_x = (width + 15) / 16;
-	const VkDescriptorSet filter_sets[] = {working_read[SSAO_AO], working_read[SSAO_EDGES], working_write[SSAO_FILTERED]};
+	constants.viewport[0] = ao_width;
+	constants.viewport[1] = ao_height;
+	const uint32_t		  filter_groups_x = (ao_width + 15) / 16;
+	const VkDescriptorSet filter_sets[] = {working_read[ao_image], working_read[edges_image], working_write[filtered_image]};
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_filter_pipeline.handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_filter_pipeline.layout.handle, 0, countof (filter_sets), filter_sets, 0, NULL);
 	vulkan_globals.vk_cmd_push_constants (cb, ssao_filter_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-	vulkan_globals.vk_cmd_dispatch (cb, filter_groups_x, groups_y, 1);
+	vulkan_globals.vk_cmd_dispatch (cb, filter_groups_x, (ao_height + 7) / 8, 1);
 	// Finish reading the raw AO before reusing its image for the final output.
 	const VkMemoryBarrier filter_barrier = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
@@ -475,13 +515,13 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &filter_barrier, 0, NULL, 0, NULL);
 
-	const VkDescriptorSet final_sets[] = {working_read[SSAO_FILTERED], working_read[SSAO_EDGES], working_write[SSAO_AO]};
+	const VkDescriptorSet final_sets[] = {working_read[filtered_image], working_read[edges_image], working_write[ao_image]};
 	constants.settings[2] = 1; // Apply the final visibility scale.
 	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_filter_pipeline.handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_filter_pipeline.layout.handle, 0, countof (final_sets), final_sets, 0, NULL);
 	vulkan_globals.vk_cmd_push_constants (cb, ssao_filter_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-	vulkan_globals.vk_cmd_dispatch (cb, filter_groups_x, groups_y, 1);
+	vulkan_globals.vk_cmd_dispatch (cb, filter_groups_x, (ao_height + 7) / 8, 1);
 	// The composite render pass external dependency makes the final AO visible to fragment shaders.
 #ifdef __APPLE__
 	// MoltenVK 1.4.2 records external dependency waits before closing the compute encoder.
@@ -503,7 +543,9 @@ void R_DrawSSAOTask (void *unused)
 	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
 	vkCmdSetScissor (cbx->cb, 0, 1, &rect);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, ssao_pipelines[cbx->pipeline_variant]);
-	const VkDescriptorSet sets[] = {descriptors[SSAO_ENTITY_MASK], descriptors[SSAO_SCENE_DEPTH], working_read[SSAO_AO], prepared_read};
+	const VkDescriptorSet sets[] = {
+		descriptors[SSAO_ENTITY_MASK], descriptors[SSAO_SCENE_DEPTH], working_read[(int)CLAMP (1, r_ssao.value, 3) == 1 ? SSAO_HALF_AO : SSAO_AO],
+		prepared_read[(int)CLAMP (1, r_ssao.value, 3) == 1]};
 	vulkan_globals.vk_cmd_bind_descriptor_sets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, ssao_layout.handle, 0, 4, sets, 0, NULL);
 	const ssao_constants_t constants = R_SSAOConstants ();
 	R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof (constants), &constants);

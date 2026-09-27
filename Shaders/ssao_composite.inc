@@ -7,14 +7,54 @@ pc;
 layout (set = 0, binding = 0) uniform usampler2DMS entity_mask;
 layout (set = 1, binding = 0) uniform sampler2DMS scene_depth;
 #define DEPTH(image, p, s) texelFetch (image, p, s).r
+#define SOURCE_SIZE		   textureSize (scene_depth)
 #else
 layout (set = 0, binding = 0) uniform usampler2D entity_mask;
 layout (set = 1, binding = 0) uniform sampler2D scene_depth;
 #define DEPTH(image, p, s) texelFetch (image, p, 0).r
+#define SOURCE_SIZE		   textureSize (scene_depth, 0)
 #endif
 layout (set = 2, binding = 0) uniform sampler2D filtered_ao;
 layout (set = 3, binding = 0) uniform sampler2D prepared_depth;
 layout (location = 0) out vec4 out_color;
+
+// Low evaluates the world receiver at the top-left pixel of each 2x2 block.
+// Interpolate only between samples with compatible world depth.
+float UpsampleVisibility (ivec2 p, float depth)
+{
+	ivec2 size = textureSize (filtered_ao, 0);
+	if (all (equal (size, SOURCE_SIZE)))
+		return texelFetch (filtered_ao, p, 0).x;
+
+	vec2  position = vec2 (p) * 0.5;
+	ivec2 base = ivec2 (floor (position));
+	vec2  blend = fract (position);
+	float sum = 0.0;
+	float total_weight = 0.0;
+	float nearest_difference = 1e30;
+	float nearest_visibility = 1.0;
+	float depth_scale = 1.0 / max (depth * 0.01, 0.01);
+	for (int y = 0; y < 2; ++y)
+	{
+		for (int x = 0; x < 2; ++x)
+		{
+			ivec2 q = clamp (base + ivec2 (x, y), ivec2 (0), size - 1);
+			float sample_depth = texelFetch (prepared_depth, q, 0).x;
+			float visibility = texelFetch (filtered_ao, q, 0).x;
+			float difference = abs (sample_depth - depth);
+			vec2  weight_xy = mix (1.0 - blend, blend, bvec2 (x != 0, y != 0));
+			float weight = weight_xy.x * weight_xy.y * exp2 (-difference * depth_scale);
+			sum += visibility * weight;
+			total_weight += weight;
+			if (difference < nearest_difference)
+			{
+				nearest_difference = difference;
+				nearest_visibility = visibility;
+			}
+		}
+	}
+	return total_weight > 1e-5 ? sum / total_weight : nearest_visibility;
+}
 
 void main ()
 {
@@ -53,7 +93,8 @@ void main ()
 	}
 	if (pc.settings.w == 3.0)
 	{
-		vec2 depths = texelFetch (prepared_depth, p, 0).xy;
+		ivec2 depth_pixel = all (equal (textureSize (prepared_depth, 0), SOURCE_SIZE)) ? p : p / 2;
+		vec2  depths = texelFetch (prepared_depth, depth_pixel, 0).xy;
 		out_color = vec4 (vec3 (depths.y < depths.x ? 128.0 / (128.0 + depths.y) : 0.0), 1.0);
 		return;
 	}
@@ -70,7 +111,7 @@ void main ()
 #endif
 #endif
 	float depth = world > 0.0 ? pc.projection.z / world : 1e9;
-	float visibility = texelFetch (filtered_ao, p, 0).x;
+	float visibility = UpsampleVisibility (p, depth);
 	float occlusion = 1.0 - visibility;
 	// Match world_common.inc: fog uses view-space depth (clip W), not radial distance.
 	float fog_distance = pc.settings.z * depth;

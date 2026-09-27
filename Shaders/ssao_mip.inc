@@ -108,14 +108,15 @@ half2 prepare_depth (ivec2 p)
 {
 	if (any (greaterThanEqual (p, imageSize (mip0))))
 		return half2 (65504.0);
+	ivec2 source_pixel = p * int (pc.settings.w);
 	float depth = 0.0;
-	if (all (greaterThanEqual (vec2 (p), pc.viewport.xy)) && all (lessThan (vec2 (p), pc.viewport.xy + round (1.0 / pc.viewport.zw))))
+	if (all (greaterThanEqual (vec2 (source_pixel), pc.viewport.xy)) && all (lessThan (vec2 (source_pixel), pc.viewport.xy + round (1.0 / pc.viewport.zw))))
 	{
 #ifdef MULTISAMPLED
 		for (int s = 0; s < int (pc.projection.w); ++s)
-			depth = max (depth, texelFetch (scene_depth, p, s).r);
+			depth = max (depth, texelFetch (scene_depth, source_pixel, s).r);
 #else
-		depth = texelFetch (scene_depth, p, 0).r;
+		depth = texelFetch (scene_depth, source_pixel, 0).r;
 #endif
 	}
 	float view_depth = depth > 0.0 ? min (pc.projection.z / depth, 65472.0) : 65504.0;

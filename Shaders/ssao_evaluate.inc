@@ -135,7 +135,7 @@ void main ()
 	}
 	uint  index = texelFetch (hilbert_lut, ivec2 (pixel & 63u), 0).r;
 	half2 noise = half2 (fract (0.5 + float (index) * vec2 (0.75487766624669276, 0.56984029099805326)));
-	// Low: 1x2x2 = 4 samples; medium: 2x2x2 = 8; high: 3x3x2 = 18.
+	// Low: half resolution with Medium's 2x2x2 samples; High: 3x3x2.
 	half  slice_count = half (pc.settings.w);
 	half  steps_per_slice = slice_count < half (3.0) ? half (2.0) : half (3.0);
 
@@ -190,19 +190,21 @@ void main ()
 	half noise_slice = noise.x;
 	half noise_sample = noise.y;
 
-	half pixel_too_close_threshold = half (1.3);
+	// Keep the near-sample exclusion and small-radius fade in full-resolution pixels.
+	half resolution_scale = quality == 1u ? half (2.0) : half (1.0);
+	half pixel_too_close_threshold = half (1.3) / resolution_scale;
 
 	vec2 pixel_dir_rb_viewspace_size_at_center_z = vec2 (viewspace_z) * c.ndc_to_view_mul_x_pixel_size;
 
 	half screenspace_radius = effect_radius / half (pixel_dir_rb_viewspace_size_at_center_z.x);
 
-	half small_radius_fade = clamp ((half (10.0) - screenspace_radius) / half (100.0), half (0.0), half (1.0)) * half (0.5);
+	half small_radius_fade = clamp ((half (10.0) - screenspace_radius * resolution_scale) / half (100.0), half (0.0), half (1.0)) * half (0.5);
 	world_visibility += small_radius_fade;
 	scene_visibility += small_radius_fade;
 
 	half min_s = pixel_too_close_threshold / screenspace_radius;
 
-	for (half slice = half (0.0); slice < half (quality); slice++)
+	for (half slice = half (0.0); slice < half (max (quality, 2u)); slice++)
 	{
 		half slice_k = (slice + noise_slice) / slice_count;
 
@@ -341,7 +343,9 @@ void main ()
 	// Divide out world-only occlusion so only the entities' additional occlusion remains.
 	// The world/scene ratio is vkQuake-specific; retain its FP32 division before XeGTAO output processing.
 	half visibility = half (clamp (float (scene_visibility) / max (float (world_visibility), 1e-5), 0.0, 1.0));
-	visibility = pow (visibility, half (c.final_value_power));
+	// Fewer horizon samples underestimate occlusion; compensate without changing the radius or sample count.
+	half visibility_power = quality < 3u ? half (3.5) : half (c.final_value_power);
+	visibility = pow (visibility, visibility_power);
 	visibility = max (half (0.03), visibility);
 
 	visibility = clamp (visibility / half (1.5), half (0.0), half (1.0));
