@@ -1878,9 +1878,8 @@ static void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1])
 
 static savedata_t	   save_data;
 static char			   save_relname[MAX_QPATH];
-static qboolean		   save_pending;
 static atomic_uint32_t save_abort;
-static atomic_uint32_t save_in_progress;
+static atomic_uint32_t save_pending;
 static SDL_Thread	  *save_thread;
 static SDL_Mutex	  *save_mutex;
 static SDL_Condition  *save_finished_condition;
@@ -1930,7 +1929,7 @@ static int Host_BackgroundSave (void *param)
 		qboolean aborted = false;
 
 		SDL_LockMutex (save_mutex);
-		while (!save_pending)
+		while (!Atomic_LoadUInt32 (&save_pending))
 			SDL_WaitCondition (save_pending_condition, save_mutex);
 		SDL_UnlockMutex (save_mutex);
 
@@ -1969,8 +1968,7 @@ static int Host_BackgroundSave (void *param)
 		}
 
 		SDL_LockMutex (save_mutex);
-		save_pending = false;
-		Atomic_StoreUInt32 (&save_in_progress, 0);
+		Atomic_StoreUInt32 (&save_pending, 0);
 		SDL_SignalCondition (save_finished_condition);
 		SDL_UnlockMutex (save_mutex);
 	}
@@ -2004,7 +2002,7 @@ void Host_WaitForSaveThread (void)
 		return;
 
 	SDL_LockMutex (save_mutex);
-	while (save_pending)
+	while (Atomic_LoadUInt32 (&save_pending))
 		SDL_WaitCondition (save_finished_condition, save_mutex);
 	SDL_UnlockMutex (save_mutex);
 
@@ -2022,15 +2020,16 @@ void Host_ShutdownSave (void)
 		return;
 
 	SDL_LockMutex (save_mutex);
-	while (save_pending)
+	while (Atomic_LoadUInt32 (&save_pending))
 		SDL_WaitCondition (save_finished_condition, save_mutex);
 	save_data.path[0] = '\0';
-	save_pending = true;
+	Atomic_StoreUInt32 (&save_pending, 1);
 	SDL_SignalCondition (save_pending_condition);
 	SDL_UnlockMutex (save_mutex);
 
 	SDL_WaitThread (save_thread, NULL);
 	save_thread = NULL;
+	Atomic_StoreUInt32 (&save_pending, 0);
 
 	SDL_DestroyCondition (save_finished_condition);
 	save_finished_condition = NULL;
@@ -2049,7 +2048,7 @@ Host_IsSaving
 */
 qboolean Host_IsSaving (void)
 {
-	return Atomic_LoadUInt32 (&save_in_progress) != 0;
+	return Atomic_LoadUInt32 (&save_pending) != 0;
 }
 
 /*
@@ -2067,7 +2066,7 @@ void Host_CheckSaveResult (void)
 		return;
 
 	SDL_LockMutex (save_mutex);
-	error = !save_pending && save_data.error;
+	error = !Atomic_LoadUInt32 (&save_pending) && save_data.error;
 	if (error)
 		save_data.error = false;
 	SDL_UnlockMutex (save_mutex);
@@ -2238,8 +2237,7 @@ static void Host_Savegame_f (void)
 	SDL_LockMutex (save_mutex);
 	q_strlcpy (save_data.path, name, sizeof (save_data.path));
 	q_strlcpy (save_relname, Cmd_Argv (1), sizeof (save_relname));
-	save_pending = true;
-	Atomic_StoreUInt32 (&save_in_progress, 1);
+	Atomic_StoreUInt32 (&save_pending, 1);
 	SDL_SignalCondition (save_pending_condition);
 	SDL_UnlockMutex (save_mutex);
 
