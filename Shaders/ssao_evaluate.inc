@@ -23,6 +23,7 @@
 layout (local_size_x = 8, local_size_y = 8) in;
 layout (set = 0, binding = 0) uniform sampler2D world_depth;
 layout (set = 1, binding = 0) uniform usampler2D hilbert_lut;
+layout (set = 1, binding = 1) uniform usampler2D depth_mismatch;
 layout (r8, set = 2, binding = 0) uniform writeonly image2D out_working_ao_term;
 layout (r8, set = 3, binding = 0) uniform writeonly image2D out_working_edges;
 #include "gtao.inc"
@@ -83,6 +84,40 @@ half fast_acos (half in_x)
 	return (in_x >= half (0.0)) ? res : pi - res;
 }
 
+// Bound the receiver's samples in source tiles, including the coarsest depth
+// sampling grid. Tags require exactly matching encoded world and scene depths.
+bool matching_depth_footprint (uvec2 pixel, vec2 pixel_size, float radius)
+{
+	if (!(radius >= 0.0))
+		return false;
+	ivec2 size = textureSize (world_depth, 0);
+	ivec2 coarse_size = textureSize (world_depth, 4);
+	// Include the minimum sample offset, rounding, and FP16 coordinate error.
+	float extent = ceil (radius * 1.02 + 4.0);
+	vec2  uv_min = max ((vec2 (pixel) + 0.5 - extent) * pixel_size, vec2 (0.0));
+	vec2  uv_max = min ((vec2 (pixel) + 0.5 + extent) * pixel_size, vec2 (1.0));
+	ivec2 first = (min (ivec2 (uv_min * vec2 (coarse_size)), coarse_size - 1) * 16) >> 7;
+	ivec2 last = min (ivec2 (uv_max * vec2 (size)), size - 1) >> 7;
+	ivec2 first_word = first >> ivec2 (3, 2);
+	ivec2 last_word = last >> ivec2 (3, 2);
+	for (int y = first_word.y; y <= last_word.y; ++y)
+	{
+		uint y0 = uint (max (first.y - y * 4, 0));
+		uint y1 = uint (min (last.y - y * 4, 3));
+		uint rows = (0xffffffffu << (y0 * 8u)) & (0xffffffffu >> ((3u - y1) * 8u));
+		for (int x = first_word.x; x <= last_word.x; ++x)
+		{
+			uint flags = texelFetch (depth_mismatch, ivec2 (x, y), 0).r;
+			uint x0 = uint (max (first.x - x * 8, 0));
+			uint x1 = uint (min (last.x - x * 8, 7));
+			uint columns = ((0xffu << x0) & (0xffu >> (7u - x1))) * 0x01010101u;
+			if ((flags & rows & columns) != 0u)
+				return false;
+		}
+	}
+	return true;
+}
+
 void main ()
 {
 	uvec2		   pixel = tiled_global_invocation_id ();
@@ -115,6 +150,14 @@ void main ()
 
 	half4 edges_lrtb = calculate_edges (viewspace_z, pix_lz, pix_rz, pix_tz, pix_bz);
 	imageStore (out_working_edges, ivec2 (pixel), vec4 (pack_edges (edges_lrtb)));
+
+	half mask_z = viewspace_z * half (0.99920);
+	half mask_radius = half (c.effect_radius) * half (1.457) / half (float (mask_z) * c.ndc_to_view_mul_x_pixel_size.x);
+	if (matching_depth_footprint (pixel, c.viewport_pixel_size, float (mask_radius)))
+	{
+		imageStore (out_working_ao_term, ivec2 (pixel), vec4 (2.0 / 3.0));
+		return;
+	}
 
 	vec3  center = compute_viewspace_position (normalized_screen_pos, viewspace_z);
 	vec3  left = compute_viewspace_position (normalized_screen_pos + vec2 (-1, 0) * c.viewport_pixel_size, pix_lz);

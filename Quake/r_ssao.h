@@ -8,6 +8,7 @@ extern vulkan_pipeline_layout_t ssao_compute_layout;
 extern vulkan_pipeline_t		ssao_prepare_pipeline, ssao_evaluate_pipeline, ssao_filter_pipeline;
 extern vulkan_pipeline_t		ssao_mip_pipeline;
 extern vulkan_desc_set_layout_t ssao_mip_set_layout;
+extern vulkan_desc_set_layout_t ssao_lookup_set_layout;
 
 typedef struct
 {

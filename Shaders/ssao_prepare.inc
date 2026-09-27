@@ -34,5 +34,7 @@ void main ()
 	}
 	// Reserve the largest finite half value for missing depth.
 	float view_depth = depth > 0.0 ? min (pc.projection.z / depth, 65472.0) : 65504.0;
+	// Round explicitly, as in prepare_depth, instead of relying on imageStore's conversion.
+	view_depth = unpackHalf2x16 (packHalf2x16 (vec2 (view_depth))).x;
 	imageStore (prepared, output_pixel, vec4 (view_depth, 65504.0, 0.0, 0.0));
 }

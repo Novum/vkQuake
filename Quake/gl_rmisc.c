@@ -1979,8 +1979,19 @@ void R_CreatePipelineLayouts ()
 		ssao_prepare_pipeline.layout = ssao_compute_layout;
 		ssao_evaluate_pipeline.layout = ssao_compute_layout;
 		ssao_filter_pipeline.layout = ssao_compute_layout;
-		VkDescriptorSetLayoutBinding bindings[6];
-		for (int i = 0; i < 6; ++i)
+		const VkDescriptorSetLayoutBinding lookup_bindings[] = {
+			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT, NULL},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT, NULL}};
+		const VkDescriptorSetLayoutCreateInfo lookup_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = countof (lookup_bindings), .pBindings = lookup_bindings};
+		ssao_lookup_set_layout.num_combined_image_samplers = 2;
+		if (vkCreateDescriptorSetLayout (vulkan_globals.device, &lookup_info, NULL, &ssao_lookup_set_layout.handle) != VK_SUCCESS)
+			Sys_Error ("Couldn't create GTAO lookup descriptor layout");
+		layouts[1] = ssao_lookup_set_layout.handle;
+		if (vkCreatePipelineLayout (vulkan_globals.device, &info, NULL, &ssao_evaluate_pipeline.layout.handle) != VK_SUCCESS)
+			Sys_Error ("Couldn't create GTAO evaluator pipeline layout");
+		VkDescriptorSetLayoutBinding bindings[7];
+		for (int i = 0; i < 7; ++i)
 			bindings[i] = (VkDescriptorSetLayoutBinding){
 				.binding = i,
 				.descriptorCount = 1,
@@ -1989,7 +2000,7 @@ void R_CreatePipelineLayouts ()
 		const VkDescriptorSetLayoutCreateInfo set_info = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = countof (bindings), .pBindings = bindings};
 		ssao_mip_set_layout.num_combined_image_samplers = 1;
-		ssao_mip_set_layout.num_storage_images = 5;
+		ssao_mip_set_layout.num_storage_images = 6;
 		if (vkCreateDescriptorSetLayout (vulkan_globals.device, &set_info, NULL, &ssao_mip_set_layout.handle) != VK_SUCCESS)
 			Sys_Error ("Couldn't create entity GTAO mip descriptor layout");
 		info.setLayoutCount = 1;
