@@ -82,6 +82,8 @@ int Sys_FileWrite (int handle, const void *data, int count);
  * creates missing directories when opening a file for writing */
 FILE *Sys_fopen (const char *path, const char *mode);
 int	  Sys_remove (const char *path);
+// Atomically replace destination with a file on the same filesystem; returns 0 on success.
+int	  Sys_rename (const char *from, const char *to);
 
 void Sys_mkdir (const char *path);
 

@@ -748,6 +748,14 @@ int Sys_remove (const char *path)
 	return _wremove (wpath);
 }
 
+int Sys_rename (const char *from, const char *to)
+{
+	wchar_t wfrom[MAX_OSPATH], wto[MAX_OSPATH];
+	UTF8ToWideString (from, wfrom, countof (wfrom));
+	UTF8ToWideString (to, wto, countof (wto));
+	return MoveFileExW (wfrom, wto, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
+}
+
 void Sys_mkdir (const char *path)
 {
 	wchar_t wpath[MAX_PATH];

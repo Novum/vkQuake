@@ -1921,6 +1921,7 @@ Host_BackgroundSave
 static int Host_BackgroundSave (void *param)
 {
 	savedata_t *save = (savedata_t *)param;
+	char		temp_path[MAX_OSPATH + sizeof (".tmp")];
 
 	while (true)
 	{
@@ -1936,7 +1937,9 @@ static int Host_BackgroundSave (void *param)
 		if (!save->path[0])
 			break;
 
-		save->file = Sys_fopen (save->path, "w");
+		// Keep the previous save intact until its replacement is complete.
+		q_snprintf (temp_path, sizeof (temp_path), "%s.tmp", save->path);
+		save->file = Sys_fopen (temp_path, "w");
 		if (!save->file)
 			save->error = true;
 		else
@@ -1959,8 +1962,10 @@ static int Host_BackgroundSave (void *param)
 			if (fclose (save->file) != 0)
 				save->error = true;
 			save->file = NULL;
+			if (!aborted && !save->error && Sys_rename (temp_path, save->path) != 0)
+				save->error = true;
 			if (aborted || save->error)
-				Sys_remove (save->path);
+				Sys_remove (temp_path);
 		}
 
 		SDL_LockMutex (save_mutex);

@@ -120,6 +120,11 @@ int Sys_remove (const char *path)
 	return remove (path);
 }
 
+int Sys_rename (const char *from, const char *to)
+{
+	return rename (from, to);
+}
+
 static qboolean Sys_Exec (const char *cmd, ...)
 {
 	pid_t p = fork ();
