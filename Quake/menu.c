@@ -482,11 +482,6 @@ void M_MenuChanged ()
 	menu_changed = true;
 }
 
-#define SLIDER_SIZE	  10
-#define SLIDER_EXTENT ((SLIDER_SIZE - 1) * 8)
-#define SLIDER_START  (MENU_SLIDER_X + 4)
-#define SLIDER_END	  (SLIDER_START + SLIDER_EXTENT)
-
 /*
 ================
 M_DrawSlider
@@ -497,13 +492,13 @@ static void M_DrawSlider (cb_context_t *cbx, int x, int y, float value, const ch
 	value = CLAMP (0.0f, value, 1.0f);
 	Draw_Character (cbx, x - CHARACTER_SIZE, y, 128);
 
-	for (int i = 0; i < SLIDER_SIZE; i++)
+	for (int i = 0; i < MENU_SLIDER_SIZE; i++)
 		Draw_Character (cbx, x + i * CHARACTER_SIZE, y, 129);
 
-	Draw_Character (cbx, x + SLIDER_SIZE * CHARACTER_SIZE, y, 130);
-	Draw_Character (cbx, x + (SLIDER_SIZE - 1) * CHARACTER_SIZE * value, y, 131);
+	Draw_Character (cbx, x + MENU_SLIDER_SIZE * CHARACTER_SIZE, y, 130);
+	Draw_Character (cbx, x + (MENU_SLIDER_SIZE - 1) * CHARACTER_SIZE * value, y, 131);
 
-	M_Print (cbx, x + (SLIDER_SIZE + 1) * CHARACTER_SIZE, y, label);
+	M_Print (cbx, x + (MENU_SLIDER_SIZE + 1) * CHARACTER_SIZE, y, label);
 }
 
 /*
@@ -519,9 +514,9 @@ M_GetSliderPos (float low, float high, float current, qboolean backward, qboolea
 	if (mouse)
 	{
 		if (backward)
-			f = high + (low - high) * (clamped_mouse - SLIDER_START) / SLIDER_EXTENT;
+			f = high + (low - high) * (clamped_mouse - MENU_SLIDER_START) / MENU_SLIDER_EXTENT;
 		else
-			f = low + (high - low) * (clamped_mouse - SLIDER_START) / SLIDER_EXTENT;
+			f = low + (high - low) * (clamped_mouse - MENU_SLIDER_START) / MENU_SLIDER_EXTENT;
 	}
 	else
 	{
@@ -1698,7 +1693,7 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	if (scrollbar_grab)
 		return;
 
-	float f, clamped_mouse = CLAMP (SLIDER_START, (float)m_mouse_x, SLIDER_END);
+	float f, clamped_mouse = CLAMP (MENU_SLIDER_START, (float)m_mouse_x, MENU_SLIDER_END);
 
 	if (fabsf (clamped_mouse - (float)m_mouse_x) > 12.0f)
 		mouse = false;
@@ -2178,7 +2173,7 @@ static void M_GraphicsOptions_ChooseNextParticles (int dir)
 
 static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 {
-	float f, clamped_mouse = CLAMP (SLIDER_START, (float)m_mouse_x, SLIDER_END);
+	float f, clamped_mouse = CLAMP (MENU_SLIDER_START, (float)m_mouse_x, MENU_SLIDER_END);
 
 	if (fabsf (clamped_mouse - (float)m_mouse_x) > 12.0f)
 		mouse = false;
@@ -2499,7 +2494,7 @@ static void M_Menu_SoundOptions_f (void)
 
 static void M_SoundOptions_AdjustSliders (int dir, qboolean mouse)
 {
-	float f, clamped_mouse = CLAMP (SLIDER_START, (float)m_mouse_x, SLIDER_END);
+	float f, clamped_mouse = CLAMP (MENU_SLIDER_START, (float)m_mouse_x, MENU_SLIDER_END);
 
 	if (fabsf (clamped_mouse - (float)m_mouse_x) > 12.0f)
 		mouse = false;
