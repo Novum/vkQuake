@@ -1977,7 +1977,7 @@ void R_CreatePipelineLayouts ()
 		ssao_compute_layout.push_constant_range = range;
 		ssao_compute_layout.mboit_input_attachment_set = -1;
 		ssao_prepare_pipeline.layout = ssao_compute_layout;
-		ssao_evaluate_pipeline.layout = ssao_compute_layout;
+		ssao_evaluate_pipelines[0].layout = ssao_compute_layout;
 		ssao_filter_pipeline.layout = ssao_compute_layout;
 		const VkDescriptorSetLayoutBinding lookup_bindings[] = {
 			{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT, NULL},
@@ -1988,8 +1988,10 @@ void R_CreatePipelineLayouts ()
 		if (vkCreateDescriptorSetLayout (vulkan_globals.device, &lookup_info, NULL, &ssao_lookup_set_layout.handle) != VK_SUCCESS)
 			Sys_Error ("Couldn't create GTAO lookup descriptor layout");
 		layouts[1] = ssao_lookup_set_layout.handle;
-		if (vkCreatePipelineLayout (vulkan_globals.device, &info, NULL, &ssao_evaluate_pipeline.layout.handle) != VK_SUCCESS)
+		if (vkCreatePipelineLayout (vulkan_globals.device, &info, NULL, &ssao_evaluate_pipelines[0].layout.handle) != VK_SUCCESS)
 			Sys_Error ("Couldn't create GTAO evaluator pipeline layout");
+		for (int i = 1; i < countof (ssao_evaluate_pipelines); ++i)
+			ssao_evaluate_pipelines[i].layout = ssao_evaluate_pipelines[0].layout;
 		VkDescriptorSetLayoutBinding bindings[7];
 		for (int i = 0; i < 7; ++i)
 			bindings[i] = (VkDescriptorSetLayoutBinding){
@@ -4041,8 +4043,14 @@ static void R_CreatePostprocessPipelines ()
 		R_CreateComputePipeline (
 			&ssao_prepare_pipeline, vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? ssao_prepare_comp_module : ssao_prepare_msaa_comp_module, 0, NULL,
 			"ssao_prepare");
-		R_CreateComputePipeline (
-			&ssao_evaluate_pipeline, vulkan_globals.shader_float16 ? ssao_evaluate_fp16_comp_module : ssao_evaluate_comp_module, 0, NULL, "ssao_evaluate");
+		const VkSpecializationMapEntry quality_entry = {.constantID = 0, .offset = 0, .size = sizeof (uint32_t)};
+		for (uint32_t quality = 1; quality <= countof (ssao_evaluate_pipelines); ++quality)
+		{
+			const VkSpecializationInfo specialization = {.mapEntryCount = 1, .pMapEntries = &quality_entry, .dataSize = sizeof (quality), .pData = &quality};
+			R_CreateComputePipeline (
+				&ssao_evaluate_pipelines[quality - 1], vulkan_globals.shader_float16 ? ssao_evaluate_fp16_comp_module : ssao_evaluate_comp_module, 0,
+				&specialization, "ssao_evaluate");
+		}
 		R_CreateComputePipeline (
 			&ssao_mip_pipeline,
 			vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? (vulkan_globals.shader_float16 ? ssao_mip_fp16_comp_module : ssao_mip_comp_module)
@@ -4397,9 +4405,13 @@ void R_DestroyPipelines (void)
 	vkDestroyPipeline (vulkan_globals.device, ssao_mip_pipeline.handle, NULL);
 	ssao_mip_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, ssao_prepare_pipeline.handle, NULL);
-	vkDestroyPipeline (vulkan_globals.device, ssao_evaluate_pipeline.handle, NULL);
+	for (int i = 0; i < countof (ssao_evaluate_pipelines); ++i)
+	{
+		vkDestroyPipeline (vulkan_globals.device, ssao_evaluate_pipelines[i].handle, NULL);
+		ssao_evaluate_pipelines[i].handle = VK_NULL_HANDLE;
+	}
 	vkDestroyPipeline (vulkan_globals.device, ssao_filter_pipeline.handle, NULL);
-	ssao_prepare_pipeline.handle = ssao_evaluate_pipeline.handle = ssao_filter_pipeline.handle = VK_NULL_HANDLE;
+	ssao_prepare_pipeline.handle = ssao_filter_pipeline.handle = VK_NULL_HANDLE;
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 	{
 		vkDestroyPipeline (vulkan_globals.device, ssao_pipelines[variant].handle, NULL);

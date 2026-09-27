@@ -20,6 +20,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// Specialize loop bounds while retaining the original sampling arithmetic.
+layout (constant_id = 0) const uint quality = 1;
+
 layout (local_size_x = 8, local_size_y = 8) in;
 layout (set = 0, binding = 0) uniform sampler2D world_depth;
 layout (set = 1, binding = 0) uniform usampler2D hilbert_lut;
@@ -199,7 +202,7 @@ void main ()
 
 	half min_s = pixel_too_close_threshold / screenspace_radius;
 
-	for (half slice = half (0.0); slice < slice_count; slice++)
+	for (half slice = half (0.0); slice < half (quality); slice++)
 	{
 		half slice_k = (slice + noise_slice) / slice_count;
 
@@ -233,7 +236,7 @@ void main ()
 		half scene_horizon_cos0 = low_horizon_cos0;
 		half scene_horizon_cos1 = low_horizon_cos1;
 
-		for (half step = half (0.0); step < steps_per_slice; step++)
+		for (half step = half (0.0); step < half (quality < 3u ? 2u : 3u); step++)
 		{
 			half step_base_noise = (slice + step * steps_per_slice) * half (0.6180339887498948482);
 			half step_noise = fract (noise_sample + step_base_noise);

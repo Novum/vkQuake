@@ -26,7 +26,8 @@ static cvar_t			 r_ssao_strength = {"r_ssao_strength", "1.0", CVAR_ARCHIVE};
 vulkan_pipeline_layout_t ssao_layout;
 vulkan_pipeline_t		 ssao_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT];
 vulkan_pipeline_layout_t ssao_compute_layout;
-vulkan_pipeline_t		 ssao_prepare_pipeline, ssao_evaluate_pipeline, ssao_filter_pipeline;
+vulkan_pipeline_t		 ssao_prepare_pipeline, ssao_filter_pipeline;
+vulkan_pipeline_t		 ssao_evaluate_pipelines[3];
 static VkImage			 scene_depth;
 static VkImageView		 views[SSAO_DEPTH_COUNT];
 static VkDescriptorSet	 descriptors[SSAO_DEPTH_COUNT];
@@ -445,13 +446,15 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	constants.projection[1] = (-1.0f - 2.0f * (r_scene_vrect.y) / r_scene_vrect.height) / vulkan_globals.projection_matrix[5];
 
 	// The evaluator uses settings.w for quality; the composite gets its own debug constants.
-	constants.settings[3] = (int)CLAMP (1, r_ssao.value, 3);
+	const int quality = (int)CLAMP (1, r_ssao.value, 3);
+	constants.settings[3] = quality;
+	const vulkan_pipeline_t *evaluate_pipeline = &ssao_evaluate_pipelines[quality - 1];
 	// Evaluate AO and receiver edges.
-	const VkDescriptorSet evaluate_sets[] = {working_read[SSAO_DEPTH_PYRAMID], lookup_descriptors, working_write[SSAO_AO], working_write[SSAO_EDGES]};
-	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_evaluate_pipeline.handle);
+	const VkDescriptorSet	 evaluate_sets[] = {working_read[SSAO_DEPTH_PYRAMID], lookup_descriptors, working_write[SSAO_AO], working_write[SSAO_EDGES]};
+	vulkan_globals.vk_cmd_bind_pipeline (cb, VK_PIPELINE_BIND_POINT_COMPUTE, evaluate_pipeline->handle);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cb, VK_PIPELINE_BIND_POINT_COMPUTE, ssao_evaluate_pipeline.layout.handle, 0, countof (evaluate_sets), evaluate_sets, 0, NULL);
-	vulkan_globals.vk_cmd_push_constants (cb, ssao_evaluate_pipeline.layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
+		cb, VK_PIPELINE_BIND_POINT_COMPUTE, evaluate_pipeline->layout.handle, 0, countof (evaluate_sets), evaluate_sets, 0, NULL);
+	vulkan_globals.vk_cmd_push_constants (cb, evaluate_pipeline->layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
 	vulkan_globals.vk_cmd_dispatch (cb, groups_x, groups_y, 1);
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &read_barrier, 0, NULL, 0, NULL);

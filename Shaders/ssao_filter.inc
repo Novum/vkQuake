@@ -58,14 +58,26 @@ void main ()
 	half diag_weight = half (0.85 * 0.5);
 
 	vec2  gather_center = vec2 (pixel.x, pixel.y) * c.viewport_pixel_size;
-	half4 edges_q0 = half4 (textureGatherOffset (edges, gather_center, ivec2 (0, 0), 0));
-	half4 edges_q1 = half4 (textureGatherOffset (edges, gather_center, ivec2 (2, 0), 0));
-	half4 edges_q2 = half4 (textureGatherOffset (edges, gather_center, ivec2 (1, 2), 0));
-
 	half4 vis_q0 = half4 (textureGatherOffset (source, gather_center, ivec2 (0, 0), 0));
 	half4 vis_q1 = half4 (textureGatherOffset (source, gather_center, ivec2 (2, 0), 0));
 	half4 vis_q2 = half4 (textureGatherOffset (source, gather_center, ivec2 (0, 2), 0));
 	half4 vis_q3 = half4 (textureGatherOffset (source, gather_center, ivec2 (2, 2), 0));
+
+	half4 edges_q0 = half4 (textureGatherOffset (edges, gather_center, ivec2 (0, 0), 0));
+	half4 edges_q1 = half4 (textureGatherOffset (edges, gather_center, ivec2 (2, 0), 0));
+	half4 edges_q2 = half4 (textureGatherOffset (edges, gather_center, ivec2 (1, 2), 0));
+
+	// Neutral AO with fully connected edges needs no filtering.
+	// Keep varying edge weights on the normal path to preserve R8 rounding.
+	half4 neutral = half4 (2.0 / 3.0);
+	if (all (equal (vis_q0, neutral)) && all (equal (vis_q1, neutral)) && all (equal (vis_q2, neutral)) && all (equal (vis_q3, neutral)) &&
+		all (equal (edges_q0, half4 (1.0))) && all (equal (edges_q1, half4 (1.0))) && all (equal (edges_q2, half4 (1.0))))
+	{
+		float value = final_apply ? 1.0 : 2.0 / 3.0;
+		imageStore (output_texture, ivec2 (pixel), vec4 (value));
+		imageStore (output_texture, ivec2 (pixel) + ivec2 (1, 0), vec4 (value));
+		return;
+	}
 
 	for (int side = 0; side < 2; side++)
 	{
