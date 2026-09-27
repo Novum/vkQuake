@@ -520,6 +520,7 @@ typedef struct screen_effect_constants_s
 	float	 poly_blend_g;
 	float	 poly_blend_b;
 	float	 poly_blend_a;
+	float	 menu_alpha;
 } screen_effect_constants_t;
 
 typedef struct ray_debug_constants_s
@@ -630,6 +631,7 @@ static void R_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering_
 				(float)parms->v_blend[1] / 255.0f,
 				(float)parms->v_blend[2] / 255.0f,
 				(float)parms->v_blend[3] / 255.0f,
+				parms->menu_alpha,
 			};
 			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
 		}

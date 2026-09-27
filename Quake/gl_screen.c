@@ -250,13 +250,13 @@ static void SCR_DrawCenterBackground (cb_context_t *cbx, const char *text, int y
 	}
 }
 
-static void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
+static void SCR_DrawCenterText (cb_context_t *cbx, const char *text, int lines) // actually do the drawing
 {
-	char *start;
-	int	  l;
-	int	  j;
-	int	  x, y;
-	int	  remaining;
+	const char *start;
+	int			l;
+	int			j;
+	int			x, y;
+	int			remaining;
 
 	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
@@ -267,9 +267,9 @@ static void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 		remaining = 9999;
 
 	scr_erase_center = 0;
-	start = scr_centerstring;
+	start = text;
 
-	if (scr_center_lines <= 4)
+	if (lines <= 4)
 		y = 200 * 0.35; // johnfitz -- 320x200 coordinate system
 	else
 		y = 48;
@@ -299,6 +299,26 @@ static void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 			break;
 		start++; // skip the \n
 	} while (1);
+}
+
+static void SCR_DrawCenterString (cb_context_t *cbx)
+{
+	SCR_DrawCenterText (cbx, scr_centerstring, scr_center_lines);
+}
+
+void SCR_DrawCenterPrintPreview (cb_context_t *cbx, float alpha)
+{
+	if (cl.intermission)
+		return;
+	Draw_SetOpacity (alpha);
+	SCR_DrawCenterText (
+		cbx,
+		"Certain messages appear inconveniently\n"
+		"in the middle of your view. These are\n"
+		"always important, and you do not want\n"
+		"to ignore them!",
+		4);
+	Draw_SetOpacity (1.0f);
 }
 
 static void SCR_CheckDrawCenterString (cb_context_t *cbx)

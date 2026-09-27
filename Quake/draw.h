@@ -53,6 +53,7 @@ void	Draw_TransPicTranslate (cb_context_t *cbx, float x, float y, qpic_t *pic, i
 void	Draw_ConsoleBackground (cb_context_t *cbx);														// johnfitz -- removed parameter int lines
 void	Draw_TileClear (cb_context_t *cbx, float x, float y, float w, float h);
 void	Draw_Fill (cb_context_t *cbx, float x, float y, float w, float h, int c, float alpha); // johnfitz -- added alpha
+void	Draw_SetOpacity (float opacity);
 void	Draw_FadeScreen (cb_context_t *cbx);
 void	Draw_String (cb_context_t *cbx, float x, float y, const char *str);
 void	Draw_String_Scaled (cb_context_t *cbx, float x, float y, const char *str, float scale);

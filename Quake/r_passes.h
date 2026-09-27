@@ -71,6 +71,7 @@ typedef struct end_rendering_parms_s
 	uint32_t	 render_width;
 	uint32_t	 render_height;
 	float		 time;
+	float		 menu_alpha;
 	VkClearValue color_clear_value;
 	uint8_t		 v_blend[4];
 	float		 origin[3];

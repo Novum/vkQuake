@@ -114,6 +114,61 @@ static int scrollbar_x;
 static int scrollbar_y;
 static int scrollbar_size;
 
+cvar_t ui_live_preview = {"ui_live_preview", "1", CVAR_ARCHIVE};
+
+typedef enum
+{
+	PREVIEW_WORLD,
+	PREVIEW_CENTERPRINT,
+	PREVIEW_UNDERWATER
+} preview_kind_t;
+
+static struct
+{
+	enum m_state_e menu;
+	int			   row;
+	preview_kind_t kind;
+	float		   fraction, target, hold;
+} menu_preview;
+
+static void M_UpdatePreview (void);
+
+float M_MenuPreviewFraction (void)
+{
+	if (!ui_live_preview.value || key_dest != key_menu || m_state != menu_preview.menu)
+		return 0.0f;
+	return menu_preview.fraction;
+}
+
+qboolean M_ForcedUnderwater (void)
+{
+	return M_MenuPreviewFraction () > 0.0f && menu_preview.kind == PREVIEW_UNDERWATER;
+}
+
+static void M_PreviewRow (cb_context_t *cbx, int row, int y)
+{
+	float fraction = M_MenuPreviewFraction ();
+	if (row == menu_preview.row)
+	{
+		Draw_SetOpacity (1.0f);
+		if (fraction > 0.0f)
+			Draw_Fill (cbx, MENU_CURSOR_X - 4, y - 4, 320 - MENU_CURSOR_X, CHARACTER_SIZE + 8, 0, 0.5f * fraction);
+	}
+	else
+		Draw_SetOpacity (1.0f - fraction);
+}
+
+static void M_BeginPreview (int row, preview_kind_t kind)
+{
+	if (!ui_live_preview.value || cls.state != ca_connected || cls.signon != SIGNONS || (kind == PREVIEW_CENTERPRINT && cl.intermission))
+		return;
+	menu_preview.menu = m_state;
+	menu_preview.row = row;
+	menu_preview.kind = kind;
+	menu_preview.target = 1.0f;
+	menu_preview.hold = kind == PREVIEW_UNDERWATER ? 2.25f : 1.25f;
+}
+
 cvar_t ui_mouse = {"ui_mouse", "1", CVAR_ARCHIVE};
 
 void		M_ConfigureNetSubsystem (void);
@@ -1619,6 +1674,7 @@ enum
 	GAME_OPT_SHOWFPS,
 	GAME_OPT_SHOWSPEED,
 	GAME_OPT_CENTERPRINTBG,
+	GAME_OPT_LIVE_PREVIEW,
 	GAME_OPT_CONFIRMQUIT,
 	GAME_OPT_LANGUAGE,
 	GAME_OPTIONS_ITEMS
@@ -1630,6 +1686,7 @@ static int first_game_option = 0;
 
 static void M_Menu_GameOptions_f (void)
 {
+	memset (&menu_preview, 0, sizeof (menu_preview));
 	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_game;
@@ -1773,6 +1830,9 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_SHOWSPEED:
 		Cvar_SetValueQuick (&scr_showspeed, !scr_showspeed.value);
 		break;
+	case GAME_OPT_LIVE_PREVIEW:
+		Cvar_SetValueQuick (&ui_live_preview, !ui_live_preview.value);
+		break;
 	case GAME_OPT_CENTERPRINTBG:
 		Cvar_SetValueQuick (&scr_centerprintbg, ((int)scr_centerprintbg.value + 4 + dir) % 4);
 		break;
@@ -1781,6 +1841,28 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GAME_OPT_CONFIRMQUIT:
 		Cvar_SetValue ("cl_confirmquit", ((int)cl_confirmquit.value + 2 + dir) % 2);
+		break;
+	}
+	switch (game_options_cursor)
+	{
+	case GAME_OPT_SCALE:
+	case GAME_OPT_SBALPHA:
+	case GAME_OPT_HUD_DETAIL:
+	case GAME_OPT_HUD_STYLE:
+	case GAME_OPT_CROSSHAIR:
+	case GAME_OPT_CROSSHAIR_SIZE:
+	case GAME_OPT_CROSSHAIR_COLOR:
+	case GAME_OPT_CROSSHAIR_OPACITY:
+	case GAME_OPT_SHOWGUN:
+	case GAME_OPT_SHOWFPS:
+	case GAME_OPT_SHOWSPEED:
+		M_BeginPreview (game_options_cursor, PREVIEW_WORLD);
+		break;
+	case GAME_OPT_CENTERPRINTBG:
+		M_BeginPreview (game_options_cursor, PREVIEW_CENTERPRINT);
+		break;
+	default:
+		menu_preview.target = menu_preview.hold = 0.0f;
 		break;
 	}
 }
@@ -1830,6 +1912,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 	for (int i = 0; i < GAME_OPTIONS_PER_PAGE && i < (int)GAME_OPTIONS_ITEMS; i++)
 	{
 		const int y = top + i * CHARACTER_SIZE;
+		M_PreviewRow (cbx, i + first_game_option, y);
 		switch (i + first_game_option)
 		{
 		case GAME_OPT_SCALE:
@@ -1955,6 +2038,10 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 			M_Print (cbx, MENU_LABEL_X, y, "Show Speed");
 			M_DrawCheckbox (cbx, MENU_VALUE_X, y, scr_showspeed.value);
 			break;
+		case GAME_OPT_LIVE_PREVIEW:
+			M_Print (cbx, MENU_LABEL_X, y, "Live Preview");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, ui_live_preview.value);
+			break;
 		case GAME_OPT_CENTERPRINTBG:
 		{
 			static const char *names[] = {"Off", "Text box", "Menu box", "Menu strip"};
@@ -1973,6 +2060,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 		}
 	}
 
+	Draw_SetOpacity (1.0f - M_MenuPreviewFraction ());
 	if (GAME_OPTIONS_ITEMS > GAME_OPTIONS_PER_PAGE)
 		M_DrawScrollbar (
 			cbx, MENU_SCROLLBAR_X, MENU_TOP + CHARACTER_SIZE, (float)(first_game_option) / (GAME_OPTIONS_ITEMS - GAME_OPTIONS_PER_PAGE),
@@ -1980,6 +2068,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 	// cursor
 	M_Mouse_UpdateListCursor (&game_options_cursor, MENU_CURSOR_X, 320, top, CHARACTER_SIZE, GAME_OPTIONS_PER_PAGE, first_game_option);
+	Draw_SetOpacity (1.0f);
 	Draw_Character (cbx, MENU_CURSOR_X, top + (game_options_cursor - first_game_option) * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
 }
 
@@ -2018,6 +2107,7 @@ static int graphics_options_cursor = 0;
 
 static void M_Menu_GraphicsOptions_f (void)
 {
+	memset (&menu_preview, 0, sizeof (menu_preview));
 	IN_DeactivateForMenu ();
 	key_dest = key_menu;
 	m_state = m_graphics;
@@ -2181,6 +2271,31 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 			Cvar_SetValueQuick (&r_ssao, (float)(((int)CLAMP (0, r_ssao.value, 3) + 4 + dir) % 4));
 		break;
 	}
+	M_BeginPreview (graphics_options_cursor, option == GRAPHICS_OPT_UNDERWATER ? PREVIEW_UNDERWATER : PREVIEW_WORLD);
+}
+
+// Ironwail timing, with frame hitches capped so renderer restarts do not skip the fade.
+static void M_UpdatePreview (void)
+{
+	float dt = q_min (host_rawframetime, 1.0 / 30.0);
+	int	  row = m_state == m_game ? game_options_cursor : graphics_options_cursor;
+	if (!ui_live_preview.value || key_dest != key_menu || m_state != menu_preview.menu || cls.state != ca_connected || cls.signon != SIGNONS)
+	{
+		memset (&menu_preview, 0, sizeof (menu_preview));
+		return;
+	}
+	if (row != menu_preview.row)
+		menu_preview.target = menu_preview.hold = 0.0f;
+	if (menu_preview.fraction < menu_preview.target)
+		menu_preview.fraction = q_min (menu_preview.target, menu_preview.fraction + dt / 0.125f);
+	else if (menu_preview.fraction > menu_preview.target)
+		menu_preview.fraction = q_max (menu_preview.target, menu_preview.fraction - dt / 0.125f);
+	else if (menu_preview.hold > 0.0f && !slider_grab)
+	{
+		menu_preview.hold -= dt;
+		if (menu_preview.hold <= 0.0f)
+			menu_preview.target = 0.0f;
+	}
 }
 
 static void M_GraphicsOptions_Key (int k)
@@ -2235,24 +2350,30 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	// Draw the items in the order of the enum defined above:
+	M_PreviewRow (cbx, GRAPHICS_OPT_GAMMA, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, "Gamma");
 	r = (1.0 - vid_gamma.value) / 0.5;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, r, va ("%.1f", vid_gamma.value));
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_CONTRAST, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, "Contrast");
 	r = vid_contrast.value - 1.0;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, r, va ("%.1f", vid_contrast.value));
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_FOV, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, "Field of View");
 	r = (scr_fov.value - 80) / (130 - 80);
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, r, va ("%.0f", scr_fov.value));
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_8BIT_COLOR, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, "8-bit Color");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, vid_palettize.value);
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_FILTER, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER, "World Textures");
 	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER, (vid_filter.value == 0) ? "smooth" : "classic");
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_MENU_FILTER, top + CHARACTER_SIZE * GRAPHICS_OPT_MENU_FILTER);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MENU_FILTER, "UI Textures");
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MENU_FILTER,
@@ -2262,6 +2383,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 
 	// Max FPS special display
 	{
+		M_PreviewRow (cbx, GRAPHICS_OPT_MAX_FPS, top + CHARACTER_SIZE * GRAPHICS_OPT_MAX_FPS);
 		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MAX_FPS, "Max FPS");
 
 		if (host_maxfps.value <= 0)
@@ -2281,49 +2403,59 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 		}
 	}
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_ANTIALIASING_SAMPLES, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_SAMPLES);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_SAMPLES, "Antialiasing");
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_SAMPLES,
 		((int)vid_fsaa.value >= 2) ? va ("%ix", CLAMP (2, (int)vid_fsaa.value, 16)) : "off");
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_ANTIALIASING_MODE, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_MODE);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_MODE, "AA mode");
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_MODE,
 		(((int)vid_fsaamode.value == 0) || !vulkan_globals.device_features.sampleRateShading) ? "Multisample" : "Supersample");
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_ANISOTROPY, top + CHARACTER_SIZE * GRAPHICS_OPT_ANISOTROPY);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANISOTROPY, "Anisotropic");
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANISOTROPY,
 		(vid_anisotropic.value == 0) ? "off" : va ("on (%gx)", vulkan_globals.device_properties.limits.maxSamplerAnisotropy));
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_UNDERWATER, top + CHARACTER_SIZE * GRAPHICS_OPT_UNDERWATER);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_UNDERWATER, "Underwater FX");
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_UNDERWATER,
 		(r_waterwarp.value == 0) ? "off" : ((r_waterwarp.value == 1) ? "Classic" : "glQuake"));
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_TRANSPARENCY, top + CHARACTER_SIZE * GRAPHICS_OPT_TRANSPARENCY);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_TRANSPARENCY, "Transparency");
 	{
 		const char *transparency_modes[] = {"Classic", "Low", "High"};
 		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_TRANSPARENCY, transparency_modes[(int)CLAMP (0, r_oit.value, 2)]);
 	}
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_MODELS, top + CHARACTER_SIZE * GRAPHICS_OPT_MODELS);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODELS, "Models");
 	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODELS, (r_enhancedmodels.value == 0) ? "classic" : "enhanced");
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_MODEL_INTERPOLATION, top + CHARACTER_SIZE * GRAPHICS_OPT_MODEL_INTERPOLATION);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODEL_INTERPOLATION, "Animations");
 	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODEL_INTERPOLATION, (r_lerpmodels.value == 0) ? "classic" : "smooth");
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_PARTICLES, top + CHARACTER_SIZE * GRAPHICS_OPT_PARTICLES);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PARTICLES, "Particles");
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PARTICLES,
 		((int)r_particles.value == 0) ? "off" : (((int)r_particles.value == 2) ? "Classic" : "glQuake"));
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_SOFT_PARTICLES, top + CHARACTER_SIZE * GRAPHICS_OPT_SOFT_PARTICLES);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SOFT_PARTICLES, "Soft Particles");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SOFT_PARTICLES, r_softparticles.value);
 
 	if (vulkan_globals.screen_effects_sops)
 	{
 		const int row = GRAPHICS_OPT_AMBIENT_OCCLUSION - (vulkan_globals.ray_query ? 0 : 1);
+		M_PreviewRow (cbx, row, top + CHARACTER_SIZE * row);
 		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * row, "Ambient Occlusion");
 		const char *ao_modes[] = {"off", "low", "medium", "high"};
 		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * row, ao_modes[(int)CLAMP (0, r_ssao.value, 3)]);
@@ -2331,6 +2463,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 
 	if (vulkan_globals.ray_query)
 	{
+		M_PreviewRow (cbx, GRAPHICS_OPT_SHADOWS, top + CHARACTER_SIZE * GRAPHICS_OPT_SHADOWS);
 		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHADOWS, "Dynamic Shadows");
 		const char *shadow_modes[] = {"off", "low", "medium", "high"};
 		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHADOWS, shadow_modes[(int)r_rtshadows.value]);
@@ -2338,6 +2471,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 
 	// cursor
 	M_Mouse_UpdateListCursor (&graphics_options_cursor, MENU_CURSOR_X, 320, top, CHARACTER_SIZE, M_GraphicsOptions_NumItems (), 0);
+	Draw_SetOpacity (1.0f);
 	Draw_Character (cbx, MENU_CURSOR_X, top + graphics_options_cursor * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
 }
 
@@ -5219,6 +5353,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
 
 	Cvar_RegisterVariable (&ui_mouse);
+	Cvar_RegisterVariable (&ui_live_preview);
 }
 
 void M_NewGame (void)
@@ -5230,6 +5365,7 @@ void M_NewGame (void)
 
 void M_UpdateMouse (void)
 {
+	M_UpdatePreview ();
 	// IN_GetMousePos scales window coordinates to drawable pixels, which is what
 	// M_PixelToMenuCanvasCoord expects; the two differ on high pixel density displays
 	int new_mouse_x;
@@ -5291,6 +5427,9 @@ void M_Draw (cb_context_t *cbx)
 	if (m_state == m_none || key_dest != key_menu)
 		return;
 
+	if (menu_preview.kind == PREVIEW_CENTERPRINT && M_MenuPreviewFraction () > 0.0f)
+		SCR_DrawCenterPrintPreview (cbx, M_MenuPreviewFraction ());
+	Draw_SetOpacity (1.0f - M_MenuPreviewFraction ());
 	if (!m_recursiveDraw)
 	{
 		if (scr_con_current)
@@ -5413,6 +5552,8 @@ void M_Draw (cb_context_t *cbx)
 		M_ServerList_Draw (cbx);
 		break;
 	}
+
+	Draw_SetOpacity (1.0f);
 
 	if (m_entersound)
 	{

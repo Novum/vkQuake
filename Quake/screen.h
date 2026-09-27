@@ -74,4 +74,6 @@ extern cvar_t scr_usekfont;
 
 extern cvar_t scr_centerprintbg;
 
+void SCR_DrawCenterPrintPreview (cb_context_t *cbx, float alpha);
+
 #endif /* _QUAKE_SCREEN_H */

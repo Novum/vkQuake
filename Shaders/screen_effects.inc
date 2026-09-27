@@ -27,6 +27,7 @@ layout (push_constant) uniform PushConsts
 	float poly_blend_g;
 	float poly_blend_b;
 	float poly_blend_a;
+	float menu_alpha;
 }
 push_constants;
 
@@ -140,7 +141,7 @@ void main ()
 
 	color.rgb = mix (color.rgb, vec3 (push_constants.poly_blend_r, push_constants.poly_blend_g, push_constants.poly_blend_b), push_constants.poly_blend_a);
 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_MENU) != 0)
-		color.rgb = mix (color.rgb, vec3 (color.r * 0.3f + color.g * 0.59f + color.b * 0.11f), 0.5f) * 0.6f;
+		color.rgb = mix (color.rgb, mix (color.rgb, vec3 (color.r * 0.3f + color.g * 0.59f + color.b * 0.11f), 0.5f) * 0.6f, push_constants.menu_alpha);
 
 	if ((pos_x <= push_constants.clamp_size.x) && (pos_y <= push_constants.clamp_size.y))
 		imageStore (output_image, ivec2 (pos_x, pos_y), color);

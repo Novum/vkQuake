@@ -121,4 +121,7 @@ void		M_DrawCrosshair (cb_context_t *cbx, float x, float y, float size);
 
 void M_DrawTextBoxAlpha (cb_context_t *cbx, int x, int y, int width, int lines, float alpha);
 
+float	 M_MenuPreviewFraction (void);
+qboolean M_ForcedUnderwater (void);
+
 #endif /* _QUAKE_MENU_H */
