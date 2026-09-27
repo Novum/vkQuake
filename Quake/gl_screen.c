@@ -87,6 +87,8 @@ cvar_t scr_sbaralpha = {"scr_sbaralpha", "0.75", CVAR_ARCHIVE};
 cvar_t scr_conwidth = {"scr_conwidth", "0", CVAR_ARCHIVE};
 cvar_t scr_conscale = {"scr_conscale", "1", CVAR_ARCHIVE};
 cvar_t scr_crosshairscale = {"scr_crosshairscale", "1", CVAR_ARCHIVE};
+cvar_t scr_showspeed = {"scr_showspeed", "0", CVAR_ARCHIVE};
+cvar_t scr_showspeed_ofs = {"scr_showspeed_ofs", "0", CVAR_ARCHIVE};
 cvar_t scr_centerprintbg = {"scr_centerprintbg", "2", CVAR_ARCHIVE}; // 0=off, 1=text box, 2=menu box, 3=menu strip
 cvar_t scr_infoscale = {"scr_infoscale", "2.0", CVAR_ARCHIVE};
 cvar_t scr_showfps = {"scr_showfps", "0", CVAR_ARCHIVE};
@@ -647,6 +649,8 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_crosshairscale);
 	Cvar_RegisterVariable (&scr_infoscale);
 	Cvar_RegisterVariable (&scr_centerprintbg);
+	Cvar_RegisterVariable (&scr_showspeed);
+	Cvar_RegisterVariable (&scr_showspeed_ofs);
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_clock);
 	Cvar_RegisterVariable (&scr_autoclock);
@@ -713,9 +717,60 @@ void SCR_Init (void)
 
 /*
 ==============
-SCR_DrawFPS -- johnfitz
+SCR_DrawSpeed -- from Ironwail
 ==============
 */
+static void SCR_DrawSpeed (cb_context_t *cbx)
+{
+	if (cl.intermission || CL_AngleLocked () || scr_viewsize.value >= 130)
+		return;
+
+	const float	  show_speed_interval_value = 0.05f;
+	static float  maxspeed = 0, display_speed = -1;
+	static double lastrealtime = 0;
+	float		  speed;
+	vec3_t		  vel;
+
+	if (lastrealtime > realtime)
+	{
+		lastrealtime = 0;
+		display_speed = -1;
+		maxspeed = 0;
+	}
+
+	VectorCopy (cl.velocity, vel);
+	vel[2] = 0;
+	speed = VectorLength (vel);
+
+	if (speed > maxspeed)
+		maxspeed = speed;
+
+	if (scr_showspeed.value)
+	{
+		if (display_speed >= 0)
+		{
+			float y;
+			char  str[12];
+
+			sprintf (str, "%d", (int)display_speed);
+			float scale = CLAMP (1.f, scr_crosshairscale.value, 10.f);
+			float halfheight = scr_vrect.height / (2.f * scale);
+			y = CLAMP (-halfheight, 4.f + scr_showspeed_ofs.value, halfheight - 8.f);
+			// Use screen coordinates: Draw_String rejects negative Y on the centered canvas.
+			GL_SetCanvas (cbx, CANVAS_DEFAULT);
+			Draw_String_Scaled (
+				cbx, scr_vrect.x + scr_vrect.width * 0.5f - strlen (str) * 4 * scale, scr_vrect.y + scr_vrect.height * 0.5f + y * scale, str, scale);
+		}
+	}
+
+	if (realtime - lastrealtime >= show_speed_interval_value)
+	{
+		lastrealtime = realtime;
+		display_speed = maxspeed;
+		maxspeed = 0;
+	}
+}
+
 static void SCR_DrawFPS (cb_context_t *cbx)
 {
 	static double oldtime = 0;
@@ -1552,7 +1607,8 @@ static void SCR_DrawGUI (void *unused)
 		SCR_CheckDrawCenterString (cbx);
 		Sbar_Draw (cbx);
 		SCR_DrawDevStats (cbx); // johnfitz
-		SCR_DrawFPS (cbx);		// johnfitz
+		SCR_DrawSpeed (cbx);
+		SCR_DrawFPS (cbx); // johnfitz
 		SCR_DrawSpeeds (cbx);
 		SCR_DrawClock (cbx); // johnfitz
 		SCR_DrawEdictInfo (cbx);
