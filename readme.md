@@ -35,7 +35,7 @@ It is recommended to use the installer on Windows. This sets up start menu entri
 Otherwise copy all files inside the `vkquake-<version>_windows_x64.zip` (Intel) or `vkquake-<version>_windows_arm64.zip` (Arm64) folder in the zip to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
 
 ### Linux
-Copy all files inside the `vkquake-<version>-linux_x64` folder in the tar archive to the Quake base directory. Overwrite any existing files. Run `vkquake.AppImage`.
+Download the AppImage and place it in the Quake base directory. To run the game, execute the Appimage.
 
 > **Note**\
 > Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pak", not "PAK0.PAK". Some distributions of the game have upper case file names, e.g. from GOG.com.
