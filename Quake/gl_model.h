@@ -569,7 +569,7 @@ typedef struct md3Shader_s
 
 // QS limits : vkQuake is no longer constrained by QS limits,
 // so those values are only used to trace QS incompatibilities.
-#define MAXALIASVERTS_QS 2000 // johnfitz -- was 1024
+#define MAXALIASVERTS_QS 2400 // johnfitz -- was 1024
 #define MAXALIASTRIS_QS	 4096 // ericw -- was 2048
 
 // vkQuake limits:
