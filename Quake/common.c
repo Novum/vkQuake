@@ -165,7 +165,7 @@ void Vec_Grow (void **pvec, size_t element_size, size_t count)
 		if (*pvec)
 			new_buffer = Mem_Realloc (((vec_header_t *)*pvec) - 1, total_size);
 		else
-			new_buffer = Mem_Alloc (total_size);
+			new_buffer = Mem_AllocNonZero (total_size);
 		if (!new_buffer)
 			Sys_Error ("Vec_Grow: failed to allocate %lu bytes\n", (unsigned long)total_size);
 
