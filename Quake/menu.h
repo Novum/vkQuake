@@ -96,7 +96,7 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 #define MENU_VALUE_X	   (28 * CHARACTER_SIZE)
 #define MENU_SLIDER_X	   (MENU_VALUE_X + 6)
 #define MENU_SLIDER_SIZE   12
-#define MENU_SLIDER_EXTENT ((MENU_SLIDER_SIZE - 1) * 8)
+#define MENU_SLIDER_EXTENT ((MENU_SLIDER_SIZE - 1) * CHARACTER_SIZE)
 #define MENU_SLIDER_START  (MENU_SLIDER_X + 4)
 #define MENU_SLIDER_END	   (MENU_SLIDER_START + MENU_SLIDER_EXTENT)
 #define MENU_SCROLLBAR_X   (47 * CHARACTER_SIZE)

@@ -498,7 +498,7 @@ static void M_DrawSlider (cb_context_t *cbx, int x, int y, float value, const ch
 	Draw_Character (cbx, x + MENU_SLIDER_SIZE * CHARACTER_SIZE, y, 130);
 	Draw_Character (cbx, x + (MENU_SLIDER_SIZE - 1) * CHARACTER_SIZE * value, y, 131);
 
-	M_Print (cbx, x + (MENU_SLIDER_SIZE + 1) * CHARACTER_SIZE, y, label);
+	M_Print (cbx, x + (MENU_SLIDER_SIZE + 1.5) * CHARACTER_SIZE, y, label);
 }
 
 /*
@@ -1721,7 +1721,7 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		}
 		break;
 	case GAME_OPT_MOUSESPEED: // mouse speed
-		f = M_GetSliderPos (1, 11, sensitivity.value, false, mouse, clamped_mouse, dir, 0.5, 999);
+		f = M_GetSliderPos (1, 11, sensitivity.value, false, mouse, clamped_mouse, dir, 0.05, 999);
 		Cvar_SetValue ("sensitivity", f);
 		break;
 	case GAME_OPT_SBALPHA: // statusbar alpha
@@ -1926,7 +1926,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 		case GAME_OPT_MOUSESPEED:
 			M_Print (cbx, MENU_LABEL_X, y, "Mouse Speed");
 			r = (sensitivity.value - 1) / 10;
-			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.1f", r));
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.2f", r));
 			break;
 
 		case GAME_OPT_VIEWBOB:
@@ -2194,7 +2194,7 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValue ("gamma", f);
 		break;
 	case GRAPHICS_OPT_CONTRAST:
-		f = M_GetSliderPos (1, 2, vid_contrast.value, false, mouse, clamped_mouse, dir, 0.1, 999);
+		f = M_GetSliderPos (1, 2, vid_contrast.value, false, mouse, clamped_mouse, dir, 0.05, 999);
 		Cvar_SetValue ("contrast", f);
 		break;
 	case GRAPHICS_OPT_FOV:
@@ -2348,12 +2348,12 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_PreviewRow (cbx, GRAPHICS_OPT_GAMMA, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, "Gamma");
 	r = (1.0 - vid_gamma.value) / 0.5;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, r, va ("%.1f", vid_gamma.value));
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, r, va ("%.2f", vid_gamma.value));
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_CONTRAST, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, "Contrast");
 	r = vid_contrast.value - 1.0;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, r, va ("%.1f", vid_contrast.value));
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, r, va ("%.2f", vid_contrast.value));
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_FOV, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, "Field of View");
@@ -2768,43 +2768,43 @@ static void M_ControllerOptions_Draw (cb_context_t *cbx)
 	for (int i = 0; i < CONTROLLER_ITEMS; i++)
 	{
 		const int y = top + i * CHARACTER_SIZE;
-		M_Print (cbx, 56, y, labels[i]);
+		M_Print (cbx, MENU_LABEL_X, y, labels[i]);
 		M_Mouse_UpdateCursor (&controller_options_cursor, 56, 320, y, CHARACTER_SIZE, i);
 	}
 
 #define VALUE(name) (M_ControllerCvar (name)->value)
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_YAW * 8, va ("%.0f", VALUE ("joy_sensitivity_yaw")));
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_PITCH * 8, va ("%.0f", VALUE ("joy_sensitivity_pitch")));
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_INVERT * 8, VALUE ("joy_invert"));
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_SWAP * 8, VALUE ("joy_swapmovelook") ? "Left" : "Right");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_ALWAYS_ACTIVE * 8, VALUE ("joy_always_active"));
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_LOOK_DEADZONE * 8, va ("%.0f%%", VALUE ("joy_deadzone_look") * 100.f));
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_MOVE_DEADZONE * 8, va ("%.0f%%", VALUE ("joy_deadzone_move") * 100.f));
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_TRIGGER_DEADZONE * 8, va ("%.0f%%", VALUE ("joy_deadzone_trigger") * 100.f));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_YAW * CHARACTER_SIZE, va ("%.0f", VALUE ("joy_sensitivity_yaw")));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_PITCH * CHARACTER_SIZE, va ("%.0f", VALUE ("joy_sensitivity_pitch")));
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_INVERT * CHARACTER_SIZE, VALUE ("joy_invert"));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_SWAP * CHARACTER_SIZE, VALUE ("joy_swapmovelook") ? "Left" : "Right");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_ALWAYS_ACTIVE * CHARACTER_SIZE, VALUE ("joy_always_active"));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_LOOK_DEADZONE * CHARACTER_SIZE, va ("%.0f%%", VALUE ("joy_deadzone_look") * 100.f));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_MOVE_DEADZONE * CHARACTER_SIZE, va ("%.0f%%", VALUE ("joy_deadzone_move") * 100.f));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_TRIGGER_DEADZONE * CHARACTER_SIZE, va ("%.0f%%", VALUE ("joy_deadzone_trigger") * 100.f));
 	if (IN_HasRumble ())
-		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_RUMBLE * 8, va ("%.0f%%", VALUE ("joy_rumble") * 100.f));
+		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_RUMBLE * CHARACTER_SIZE, va ("%.0f%%", VALUE ("joy_rumble") * 100.f));
 	else
-		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_RUMBLE * 8, "N/A");
+		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_RUMBLE * CHARACTER_SIZE, "N/A");
 	if (IN_HasGyro ())
 	{
-		M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO * 8, VALUE ("gyro_enable"));
-		M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_FLICK * 8, VALUE ("joy_flick"));
+		M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO * CHARACTER_SIZE, VALUE ("gyro_enable"));
+		M_DrawCheckbox (cbx, MENU_VALUE_X, top + CONTROLLER_FLICK * CHARACTER_SIZE, VALUE ("joy_flick"));
 	}
 	else
 	{
-		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO * 8, "N/A");
-		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_FLICK * 8, "N/A");
+		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO * CHARACTER_SIZE, "N/A");
+		M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_FLICK * CHARACTER_SIZE, "N/A");
 	}
 	static const char *const modes[] = {"Ignored", "Enables", "Disables", "Inverts"};
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_MODE * 8, modes[CLAMP (0, (int)VALUE ("gyro_mode"), 3)]);
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_AXIS * 8, VALUE ("gyro_turning_axis") ? "Roll" : "Yaw");
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_YAW * 8, va ("%.1f", VALUE ("gyro_yawsensitivity")));
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_PITCH * 8, va ("%.1f", VALUE ("gyro_pitchsensitivity")));
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_NOISE * 8, va ("%.1f", VALUE ("gyro_noise_thresh")));
-	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_CALIBRATE * 8, IN_HasGyro () ? "Start" : "N/A");
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_MODE * CHARACTER_SIZE, modes[CLAMP (0, (int)VALUE ("gyro_mode"), 3)]);
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_AXIS * CHARACTER_SIZE, VALUE ("gyro_turning_axis") ? "Roll" : "Yaw");
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_YAW * CHARACTER_SIZE, va ("%.1f", VALUE ("gyro_yawsensitivity")));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_PITCH * CHARACTER_SIZE, va ("%.1f", VALUE ("gyro_pitchsensitivity")));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_GYRO_NOISE * CHARACTER_SIZE, va ("%.1f", VALUE ("gyro_noise_thresh")));
+	M_Print (cbx, MENU_VALUE_X, top + CONTROLLER_CALIBRATE * CHARACTER_SIZE, IN_HasGyro () ? "Start" : "N/A");
 #undef VALUE
 
-	Draw_Character (cbx, 48, top + controller_options_cursor * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
+	Draw_Character (cbx, MENU_CURSOR_X, top + controller_options_cursor * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
 }
 
 enum
@@ -3851,8 +3851,8 @@ static void M_Maps_Draw (cb_context_t *cbx)
 	// to trigger scroll faster
 	M_Ticker_Update (&mapsmenu.ticker);
 
-	M_PrintWhite (cbx, x, 8, "Levels");
-	M_DrawQuakeBar (cbx, x - 8, 16, namecols + 1);
+	M_PrintWhite (cbx, x, CHARACTER_SIZE, "Levels");
+	M_DrawQuakeBar (cbx, x - CHARACTER_SIZE, 16, namecols + 1);
 	M_DrawQuakeBar (cbx, x + namecols * CHARACTER_SIZE, 16, cols + 1 - namecols);
 
 	y = MAPLIST_TOP;
