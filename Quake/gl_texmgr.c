@@ -525,6 +525,8 @@ TexMgr_FreeTexturesForOwner
 */
 void TexMgr_FreeTexturesForOwner (qmodel_t *owner)
 {
+	assert_always (owner);
+
 	gltexture_t *glt, *next;
 
 	// OK to lock texmgr_mutex here while TexMgr_FreeTexture() also uses texmgr_mutex

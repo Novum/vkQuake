@@ -594,7 +594,23 @@ void Sky_ClearAll (void)
 		skybox.textures[i] = NULL;
 
 	skybox.cubemap = NULL;
-	VEC_CLEAR (skybox_cache); // textures are owned by the world model
+
+	// cl.worldmodel ownership-based automatic cleanup TexMgr_FreeTexturesForOwner
+	// will work on cases where cl.worldmodel != NULL at the point of the Sky loading
+	// but there are cases where it can be NULL, so this additional cleanup sweep
+	// assure all textures have been freed.
+	for (int i = 0; i < (int)VEC_SIZE (skybox_cache); i++)
+	{
+		for (int j = 0; j < 6; j++)
+		{
+			if (skybox_cache[i].textures[j] && skybox_cache[i].textures[j] != notexture)
+				TexMgr_FreeTexture (skybox_cache[i].textures[j]);
+		}
+		if (skybox_cache[i].cubemap)
+			TexMgr_FreeTexture (skybox_cache[i].cubemap);
+	}
+
+	VEC_CLEAR (skybox_cache);
 
 	Skywind_Clear ();
 
