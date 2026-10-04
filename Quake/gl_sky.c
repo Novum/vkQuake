@@ -595,10 +595,8 @@ void Sky_ClearAll (void)
 
 	skybox.cubemap = NULL;
 
-	// cl.worldmodel ownership-based automatic cleanup TexMgr_FreeTexturesForOwner
-	// will work on cases where cl.worldmodel != NULL at the point of the Sky loading
-	// but there are cases where it can be NULL, so this additional cleanup sweep
-	// assure all textures have been freed.
+	// Free cached sky textures before model cleanup, including those loaded
+	// while cl.worldmodel was NULL and therefore have no model owner.
 	for (int i = 0; i < (int)VEC_SIZE (skybox_cache); i++)
 	{
 		for (int j = 0; j < 6; j++)

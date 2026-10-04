@@ -735,8 +735,8 @@ void Host_ClearMemory (void)
 	}
 
 	Con_DPrintf ("Clearing memory\n");
-	Mod_ClearAll ();
 	Sky_ClearAll ();
+	Mod_ClearAll ();
 	if (!isDedicated)
 		S_ClearAll ();
 	cls.signon = 0;

@@ -3067,8 +3067,8 @@ void COM_SwitchGame (const char *paths)
 	COM_ResetGameDirectories (paths);
 
 	// clear out and reload appropriate data
-	Mod_ResetAll ();
 	Sky_ClearAll ();
+	Mod_ResetAll ();
 	if (!isDedicated)
 	{
 		TexMgr_NewGame ();
