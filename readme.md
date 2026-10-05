@@ -174,6 +174,8 @@ meson build -Ddebug=true -Dstrip=false && ninja -C build
 
 Meson prefers SDL3 and falls back to SDL2 if it is not installed; add `-Duse_sdl3=disabled` to force SDL2 (or `enabled` to require SDL3).
 
+On macOS the build links MoltenVK directly. Add `-Duse_vulkan_loader=enabled` to link the Vulkan loader instead, so the driver can be chosen with `VK_DRIVER_FILES`.
+
 > **Note**\
 > The Meson version needs to be 1.3.0 or newer. For older distributions you can use make:
 > ~~~

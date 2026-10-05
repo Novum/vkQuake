@@ -843,14 +843,14 @@ static void GL_InitInstance (void)
 	if (!sdl_extensions)
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
 
-	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 4));
+	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 5));
 	for (i = 0; i < sdl_extension_count; i++)
 		instance_extensions[i] = sdl_extensions[i];
 #else
 	if (!SDL_Vulkan_GetInstanceExtensions (draw_context, &sdl_extension_count, NULL))
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
 
-	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 4));
+	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 5));
 	if (!SDL_Vulkan_GetInstanceExtensions (draw_context, &sdl_extension_count, instance_extensions))
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
 #endif
@@ -862,6 +862,7 @@ static void GL_InitInstance (void)
 
 	vulkan_globals.get_surface_capabilities_2 = false;
 	vulkan_globals.get_physical_device_properties_2 = false;
+	qboolean portability_enumeration = false;
 	if (err == VK_SUCCESS || instance_extension_count > 0)
 	{
 		VkExtensionProperties *extension_props = (VkExtensionProperties *)Mem_Alloc (sizeof (VkExtensionProperties) * instance_extension_count);
@@ -873,6 +874,10 @@ static void GL_InitInstance (void)
 				vulkan_globals.get_surface_capabilities_2 = true;
 			if (strcmp (VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, extension_props[i].extensionName) == 0)
 				vulkan_globals.get_physical_device_properties_2 = true;
+#if defined(VK_KHR_portability_enumeration)
+			if (strcmp (VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME, extension_props[i].extensionName) == 0)
+				portability_enumeration = true;
+#endif
 #ifdef _DEBUG
 			if (strcmp (VK_EXT_DEBUG_UTILS_EXTENSION_NAME, extension_props[i].extensionName) == 0)
 				vulkan_globals.debug_utils = true;
@@ -913,6 +918,14 @@ static void GL_InitInstance (void)
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME;
 	if (vulkan_globals.get_physical_device_properties_2)
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
+#if defined(VK_KHR_portability_enumeration)
+	// The loader hides portability drivers such as MoltenVK unless asked
+	if (portability_enumeration)
+	{
+		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+		instance_create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+	}
+#endif
 
 #ifdef _DEBUG
 	if (vulkan_globals.debug_utils)
@@ -1170,6 +1183,7 @@ static void GL_InitDevice (void)
 	Mem_Free (physical_devices);
 
 	qboolean found_swapchain_extension = false;
+	qboolean found_portability_subset = false;
 	vulkan_globals.dedicated_allocation = false;
 	vulkan_globals.full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;
@@ -1197,6 +1211,8 @@ static void GL_InitDevice (void)
 		{
 			if (strcmp (VK_KHR_SWAPCHAIN_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				found_swapchain_extension = true;
+			if (strcmp ("VK_KHR_portability_subset", device_extensions[i].extensionName) == 0)
+				found_portability_subset = true;
 			if (strcmp (VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.dedicated_allocation = true;
 			if (vulkan_globals.get_physical_device_properties_2 && strcmp (VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
@@ -1400,6 +1416,9 @@ static void GL_InitDevice (void)
 
 	const char *device_extensions[32] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 	uint32_t	numEnabledExtensions = 1;
+	// A portability driver requires this to be enabled when it exposes it
+	if (found_portability_subset)
+		device_extensions[numEnabledExtensions++] = "VK_KHR_portability_subset";
 	if (vulkan_globals.shader_float16)
 		device_extensions[numEnabledExtensions++] = VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME;
 	if (vulkan_globals.dedicated_allocation)
