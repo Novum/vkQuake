@@ -348,13 +348,20 @@ if host_machine.system() == 'windows'
 endif
 
 if build_machine.system() == 'darwin'
+    # MoltenVK is linked directly by default. -Duse_vulkan_loader=enabled links the
+    # Vulkan loader instead, so the driver can be chosen with VK_DRIVER_FILES.
+    vulkan_dep = dependency('vulkan', version: '>=1.4.341', required : get_option('use_vulkan_loader'))
+else
+    vulkan_dep = dependency('vulkan', version: '>=1.4.341')
+endif
+if vulkan_dep.found()
+    deps += vulkan_dep
+else
     molten_dirs = []
     if import('fs').exists('/opt/homebrew/lib/libMoltenVK.dylib')
         molten_dirs += '/opt/homebrew/lib'
     endif
     deps += cc.find_library('MoltenVK', required : true, dirs : molten_dirs)
-else
-    deps += dependency('vulkan', version: '>=1.4.341')
 endif
 
 if get_option('use_codec_wave').enabled()
