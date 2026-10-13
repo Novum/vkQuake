@@ -98,16 +98,17 @@ vkQuake.exe: $(SHADER_OBJS) $(OBJS)
 
 dll:
 	ldd vkquake.exe | cut -d' ' -f3 | grep ${MSYSTEM_PREFIX}
-	cp -p ${MSYSTEM_PREFIX}/bin/libvorbisfile-3.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/libFLAC.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/libmpg123-0.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/libxmp.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/libopusfile-0.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/SDL3.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/libogg-0.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/libwinpthread-1.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/libvorbis-0.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/libopus-0.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/libvorbisfile-3.dll \
+	      ${MSYSTEM_PREFIX}/bin/libFLAC.dll \
+	      ${MSYSTEM_PREFIX}/bin/libmpg123-0.dll \
+	      ${MSYSTEM_PREFIX}/bin/libxmp.dll \
+	      ${MSYSTEM_PREFIX}/bin/libopusfile-0.dll \
+	      ${MSYSTEM_PREFIX}/bin/SDL3.dll \
+	      ${MSYSTEM_PREFIX}/bin/libogg-0.dll \
+	      ${MSYSTEM_PREFIX}/bin/libwinpthread-1.dll \
+	      ${MSYSTEM_PREFIX}/bin/libvorbis-0.dll \
+	      ${MSYSTEM_PREFIX}/bin/libiconv-2.dll \
+	      ${MSYSTEM_PREFIX}/bin/libopus-0.dll .
 
 release: vkQuake.exe
 debug:
