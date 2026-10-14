@@ -9,6 +9,14 @@ qboolean IN_HasGyro (void);
 void	 IN_BeginIgnoringMouseEvents (void);
 void	 IN_EndIgnoringMouseEvents (void);
 
+#if defined(__APPLE__) && defined(USE_SDL3)
+void	 IN_InitMacRawMouse (void);
+void	 IN_ShutdownMacRawMouse (void);
+qboolean IN_MacRawMouseActive (void);
+qboolean IN_IgnoreMacMouseMotion (void);
+qboolean IN_MouseEventsIgnored (void);
+#endif
+
 #ifdef USE_SDL3
 extern SDL_Gamepad *joy_active_controller;
 #else
