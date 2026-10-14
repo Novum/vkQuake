@@ -31,42 +31,41 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 void PL_SetWindowIcon (void)
 {
-/* nothing to do on OS X */
+	/* nothing to do on OS X */
 }
 
-void PL_VID_Shutdown (void)
-{
-}
+void PL_VID_Shutdown (void) {}
 
-#define MAX_CLIPBOARDTXT	MAXCMDLINE	/* 256 */
+#define MAX_CLIPBOARDTXT MAXCMDLINE /* 256 */
 char *PL_GetClipboardData (void)
 {
-    char *data			= NULL;
-    NSPasteboard* pasteboard	= [NSPasteboard generalPasteboard];
-    NSArray* types		= [pasteboard types];
+	char		 *data = NULL;
+	NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+	NSArray		 *types = [pasteboard types];
 
-    if ([types containsObject: NSPasteboardTypeString]) {
-	NSString* clipboardString = [pasteboard stringForType: NSPasteboardTypeString];
-	if (clipboardString != NULL && [clipboardString length] > 0) {
-		size_t sz = [clipboardString length] + 1;
-		sz = q_min(MAX_CLIPBOARDTXT, sz);
-		data = (char *) Mem_Alloc(sz);
-		q_strlcpy (data, [clipboardString cStringUsingEncoding: NSASCIIStringEncoding], sz);
+	if ([types containsObject:NSPasteboardTypeString])
+	{
+		NSString *clipboardString = [pasteboard stringForType:NSPasteboardTypeString];
+		if (clipboardString != NULL && [clipboardString length] > 0)
+		{
+			size_t sz = [clipboardString length] + 1;
+			sz = q_min (MAX_CLIPBOARDTXT, sz);
+			data = (char *)Mem_Alloc (sz);
+			q_strlcpy (data, [clipboardString cStringUsingEncoding:NSASCIIStringEncoding], sz);
+		}
 	}
-    }
-    return data;
+	return data;
 }
 
 #ifndef MAC_OS_X_VERSION_10_12
 #define NSAlertStyleCritical NSCriticalAlertStyle
 #endif
-void PL_ErrorDialog(const char *errorMsg)
+void PL_ErrorDialog (const char *errorMsg)
 {
-    NSString* msg = [NSString stringWithCString:errorMsg encoding:NSASCIIStringEncoding];
-    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-    alert.alertStyle = NSAlertStyleCritical;
-    alert.messageText = @"Quake Error";
-    alert.informativeText = msg;
-    [alert runModal];
+	NSString *msg = [NSString stringWithCString:errorMsg encoding:NSASCIIStringEncoding];
+	NSAlert	 *alert = [[[NSAlert alloc] init] autorelease];
+	alert.alertStyle = NSAlertStyleCritical;
+	alert.messageText = @"Quake Error";
+	alert.informativeText = msg;
+	[alert runModal];
 }
-

@@ -88,6 +88,9 @@ COMMON_LIBS+= -L/opt/homebrew/lib
 CFLAGS+= -I/opt/homebrew/include
 endif
 COMMON_LIBS+= -lMoltenVK
+ifeq ($(USE_SDL3),1)
+COMMON_LIBS+= -framework Foundation -framework GameController
+endif
 endif
 
 LIBS := $(COMMON_LIBS) $(CODECLIBS)

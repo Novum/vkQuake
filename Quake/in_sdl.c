@@ -407,10 +407,17 @@ void IN_Init (void)
 
 	IN_Activate ();
 	IN_StartupJoystick ();
+#if defined(__APPLE__) && defined(USE_SDL3)
+	if (!no_mouse)
+		IN_InitMacRawMouse ();
+#endif
 }
 
 void IN_Shutdown (void)
 {
+#if defined(__APPLE__) && defined(USE_SDL3)
+	IN_ShutdownMacRawMouse ();
+#endif
 	IN_Deactivate (true);
 	IN_ShutdownJoystick ();
 }

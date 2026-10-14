@@ -280,6 +280,10 @@ void IN_SendKeyEvents (void)
 	}
 }
 
+#ifdef __APPLE__
+static SDL_AtomicInt ignoring_mouse_events;
+#endif
+
 static bool SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 {
 	switch (event->type)
@@ -299,27 +303,59 @@ static bool SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 	return true;
 }
 
-static bool SDLCALL IN_SDL_FilterMouseEvents (void *userdata, SDL_Event *event)
+static bool SDLCALL IN_SDL_IgnoreMouseEvents (void *userdata, SDL_Event *event)
 {
 	return IN_FilterMouseEvents (event);
 }
 
+#ifdef __APPLE__
+qboolean IN_MouseEventsIgnored (void)
+{
+	return SDL_GetAtomicInt (&ignoring_mouse_events) != 0;
+}
+
+static bool SDLCALL IN_SDL_FilterMouseEvents (void *userdata, SDL_Event *event)
+{
+	if (IN_MouseEventsIgnored ())
+		return IN_FilterMouseEvents (event);
+	return event->type != SDL_EVENT_MOUSE_MOTION || !IN_IgnoreMacMouseMotion ();
+}
+#else
+#define IN_SDL_FilterMouseEvents IN_SDL_IgnoreMouseEvents
+#endif
+
 void IN_BeginIgnoringMouseEvents (void)
 {
+#ifdef __APPLE__
+	SDL_SetAtomicInt (&ignoring_mouse_events, 1);
+#endif
 	SDL_EventFilter currentFilter = NULL;
 	void		   *currentUserdata = NULL;
 	SDL_GetEventFilter (&currentFilter, &currentUserdata);
 
 	if (currentFilter != IN_SDL_FilterMouseEvents)
 		SDL_SetEventFilter (IN_SDL_FilterMouseEvents, NULL);
+#ifdef __APPLE__
+	else
+		SDL_FilterEvents (IN_SDL_IgnoreMouseEvents, NULL);
+#endif
 }
 
 void IN_EndIgnoringMouseEvents (void)
 {
+#ifdef __APPLE__
+	SDL_EventFilter currentFilter = NULL;
+	void		   *currentUserdata = NULL;
+	SDL_SetAtomicInt (&ignoring_mouse_events, 0);
+	SDL_GetEventFilter (&currentFilter, &currentUserdata);
+	if (currentFilter != IN_SDL_FilterMouseEvents)
+		SDL_SetEventFilter (IN_SDL_FilterMouseEvents, NULL);
+#else
 	SDL_EventFilter currentFilter;
 	void		   *currentUserdata;
 	if (SDL_GetEventFilter (&currentFilter, &currentUserdata))
 		SDL_SetEventFilter (NULL, NULL);
+#endif
 }
 
 #endif
