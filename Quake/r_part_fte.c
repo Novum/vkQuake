@@ -3528,8 +3528,11 @@ void PScript_ClearParticles (qboolean load)
 		part_type[i].beams = NULL;
 	}
 
-	PScript_ClearAllSurfaceParticles ();
-	r_plooksdirty = load;
+	if (load)
+	{
+		PScript_ClearAllSurfaceParticles ();
+		r_plooksdirty = true;
+	}
 
 	CL_ClearTrailStates ();
 }
