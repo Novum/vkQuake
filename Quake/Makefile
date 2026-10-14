@@ -87,7 +87,7 @@ ifeq ($(shell test -d /opt/homebrew && echo true),true)
 COMMON_LIBS+= -L/opt/homebrew/lib
 CFLAGS+= -I/opt/homebrew/include
 endif
-COMMON_LIBS+= -lMoltenVK
+COMMON_LIBS+= -lMoltenVK -framework Foundation -framework GameController
 endif
 
 LIBS := $(COMMON_LIBS) $(CODECLIBS)

@@ -222,6 +222,10 @@ void IN_SendKeyEvents (void)
 
 		case SDL_EVENT_MOUSE_MOTION:
 			IN_SetGamepadInputActive (false);
+#ifdef __APPLE__
+			if (IN_MacRawMouseActive ())
+				break;
+#endif
 			IN_MouseMotion (event.motion.xrel, event.motion.yrel);
 			break;
 

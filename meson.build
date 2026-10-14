@@ -101,6 +101,14 @@ else
     message('Info: Using SDL2.')
 endif
 
+if host_machine.system() == 'darwin'
+    add_languages('objc', required : true, native : false)
+    add_project_arguments('-fblocks', language : 'objc')
+    if use_sdl3
+        add_project_arguments('-DUSE_SDL3', language : 'objc')
+    endif
+endif
+
 glslang = find_program('glslangValidator')
 spirv_opt = find_program('spirv-opt')
 run_test_canonicalize_ids_spirv_opt = run_command(spirv_opt, '-h', check : false)
@@ -339,6 +347,11 @@ deps = [
     dependency('threads'),
     sdl_dep,
 ]
+
+if host_machine.system() == 'darwin'
+    srcs += 'Quake/in_mac.m'
+    deps += dependency('appleframeworks', modules : ['Foundation', 'GameController'])
+endif
 
 if host_machine.system() == 'windows'
     foreach syslib : ['ws2_32', 'winmm', 'dbghelp', 'ole32', 'uuid']
