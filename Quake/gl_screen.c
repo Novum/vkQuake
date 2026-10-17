@@ -122,6 +122,9 @@ cvar_t scr_relsbarscale = {"scr_relsbarscale", "1", CVAR_ARCHIVE};
 cvar_t scr_relcrosshairscale = {"scr_relcrosshairscale", "1", CVAR_ARCHIVE};
 cvar_t scr_relconscale = {"scr_relconscale", "1", CVAR_ARCHIVE};
 
+// 1 = Show a save icon when saving is in progress, 0 = no show
+cvar_t scr_saveicon = {"scr_saveicon", "1", CVAR_ARCHIVE};
+
 extern cvar_t	 crosshair;
 extern cvar_t	 crosshair_def;
 extern cvar_t	 crosshair_size;
@@ -704,6 +707,9 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_relsbarscale);
 	Cvar_RegisterVariable (&scr_relcrosshairscale);
 	Cvar_RegisterVariable (&scr_relconscale);
+
+	Cvar_RegisterVariable (&scr_saveicon);
+
 	Cvar_SetCallback (&scr_relativescale, &SCR_UpdateRelativeScale_f);
 	Cvar_SetCallback (&scr_relmenuscale, &SCR_UpdateRelativeScale_f);
 	Cvar_SetCallback (&scr_relsbarscale, &SCR_UpdateRelativeScale_f);
@@ -1237,7 +1243,7 @@ SCR_DrawSaving
 */
 static void SCR_DrawSaving (cb_context_t *cbx)
 {
-	if (!Host_IsSaving () || scr_viewsize.value >= 130)
+	if (scr_saveicon.value <= 0.0f || !Host_IsSaving () || scr_viewsize.value >= 130)
 		return;
 
 	GL_SetCanvas (cbx, CANVAS_TOPRIGHT);

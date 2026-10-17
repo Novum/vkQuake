@@ -179,6 +179,7 @@ extern qboolean keydown[256];
 extern cvar_t scr_fov;
 extern cvar_t scr_showfps;
 extern cvar_t scr_showspeed;
+extern cvar_t scr_saveicon;
 extern cvar_t cl_confirmquit;
 extern cvar_t scr_style;
 extern cvar_t autoload;
@@ -1665,6 +1666,7 @@ enum
 	GAME_OPT_CROSSHAIR_OPACITY,
 	GAME_OPT_FAST_LOADING,
 	GAME_OPT_AUTOLOAD,
+	GAME_OPT_SAVEICON,
 	GAME_OPT_STARTUP_DEMOS,
 	GAME_OPT_SHOWFPS,
 	GAME_OPT_SHOWSPEED,
@@ -1815,6 +1817,9 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GAME_OPT_AUTOLOAD: // load last save on death
 		Cvar_SetValue ("autoload", ((int)autoload.value + 2 + dir) % 2);
+		break;
+	case GAME_OPT_SAVEICON: // Show an icon when save is in progress
+		Cvar_SetValue ("scr_saveicon", ((int)scr_saveicon.value + 2 + dir) % 2);
 		break;
 	case GAME_OPT_STARTUP_DEMOS:
 		Cvar_SetValue ("cl_startdemos", ((int)cl_startdemos.value + 2 + dir) % 2);
@@ -2017,6 +2022,11 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 		case GAME_OPT_AUTOLOAD:
 			M_Print (cbx, MENU_LABEL_X, y, "Load last save");
 			M_DrawCheckbox (cbx, MENU_VALUE_X, y, autoload.value);
+			break;
+
+		case GAME_OPT_SAVEICON:
+			M_Print (cbx, MENU_LABEL_X, y, "Show save icon");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, scr_saveicon.value);
 			break;
 
 		case GAME_OPT_STARTUP_DEMOS:
