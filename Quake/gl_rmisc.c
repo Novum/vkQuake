@@ -4923,15 +4923,9 @@ void R_NewMap (void)
 	r_viewleaf = NULL;
 	R_ClearParticles ();
 	PScript_ClearParticles (true);
-	GL_DeleteBModelVertexBuffer ();
-
-	GL_BuildLightmaps ();
-	GL_BuildBModelVertexBuffer ();
-	GL_BuildBModelAccelerationStructures ();
+	r_framecount = 1;
+	R_RebuildBrushModels (true);
 	GL_PrepareSIMDAndParallelData ();
-	GL_SetupIndirectDraws ();
-	GL_SetupLightmapCompute ();
-	GL_UpdateLightmapDescriptorSets ();
 	// ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
 
 	r_framecount = 0;	 // johnfitz -- paranoid?

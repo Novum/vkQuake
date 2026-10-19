@@ -235,6 +235,7 @@ typedef struct
 
 	// refresh related state
 	struct qmodel_s *worldmodel; // cl_entitites[0].model
+	qboolean		 brushmodels_changed;
 	struct efrag_s	*free_efrags;
 	int				 num_efrags;
 	struct efrag_s **efrag_allocs;
@@ -414,6 +415,7 @@ void CL_Resume_Record (qboolean recordsignons);
 // cl_parse.c
 //
 void CL_ParseServerMessage (void);
+void CL_UpdateBrushModels (void);
 void CL_RegisterParticles (void);
 void CL_NewTranslation (int slot);
 

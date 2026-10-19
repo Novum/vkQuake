@@ -210,6 +210,7 @@ void R_AddEfrags (entity_t *ent);
 void R_RebuildAllEfrags (void);
 
 void R_NewMap (void);
+void R_RebuildBrushModels (qboolean newmap);
 
 void R_ParseParticleEffect (void);
 void R_RunParticleEffect (vec3_t org, vec3_t dir, int color, int count);
