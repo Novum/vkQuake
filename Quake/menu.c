@@ -2025,7 +2025,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 			break;
 
 		case GAME_OPT_SAVEICON:
-			M_Print (cbx, MENU_LABEL_X, y, "Show save icon");
+			M_Print (cbx, MENU_LABEL_X, y, "Saving indicator");
 			M_DrawCheckbox (cbx, MENU_VALUE_X, y, scr_saveicon.value);
 			break;
 
