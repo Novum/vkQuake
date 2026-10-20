@@ -2558,7 +2558,8 @@ static qboolean GL_CreateSwapChain (void)
 
 #if defined(VK_KHR_present_wait2)
 	swapchain_present_wait = false;
-	if (vulkan_globals.present_wait)
+	// Present IDs and waits are only needed for frame pacing with vsync enabled.
+	if (vulkan_globals.present_wait && (vid_vsync.value > 0))
 	{
 		ZEROED_STRUCT (VkSurfaceCapabilitiesPresentId2KHR, present_id_2_capabilities);
 		present_id_2_capabilities.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_ID_2_KHR;
