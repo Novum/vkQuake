@@ -976,6 +976,10 @@ int CL_ReadFromServer (void)
 		CL_ParseServerMessage ();
 	} while (ret && cls.state == ca_connected);
 
+	// Finish precaches before relinking entities and submitting rendering work.
+	if (cls.signon == SIGNONS && cl.brushmodels_changed)
+		CL_UpdateBrushModels ();
+
 	if (cl_shownet.value)
 		Con_Printf ("\n");
 
