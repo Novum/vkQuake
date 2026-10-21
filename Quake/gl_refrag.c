@@ -205,7 +205,8 @@ void R_RebuildAllEfrags (void)
 	if (!cl.worldmodel || !cl.static_entities)
 		return;
 
-	for (int i = 0; i < cl.worldmodel->numleafs; i++)
+	// numleafs excludes the solid leaf at index 0.
+	for (int i = 0; i <= cl.worldmodel->numleafs; i++)
 		cl.worldmodel->leafs[i].efrags = NULL;
 
 	for (int i = 0; i < cl.num_efragallocs; i++)
