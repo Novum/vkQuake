@@ -57,7 +57,7 @@ $ pkg_add vkquake
 
 ### FreeBSD
 
-[FreeBSD](https://freebsd.org) includes vkQuake in the standard port/package repoistories since version [11.3](https://www.freebsd.org/releases/11.3R/announce).
+[FreeBSD](https://freebsd.org) includes vkQuake in the standard port/package repositories since version [11.3](https://www.freebsd.org/releases/11.3R/announce).
 
 If you're running `FreeBSD 11.3` or greater, you can install the package with:
 
@@ -65,7 +65,7 @@ If you're running `FreeBSD 11.3` or greater, you can install the package with:
 # pkg install vkquake
 ```
 
-Alternatvely, you can build vkQuake with FreeBSD's port collection:
+Alternatively, you can build vkQuake with FreeBSD's port collection:
 ```console
 $ cd /usr/ports/games/vkquake
 # make install
@@ -81,7 +81,7 @@ vkQuake shows basic usage of the API. For example it demonstrates render passes 
 ## Endianness
 vkQuake only supports **little-endian** systems. 
 The reason is, all known existing Vulkan-capable systems in the wild are little-endian. Consequently, all big-endian support from QuakeSpasm has been effectively removed. 
-vkQuake wouldn't even start on an big-endian system, outputing a fatal error.
+vkQuake wouldn't even start on an big-endian system, outputting a fatal error.
 
 ## Building
 > **Note**\
@@ -182,7 +182,7 @@ On macOS the build links MoltenVK directly. Add `-Duse_vulkan_loader=enabled` to
 > cd vkQuake/Quake
 > make -j
 > ~~~
-> Meson is the preferred way to build vkQuake because it automatically checks for out of date file depenencies, is faster and has better error reporting for missing dependencies.
+> Meson is the preferred way to build vkQuake because it automatically checks for out of date file dependencies, is faster and has better error reporting for missing dependencies.
 
 > **Note**\
 > vkQuake requires **SDL3** or, as a fallback for older distributions, at least **SDL2 2.0.6 with enabled Vulkan support**.
@@ -215,7 +215,7 @@ Meson prefers SDL3 and falls back to SDL2 if it is not installed; add `-Duse_sdl
 
 ## Error reporting
 
-`vkQuake` is not garanteed to be free of runtime errors. In those rare cases, the game is either quit brutally with a `Quake Error` dialog, 
+`vkQuake` is not guaranteed to be free of runtime errors. In those rare cases, the game is either quit brutally with a `Quake Error` dialog, 
 or by an `Host_Error` console message that only terminates the currently played level. 
 
 In both cases some error context is provided that can be useful for developers. See [Error reporting](error_reporting_howto.md) for details.      
