@@ -21,6 +21,7 @@ layout (set = 2, binding = 0) uniform UBO
 	uint  flags;
 	uint  joints_offset0;
 	uint  joints_offset1;
+	uint  joints_bind_offset; // inverse bind pose (MD5_SkinFrames)
 }
 ubo;
 
@@ -102,7 +103,8 @@ void main ()
 	MD5_NormalizeJointWeights (joint_weights);
 	vec4 joint_positions[MD5_INFLUENCE_COUNT];
 	MD5_LoadJointPositions (joint_position_x, joint_position_y, joint_position_z, joint_weights, joint_positions);
-	MD5_SkinFrames (joint_offsets, joint_indices, joint_weights, joint_positions, in_normal, (ubo.flags & 0x2) == 0, skinned_positions, skinned_normals);
+	MD5_SkinFrames (joint_offsets, joint_indices, joint_weights, joint_positions, in_normal, (ubo.flags & 0x2) == 0, ubo.joints_bind_offset, skinned_positions,
+		skinned_normals);
 
 	const vec4 lerped_position = vec4 (mix (skinned_positions[0], skinned_positions[1], ubo.blend_factor), 1.0f);
 	const vec4 model_space_position = ubo.model_matrix * lerped_position;

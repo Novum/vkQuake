@@ -136,7 +136,7 @@ void main ()
 	vec3 unused_normals[2] = vec3[2](vec3 (0.0), vec3 (0.0));
 	uint joint_offsets[2] = uint[2](push_constants.joints_offset0, push_constants.joints_offset1);
 
-	MD5_SkinFrames (joint_offsets, indices, weights, joint_positions, vec3 (0.0), false, skinned_pos, unused_normals);
+	MD5_SkinFrames (joint_offsets, indices, weights, joint_positions, vec3 (0.0), false, 0u, skinned_pos, unused_normals);
 
 	// Interpolate between frames
 	vec3 lerped = mix (skinned_pos[0], skinned_pos[1], push_constants.blend_factor);
