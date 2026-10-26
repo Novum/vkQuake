@@ -5421,7 +5421,8 @@ static qboolean Mod_LoadMD5MeshModelData (qmodel_t *mod, const void *buffer, siz
 
 	TEMP_ALLOC_ZEROED (jointinfo_t, joint_infos, numjoints);
 	TEMP_ALLOC_ZEROED (jointpose_t, joint_poses, numjoints);
-	TEMP_ALLOC_ZEROED (jointpose_t, skinning_joints, numjoints * anim.numposes);
+	// the animation poses, then one block with the inverse bind pose (see MD5_SkinFrames)
+	TEMP_ALLOC_ZEROED (jointpose_t, skinning_joints, numjoints * (anim.numposes + 1));
 	TEMP_ALLOC_ZEROED (jointpose_t, concat_joints, numjoints);
 
 	for (size_t j = 0; j < 3; j++)
@@ -5503,6 +5504,13 @@ static qboolean Mod_LoadMD5MeshModelData (qmodel_t *mod, const void *buffer, siz
 		}
 	}
 	SAFE_FREE (anim.posedata);
+	// The weights' positions are joint-local and the poses absolute (bind space -> model space),
+	// but MD5_ComputeNormals makes the normals from the bind pose mesh, in model space: the
+	// shader takes them into each joint's space with the inverse bind pose before the pose turns
+	// them back. Without it a normal is turned by the joint's whole bind orientation and points
+	// anywhere, which shows as wrongly lit limbs and bodies.
+	for (size_t joint_index = 0; joint_index < numjoints; ++joint_index)
+		memcpy (skinning_joints[anim.numposes * numjoints + joint_index].mat, joint_infos[joint_index].inverse.mat, sizeof (jointpose_t));
 
 	// 3. each mesh has its own aliashdr_t : load vertices, triangles, textures...etc. and upload to GPU each surface:
 

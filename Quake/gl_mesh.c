@@ -406,7 +406,8 @@ void GLMesh_UploadBuffers (
 		assert (false);
 	}
 
-	const size_t totaljointssize = hdr->numframes * hdr->numjoints * sizeof (jointpose_t);
+	// MD5: the frames' poses and one block with the inverse bind pose (Mod_LoadMD5MeshModel)
+	const size_t totaljointssize = (hdr->numframes + 1) * hdr->numjoints * sizeof (jointpose_t);
 
 	if (hdr->poseverttype == PV_QUAKE1 || hdr->poseverttype == PV_QUAKE3)
 	{
