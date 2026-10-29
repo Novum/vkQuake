@@ -1598,7 +1598,7 @@ void R_RenderView (
 		Task_AddDependency (draw_view_model_task, draw_done_task);
 
 		Atomic_StoreUInt32 (&next_visedict, 0u);
-		if (r_ssao.value > 0)
+		if (r_ssao.value > 0 && !vulkan_globals.ssao_broken)
 		{
 			task_handle_t draw_ssao_task = Task_AllocateAndAssignFunc (R_DrawSSAOTask, NULL, 0);
 			Task_AddDependency (before_mark, draw_ssao_task);
@@ -1687,7 +1687,7 @@ void R_RenderView (
 		R_DrawSkyTask (NULL);
 		R_DrawWaterTask (NULL);
 		R_DrawEntitiesTask (0, NULL);
-		if (r_ssao.value > 0)
+		if (r_ssao.value > 0 && !vulkan_globals.ssao_broken)
 			R_DrawSSAOTask (NULL);
 		R_SortAlphaEntitiesTask (NULL);
 		R_DrawAlphaEntitiesTask (0, NULL);

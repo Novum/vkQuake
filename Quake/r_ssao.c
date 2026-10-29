@@ -360,6 +360,8 @@ static ssao_constants_t R_SSAOConstants (void)
 
 void R_PrepareSSAOWorldDepth (cb_context_t *cbx)
 {
+	if (vulkan_globals.ssao_broken)
+		return;
 	const VkCommandBuffer cb = cbx->cb;
 	const int			  resolution = (int)CLAMP (1, r_ssao.value, 3) == 1;
 	const int			  scale = resolution ? 2 : 1;
@@ -416,11 +418,11 @@ void R_ComputeSSAO (cb_context_t *cbx)
 		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 		.image = scene_depth,
 		.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1}};
-	// The following render pass expects read-only depth even when there is no view to shade.
+	// The following render pass expects read-only depth even if SSAO failed or there is no view to shade.
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1,
 		&depth_barrier);
-	if (!r_scene_vrect.width || !r_scene_vrect.height)
+	if (vulkan_globals.ssao_broken || !r_scene_vrect.width || !r_scene_vrect.height)
 		return;
 	ssao_constants_t   constants = R_SSAOConstants ();
 	const uint32_t	   width = vid.render_width, height = vid.render_height;
@@ -533,8 +535,6 @@ void R_ComputeSSAO (cb_context_t *cbx)
 
 void R_DrawSSAOTask (void *unused)
 {
-	if (r_ssao.value <= 0)
-		return;
 	cb_context_t  *cbx = vulkan_globals.secondary_cb_contexts[SCBX_ENTITY_SSAO];
 	const VkRect2D rect = {{r_scene_vrect.x, r_scene_vrect.y}, {r_scene_vrect.width, r_scene_vrect.height}};
 	if (!rect.extent.width || !rect.extent.height)

@@ -2105,7 +2105,7 @@ enum
 
 static int M_GraphicsOptions_NumItems ()
 {
-	return GRAPHICS_OPTIONS_ITEMS - (vulkan_globals.ray_query ? 0 : 1) - (vulkan_globals.screen_effects_sops ? 0 : 1);
+	return GRAPHICS_OPTIONS_ITEMS - (vulkan_globals.ray_query ? 0 : 1) - (vulkan_globals.screen_effects_sops && !vulkan_globals.ssao_broken ? 0 : 1);
 }
 
 static int graphics_options_cursor = 0;
@@ -2272,8 +2272,7 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 			Cvar_SetValueQuick (&r_rtshadows, (float)(((int)r_rtshadows.value + 4 + dir) % 4));
 		break;
 	case GRAPHICS_OPT_AMBIENT_OCCLUSION:
-		if (vulkan_globals.screen_effects_sops)
-			Cvar_SetValueQuick (&r_ssao, (float)(((int)CLAMP (0, r_ssao.value, 3) + 4 + dir) % 4));
+		Cvar_SetValueQuick (&r_ssao, (float)(((int)CLAMP (0, r_ssao.value, 3) + 4 + dir) % 4));
 		break;
 	}
 	M_BeginPreview (graphics_options_cursor, option == GRAPHICS_OPT_UNDERWATER ? PREVIEW_UNDERWATER : PREVIEW_WORLD);
@@ -2457,7 +2456,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SOFT_PARTICLES, "Soft Particles");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SOFT_PARTICLES, r_softparticles.value);
 
-	if (vulkan_globals.screen_effects_sops)
+	if (vulkan_globals.screen_effects_sops && !vulkan_globals.ssao_broken)
 	{
 		const int row = GRAPHICS_OPT_AMBIENT_OCCLUSION - (vulkan_globals.ray_query ? 0 : 1);
 		M_PreviewRow (cbx, row, top + CHARACTER_SIZE * row);
@@ -2476,6 +2475,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 
 	// cursor
 	M_Mouse_UpdateListCursor (&graphics_options_cursor, MENU_CURSOR_X, 320, top, CHARACTER_SIZE, M_GraphicsOptions_NumItems (), 0);
+	graphics_options_cursor = q_min (graphics_options_cursor, M_GraphicsOptions_NumItems () - 1);
 	Draw_SetOpacity (1.0f);
 	Draw_Character (cbx, MENU_CURSOR_X, top + graphics_options_cursor * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
 }

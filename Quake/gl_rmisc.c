@@ -3085,7 +3085,7 @@ The pipeline layout must already be stored in pipeline->layout.
 */
 static void R_CreateComputePipeline (
 	vulkan_pipeline_t *pipeline, VkShaderModule module, VkPipelineShaderStageCreateFlags stage_flags, const VkSpecializationInfo *specialization_info,
-	const char *name)
+	const char *name, bool fail_on_error)
 {
 	assert (pipeline->handle == VK_NULL_HANDLE);
 	assert (pipeline->layout.handle != VK_NULL_HANDLE);
@@ -3102,7 +3102,13 @@ static void R_CreateComputePipeline (
 
 	const VkResult err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &create_info, NULL, &pipeline->handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (%s) with code %i", name, (int)err);
+	{
+		pipeline->handle = VK_NULL_HANDLE;
+		if (fail_on_error)
+			Sys_Error ("vkCreateComputePipelines failed (%s) with code %i", name, (int)err);
+		Sys_Printf ("vkCreateComputePipelines failed (%s) with code %i\n", name, (int)err);
+		return;
+	}
 	GL_SetObjectName ((uint64_t)pipeline->handle, VK_OBJECT_TYPE_PIPELINE, name);
 }
 
@@ -3244,7 +3250,7 @@ static void R_CreateWarpPipelines ()
 
 	R_CreateGraphicsPipeline (&vulkan_globals.raster_tex_warp_pipeline, &infos, vulkan_globals.basic_pipeline_layout, "warp");
 
-	R_CreateComputePipeline (&vulkan_globals.cs_tex_warp_pipeline, cs_tex_warp_comp_module, 0, NULL, "cs_tex_warp");
+	R_CreateComputePipeline (&vulkan_globals.cs_tex_warp_pipeline, cs_tex_warp_comp_module, 0, NULL, "cs_tex_warp", true);
 }
 
 /*
@@ -3307,7 +3313,7 @@ static void R_CreateRayDebugPipelines ()
 	if (!vulkan_globals.ray_query)
 		return;
 
-	R_CreateComputePipeline (&vulkan_globals.ray_debug_pipeline, ray_debug_comp_module, 0, NULL, "ray_debug_pipeline");
+	R_CreateComputePipeline (&vulkan_globals.ray_debug_pipeline, ray_debug_comp_module, 0, NULL, "ray_debug_pipeline", true);
 #endif
 }
 
@@ -3321,9 +3327,9 @@ static void R_CreateAnimComputePipelines ()
 	if (!vulkan_globals.ray_query)
 		return;
 
-	R_CreateComputePipeline (&vulkan_globals.mesh_interpolate_pipeline, mesh_interpolate_comp_module, 0, NULL, "mesh_interpolate_pipeline");
-	R_CreateComputePipeline (&vulkan_globals.skinning_pipeline, skinning_comp_module, 0, NULL, "skinning_pipeline");
-	R_CreateComputePipeline (&vulkan_globals.skinning_8_pipeline, skinning_8_comp_module, 0, NULL, "skinning_8_pipeline");
+	R_CreateComputePipeline (&vulkan_globals.mesh_interpolate_pipeline, mesh_interpolate_comp_module, 0, NULL, "mesh_interpolate_pipeline", true);
+	R_CreateComputePipeline (&vulkan_globals.skinning_pipeline, skinning_comp_module, 0, NULL, "skinning_pipeline", true);
+	R_CreateComputePipeline (&vulkan_globals.skinning_8_pipeline, skinning_8_comp_module, 0, NULL, "skinning_8_pipeline", true);
 }
 
 /*
@@ -4037,28 +4043,36 @@ static void R_CreatePostprocessPipelines ()
 	base.vertex_input_state.pVertexBindingDescriptions = NULL;
 
 	base.shader_stages[0].module = postprocess_vert_module;
-	if (r_ssao.value > 0)
+	if (r_ssao.value > 0 && !vulkan_globals.ssao_broken)
 	{
 		pipeline_create_infos_t ssao;
 		R_CreateComputePipeline (
 			&ssao_prepare_pipeline, vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? ssao_prepare_comp_module : ssao_prepare_msaa_comp_module, 0, NULL,
-			"ssao_prepare");
+			"ssao_prepare", false);
 		const VkSpecializationMapEntry quality_entry = {.constantID = 0, .offset = 0, .size = sizeof (uint32_t)};
 		for (uint32_t quality = 1; quality <= countof (ssao_evaluate_pipelines); ++quality)
 		{
 			const VkSpecializationInfo specialization = {.mapEntryCount = 1, .pMapEntries = &quality_entry, .dataSize = sizeof (quality), .pData = &quality};
 			R_CreateComputePipeline (
 				&ssao_evaluate_pipelines[quality - 1], vulkan_globals.shader_float16 ? ssao_evaluate_fp16_comp_module : ssao_evaluate_comp_module, 0,
-				&specialization, "ssao_evaluate");
+				&specialization, "ssao_evaluate", false);
 		}
 		R_CreateComputePipeline (
 			&ssao_mip_pipeline,
 			vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? (vulkan_globals.shader_float16 ? ssao_mip_fp16_comp_module : ssao_mip_comp_module)
 																 : (vulkan_globals.shader_float16 ? ssao_mip_msaa_fp16_comp_module : ssao_mip_msaa_comp_module),
 			VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT | VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT, NULL,
-			"ssao_mip");
+			"ssao_mip", false);
 		R_CreateComputePipeline (
-			&ssao_filter_pipeline, vulkan_globals.shader_float16 ? ssao_filter_fp16_comp_module : ssao_filter_comp_module, 0, NULL, "ssao_filter");
+			&ssao_filter_pipeline, vulkan_globals.shader_float16 ? ssao_filter_fp16_comp_module : ssao_filter_comp_module, 0, NULL, "ssao_filter", false);
+		vulkan_globals.ssao_broken = !ssao_prepare_pipeline.handle || !ssao_mip_pipeline.handle || !ssao_filter_pipeline.handle;
+		for (int i = 0; i < countof (ssao_evaluate_pipelines); ++i)
+			vulkan_globals.ssao_broken |= !ssao_evaluate_pipelines[i].handle;
+		if (vulkan_globals.ssao_broken)
+		{
+			Cvar_SetValueQuick (&r_ssao, 0);
+			Con_Warning ("Disabling SSAO due to pipeline creation failure\n");
+		}
 		R_CopyPipelineCreateInfos (&ssao, &base);
 		ssao.depth_stencil_state.depthTestEnable = VK_FALSE;
 		ssao.depth_stencil_state.depthWriteEnable = VK_FALSE;
@@ -4067,7 +4081,7 @@ static void R_CreatePostprocessPipelines ()
 		ssao.blend_attachment_states[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 		ssao.blend_attachment_states[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
 		ssao.shader_stages[1].module = vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? ssao_composite_frag_module : ssao_composite_msaa_frag_module;
-		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+		for (int variant = 0; !vulkan_globals.ssao_broken && variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		{
 			R_SetPipelineRenderPassVariant (&ssao, SUBPASS_ENTITY_SSAO, variant);
 			R_CreateGraphicsPipeline (&ssao_pipelines[variant], &ssao, ssao_layout, "ssao");
@@ -4131,7 +4145,7 @@ static void R_CreateScreenEffectsPipelines ()
 	const qboolean ten_bit = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32;
 
 	R_CreateComputePipeline (
-		&vulkan_globals.screen_effects_pipeline, ten_bit ? screen_effects_10bit_comp_module : screen_effects_8bit_comp_module, 0, NULL, "screen_effects");
+		&vulkan_globals.screen_effects_pipeline, ten_bit ? screen_effects_10bit_comp_module : screen_effects_8bit_comp_module, 0, NULL, "screen_effects", true);
 }
 
 /*
@@ -4156,12 +4170,12 @@ static void R_CreateUpdateLightmapPipelines ()
 
 	R_CreateComputePipeline (
 		&vulkan_globals.update_lightmap_pipeline, ten_bit ? update_lightmap_10bit_comp_module : update_lightmap_8bit_comp_module, 0, &specialization_info,
-		"update_lightmap");
+		"update_lightmap", true);
 
 	if (vulkan_globals.ray_query)
 		R_CreateComputePipeline (
 			&vulkan_globals.update_lightmap_rt_pipeline, ten_bit ? update_lightmap_10bit_rt_comp_module : update_lightmap_8bit_rt_comp_module, 0,
-			&specialization_info, "update_lightmap_rt");
+			&specialization_info, "update_lightmap_rt", true);
 }
 
 /*
@@ -4171,8 +4185,8 @@ R_CreateIndirectComputePipelines
 */
 static void R_CreateIndirectComputePipelines ()
 {
-	R_CreateComputePipeline (&vulkan_globals.indirect_draw_pipeline, indirect_comp_module, 0, NULL, "indirect_draw");
-	R_CreateComputePipeline (&vulkan_globals.indirect_clear_pipeline, indirect_clear_comp_module, 0, NULL, "indirect_clear");
+	R_CreateComputePipeline (&vulkan_globals.indirect_draw_pipeline, indirect_comp_module, 0, NULL, "indirect_draw", true);
+	R_CreateComputePipeline (&vulkan_globals.indirect_clear_pipeline, indirect_clear_comp_module, 0, NULL, "indirect_clear", true);
 }
 
 /*
