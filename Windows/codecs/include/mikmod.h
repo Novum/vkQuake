@@ -74,7 +74,7 @@ extern "C" {
 
 #define LIBMIKMOD_VERSION_MAJOR 3L
 #define LIBMIKMOD_VERSION_MINOR 3L
-#define LIBMIKMOD_REVISION     13L
+#define LIBMIKMOD_REVISION     16L
 
 #define LIBMIKMOD_VERSION \
     ((LIBMIKMOD_VERSION_MAJOR<<16)| \
@@ -291,6 +291,7 @@ enum {
 
     MMERR_MAX
 };
+#define MMERR_WASAPI_SAMPLERATE MMERR_SGI_SPEED
 
 /*
  *  ========== Error handling
@@ -824,6 +825,7 @@ MIKMODAPI extern struct MDRIVER drv_dart;   /* OS/2 Direct Audio RealTime */
 MIKMODAPI extern struct MDRIVER drv_os2;    /* OS/2 MMPM/2 */
 
 MIKMODAPI extern struct MDRIVER drv_ds;     /* Win32 DirectSound driver */
+MIKMODAPI extern struct MDRIVER drv_wasapi; /* Win32 WASAPI driver */
 MIKMODAPI extern struct MDRIVER drv_xaudio2;/* Win32 XAudio2 driver */
 MIKMODAPI extern struct MDRIVER drv_win;    /* Win32 multimedia API driver */
 
@@ -834,6 +836,7 @@ MIKMODAPI extern struct MDRIVER drv_dc;     /* Dreamcast driver */
 MIKMODAPI extern struct MDRIVER drv_gp32;   /* GP32 Sound driver */
 MIKMODAPI extern struct MDRIVER drv_psp;    /* PlayStation Portable driver */
 MIKMODAPI extern struct MDRIVER drv_n64;    /* Nintendo64 driver */
+MIKMODAPI extern struct MDRIVER drv_vita;   /* PlayStation Vita driver */
 
 MIKMODAPI extern struct MDRIVER drv_wss;    /* DOS WSS driver */
 MIKMODAPI extern struct MDRIVER drv_sb;     /* DOS S/B driver */
