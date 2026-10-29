@@ -61,10 +61,19 @@ vec3 MD5_TransformNormal (mat4x3 joint_mat, vec3 normal, float weight)
 	return weight * (mat3x3 (joint_mat) * normal).xyz;
 }
 
+// The poses are absolute (joint space -> model space) and the weights' positions joint-local, but
+// the normal comes from the bind pose mesh in model space (MD5_ComputeNormals): bind_offset is the
+// block of inverse bind pose matrices after the frames' poses, which takes it into each joint's
+// space first. Only read when skin_normals is set.
 void MD5_SkinFrames (
 	uint joint_offsets[2], uvec4 joint_indices[MD5_INFLUENCE_GROUP_COUNT], vec4 joint_weights[MD5_INFLUENCE_GROUP_COUNT],
-	vec4 joint_positions[MD5_INFLUENCE_COUNT], vec3 normal, bool skin_normals, out vec3 skinned_positions[2], out vec3 skinned_normals[2])
+	vec4 joint_positions[MD5_INFLUENCE_COUNT], vec3 normal, bool skin_normals, uint bind_offset, out vec3 skinned_positions[2],
+	out vec3 skinned_normals[2])
 {
+	vec3 joint_normals[MD5_INFLUENCE_COUNT];
+	for (int k = 0; k < MD5_INFLUENCE_COUNT; ++k)
+		joint_normals[k] = skin_normals ? mat3x3 (MD5_LoadJointMatrix (bind_offset + joint_indices[k / 4][k % 4])) * normal : vec3 (0.0);
+
 	skinned_positions[0] = vec3 (0.0);
 	skinned_positions[1] = vec3 (0.0);
 	skinned_normals[0] = vec3 (0.0);
@@ -83,7 +92,7 @@ void MD5_SkinFrames (
 				if (skin_normals)
 				{
 					const float joint_weight = joint_weights[g][i];
-					skinned_normals[j] += MD5_TransformNormal (joint_mat, normal, joint_weight);
+					skinned_normals[j] += MD5_TransformNormal (joint_mat, joint_normals[g * 4 + i], joint_weight);
 				}
 			}
 		}
