@@ -12,8 +12,13 @@ layout (push_constant) uniform PushConsts
 	float fog_density;
 	float alpha;
 	uint  instance_base; // 0: identity transforms, else buffer base offset + 1
+#ifdef RGSS
+	layout (offset = 112) vec2 rgss_scale;
+#endif
 }
 push_constants;
+
+#include "rgss.inc"
 
 layout (std430, set = 4, binding = 0) restrict readonly buffer vertex_instances_buffer
 {
@@ -52,7 +57,7 @@ void main ()
 			position = vec3 (dot (instance.transform[0], model_pos), dot (instance.transform[1], model_pos), dot (instance.transform[2], model_pos));
 		}
 	}
-	gl_Position = push_constants.mvp * vec4 (position, 1.0f);
+	gl_Position = RGSS_POSITION (push_constants.mvp * vec4 (position, 1.0f));
 
 	out_fog_frag_coord = gl_Position.w;
 }

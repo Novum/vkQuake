@@ -1,4 +1,5 @@
 #version 460
+#extension GL_GOOGLE_include_directive : enable
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
@@ -7,8 +8,13 @@ layout (push_constant) uniform PushConsts
 	mat4  view_projection_matrix;
 	vec3  fog_color;
 	float fog_density;
+#ifdef RGSS
+	layout (offset = 112) vec2 rgss_scale;
+#endif
 }
 push_constants;
+
+#include "rgss.inc"
 
 layout (set = 2, binding = 0) uniform UBO
 {
@@ -53,7 +59,7 @@ void main ()
 	const vec3 pos1 = (MD5_LoadJointMatrix (ubo.joints_offset1 + joint_index) * joint_origin).xyz;
 	const vec3 pos = mix (pos0, pos1, ubo.blend_factor);
 
-	gl_Position = push_constants.view_projection_matrix * ubo.model_matrix * vec4 (pos, 1.0);
+	gl_Position = RGSS_POSITION (push_constants.view_projection_matrix * ubo.model_matrix * vec4 (pos, 1.0));
 	out_texcoord = vec4 (0.0);
 	out_color = vec4 (ubo.light_color, 1.0);
 	out_fog_frag_coord = gl_Position.w;

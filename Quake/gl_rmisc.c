@@ -1769,20 +1769,18 @@ void R_CreatePipelineLayouts ()
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.basic_pipeline_layout.handle);
+		err = R_CreateScenePipelineLayout (&pipeline_layout_create_info, &vulkan_globals.basic_pipeline_layout);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.basic_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "basic_pipeline_layout");
-		vulkan_globals.basic_pipeline_layout.push_constant_range = push_constant_range;
 		vulkan_globals.basic_pipeline_layout.mboit_input_attachment_set = 1;
 
 		basic_descriptor_set_layouts[1] = vulkan_globals.input_attachment_set_layout.handle;
 		push_constant_range.size = 22 * sizeof (float);
-		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.fte_particle_pipeline_layout.handle);
+		err = R_CreateScenePipelineLayout (&pipeline_layout_create_info, &vulkan_globals.fte_particle_pipeline_layout);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.fte_particle_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "fte_particle_pipeline_layout");
-		vulkan_globals.fte_particle_pipeline_layout.push_constant_range = push_constant_range;
 		vulkan_globals.fte_particle_pipeline_layout.mboit_input_attachment_set = -1;
 	}
 
@@ -1802,11 +1800,10 @@ void R_CreatePipelineLayouts ()
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.gui_pipeline_layout.handle);
+		err = R_CreateScenePipelineLayout (&pipeline_layout_create_info, &vulkan_globals.gui_pipeline_layout);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.gui_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "gui_pipeline_layout");
-		vulkan_globals.gui_pipeline_layout.push_constant_range = push_constant_range;
 		vulkan_globals.gui_pipeline_layout.mboit_input_attachment_set = -1;
 	}
 
@@ -1828,11 +1825,10 @@ void R_CreatePipelineLayouts ()
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.world_pipeline_layout.handle);
+		err = R_CreateScenePipelineLayout (&pipeline_layout_create_info, &vulkan_globals.world_pipeline_layout);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.world_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "world_pipeline_layout");
-		vulkan_globals.world_pipeline_layout.push_constant_range = push_constant_range;
 		vulkan_globals.world_pipeline_layout.mboit_input_attachment_set = 3;
 	}
 
@@ -1854,13 +1850,11 @@ void R_CreatePipelineLayouts ()
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-		err = vkCreatePipelineLayout (
-			vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout.handle);
+		err = R_CreateScenePipelineLayout (&pipeline_layout_create_info, &vulkan_globals.alias_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName (
 			(uint64_t)vulkan_globals.alias_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "alias_pipeline_layout");
-		vulkan_globals.alias_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout.push_constant_range = push_constant_range;
 		vulkan_globals.alias_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout.mboit_input_attachment_set = 3;
 	}
 
@@ -1882,13 +1876,11 @@ void R_CreatePipelineLayouts ()
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-		err = vkCreatePipelineLayout (
-			vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout.handle);
+		err = R_CreateScenePipelineLayout (&pipeline_layout_create_info, &vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName (
 			(uint64_t)vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "md5_pipeline_layout");
-		vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout.push_constant_range = push_constant_range;
 		vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout.mboit_input_attachment_set = 4;
 	}
 
@@ -1911,20 +1903,18 @@ void R_CreatePipelineLayouts ()
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_pipeline_layout[0].handle);
+		err = R_CreateScenePipelineLayout (&pipeline_layout_create_info, &vulkan_globals.sky_pipeline_layout[0]);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_pipeline_layout[0].handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_pipeline_layout");
-		vulkan_globals.sky_pipeline_layout[0].push_constant_range = push_constant_range;
 
 		push_constant_range.size = 25 * sizeof (float);
 		pipeline_layout_create_info.setLayoutCount = 2;
 
-		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_pipeline_layout[1].handle);
+		err = R_CreateScenePipelineLayout (&pipeline_layout_create_info, &vulkan_globals.sky_pipeline_layout[1]);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_pipeline_layout[1].handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_pipeline_layout");
-		vulkan_globals.sky_pipeline_layout[1].push_constant_range = push_constant_range;
 	}
 
 	{
@@ -2590,6 +2580,7 @@ DECLARE_SHADER_MODULE (sky_cube_vert);
 DECLARE_SHADER_MODULE (sky_cube_frag);
 DECLARE_SHADER_MODULE (postprocess_vert);
 DECLARE_SHADER_MODULE (postprocess_frag);
+DECLARE_SHADER_MODULE (rgss_resolve_frag);
 DECLARE_SHADER_MODULE (scene_upscale_frag);
 DECLARE_SHADER_MODULE (ssao_composite_frag);
 DECLARE_SHADER_MODULE (ssao_composite_msaa_frag);
@@ -4112,7 +4103,15 @@ static void R_CreatePostprocessPipelines ()
 	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
 	infos.shader_stages[1].module = postprocess_frag_module;
 	R_SetPipelineRenderPassVariant (&infos, SUBPASS_POST_PROCESS, MAIN_RENDER_PASS_STANDARD);
-	R_CreateGraphicsPipeline (&vulkan_globals.postprocess_pipeline, &infos, vulkan_globals.postprocess_pipeline.layout, "postprocess");
+	if (vulkan_globals.rgss_samples)
+	{
+		infos.shader_stages[1].module = rgss_resolve_frag_module;
+		infos.depth_stencil_state.depthTestEnable = VK_FALSE;
+		infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+		R_CreateGraphicsPipeline (&vulkan_globals.rgss_resolve_pipeline, &infos, vulkan_globals.rgss_resolve_pipeline.layout, "3dfx RGSS resolve");
+	}
+	else
+		R_CreateGraphicsPipeline (&vulkan_globals.postprocess_pipeline, &infos, vulkan_globals.postprocess_pipeline.layout, "postprocess");
 
 	R_CopyPipelineCreateInfos (&infos, &base);
 	infos.blend_attachment_states[0].blendEnable = VK_TRUE;
@@ -4196,7 +4195,8 @@ R_CreateShaderModules
 */
 static void R_CreateShaderModules ()
 {
-	CREATE_SHADER_MODULE (basic_vert);
+	basic_vert_module = vulkan_globals.rgss_samples ? R_CreateShaderModule (basic_rgss_vert_spv, basic_rgss_vert_spv_size, "basic_rgss_vert")
+													: R_CreateShaderModule (basic_vert_spv, basic_vert_spv_size, "basic_vert");
 	CREATE_SHADER_MODULE (basic_frag);
 	CREATE_SHADER_MODULE (fte_particles_frag);
 	CREATE_SHADER_MODULE (fte_particles_msaa_frag);
@@ -4210,14 +4210,18 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (draw_pic_alphatest_frag);
 	CREATE_SHADER_MODULE (draw_pic_xbr_frag);
 	CREATE_SHADER_MODULE (draw_pic_xbr_alphatest_frag);
-	CREATE_SHADER_MODULE (draw_pic_xbr_vert);
-	CREATE_SHADER_MODULE (world_vert);
+	draw_pic_xbr_vert_module = vulkan_globals.rgss_samples
+								   ? R_CreateShaderModule (draw_pic_xbr_rgss_vert_spv, draw_pic_xbr_rgss_vert_spv_size, "draw_pic_xbr_rgss_vert")
+								   : R_CreateShaderModule (draw_pic_xbr_vert_spv, draw_pic_xbr_vert_spv_size, "draw_pic_xbr_vert");
+	world_vert_module = vulkan_globals.rgss_samples ? R_CreateShaderModule (world_rgss_vert_spv, world_rgss_vert_spv_size, "world_rgss_vert")
+													: R_CreateShaderModule (world_vert_spv, world_vert_spv_size, "world_vert");
 	CREATE_SHADER_MODULE (world_frag);
 	CREATE_SHADER_MODULE (world_oit_frag);
 	CREATE_SHADER_MODULE (world_mboit_moment_frag);
 	CREATE_SHADER_MODULE (world_mboit_composite_frag);
 	CREATE_SHADER_MODULE_COND (world_mboit_composite_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
-	CREATE_SHADER_MODULE (alias_vert);
+	alias_vert_module = vulkan_globals.rgss_samples ? R_CreateShaderModule (alias_rgss_vert_spv, alias_rgss_vert_spv_size, "alias_rgss_vert")
+													: R_CreateShaderModule (alias_vert_spv, alias_vert_spv_size, "alias_vert");
 	CREATE_SHADER_MODULE (alias_frag);
 	CREATE_SHADER_MODULE (alias_alphatest_frag);
 	CREATE_SHADER_MODULE (alias_oit_frag);
@@ -4232,16 +4236,22 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE_COND (md5_mboit_composite_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE (md5_alphatest_mboit_composite_frag);
 	CREATE_SHADER_MODULE_COND (md5_alphatest_mboit_composite_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
-	CREATE_SHADER_MODULE (md5_vert);
-	CREATE_SHADER_MODULE (md5_8_vert);
-	CREATE_SHADER_MODULE (md5_debug_vert);
-	CREATE_SHADER_MODULE (sky_layer_vert);
+	md5_vert_module = vulkan_globals.rgss_samples ? R_CreateShaderModule (md5_rgss_vert_spv, md5_rgss_vert_spv_size, "md5_rgss_vert")
+												  : R_CreateShaderModule (md5_vert_spv, md5_vert_spv_size, "md5_vert");
+	md5_8_vert_module = vulkan_globals.rgss_samples ? R_CreateShaderModule (md5_8_rgss_vert_spv, md5_8_rgss_vert_spv_size, "md5_8_rgss_vert")
+													: R_CreateShaderModule (md5_8_vert_spv, md5_8_vert_spv_size, "md5_8_vert");
+	md5_debug_vert_module = vulkan_globals.rgss_samples ? R_CreateShaderModule (md5_debug_rgss_vert_spv, md5_debug_rgss_vert_spv_size, "md5_debug_rgss_vert")
+														: R_CreateShaderModule (md5_debug_vert_spv, md5_debug_vert_spv_size, "md5_debug_vert");
+	sky_layer_vert_module = vulkan_globals.rgss_samples ? R_CreateShaderModule (sky_layer_rgss_vert_spv, sky_layer_rgss_vert_spv_size, "sky_layer_rgss_vert")
+														: R_CreateShaderModule (sky_layer_vert_spv, sky_layer_vert_spv_size, "sky_layer_vert");
 	CREATE_SHADER_MODULE (sky_layer_frag);
 	CREATE_SHADER_MODULE (sky_box_frag);
-	CREATE_SHADER_MODULE (sky_cube_vert);
+	sky_cube_vert_module = vulkan_globals.rgss_samples ? R_CreateShaderModule (sky_cube_rgss_vert_spv, sky_cube_rgss_vert_spv_size, "sky_cube_rgss_vert")
+													   : R_CreateShaderModule (sky_cube_vert_spv, sky_cube_vert_spv_size, "sky_cube_vert");
 	CREATE_SHADER_MODULE (sky_cube_frag);
 	CREATE_SHADER_MODULE (postprocess_vert);
 	CREATE_SHADER_MODULE (postprocess_frag);
+	CREATE_SHADER_MODULE_COND (rgss_resolve_frag, vulkan_globals.rgss_samples);
 	CREATE_SHADER_MODULE (scene_upscale_frag);
 #ifdef _DEBUG
 	if (r_ssao.value > 0)
@@ -4276,7 +4286,8 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (cs_tex_warp_comp);
 	CREATE_SHADER_MODULE (indirect_comp);
 	CREATE_SHADER_MODULE (indirect_clear_comp);
-	CREATE_SHADER_MODULE (showtris_vert);
+	showtris_vert_module = vulkan_globals.rgss_samples ? R_CreateShaderModule (showtris_rgss_vert_spv, showtris_rgss_vert_spv_size, "showtris_rgss_vert")
+													   : R_CreateShaderModule (showtris_vert_spv, showtris_vert_spv_size, "showtris_vert");
 	CREATE_SHADER_MODULE (showtris_frag);
 	CREATE_SHADER_MODULE (update_lightmap_8bit_comp);
 	CREATE_SHADER_MODULE (update_lightmap_10bit_comp);
@@ -4343,6 +4354,7 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (sky_cube_frag);
 	DESTROY_SHADER_MODULE (postprocess_vert);
 	DESTROY_SHADER_MODULE (postprocess_frag);
+	DESTROY_SHADER_MODULE (rgss_resolve_frag);
 	DESTROY_SHADER_MODULE (scene_upscale_frag);
 	DESTROY_SHADER_MODULE (ssao_composite_frag);
 	DESTROY_SHADER_MODULE (ssao_composite_msaa_frag);
@@ -4416,6 +4428,8 @@ R_DestroyPipelines
 */
 void R_DestroyPipelines (void)
 {
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.rgss_resolve_pipeline.handle, NULL);
+	vulkan_globals.rgss_resolve_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, ssao_mip_pipeline.handle, NULL);
 	ssao_mip_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, ssao_prepare_pipeline.handle, NULL);

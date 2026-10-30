@@ -1782,7 +1782,7 @@ static void GL_CreateUIColorBuffer (void)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
 	assert (ui_color_buffer == VK_NULL_HANDLE);
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &ui_color_buffer);
@@ -1840,6 +1840,15 @@ static void GL_CreateColorBuffer (void)
 	int		 i;
 
 	Sys_Printf ("Creating color buffer\n");
+	vulkan_globals.rgss_samples = RGSS_SampleCount ((int)vid_fsaamode.value);
+	if (vulkan_globals.rgss_samples && !R_RGSSSupported ())
+	{
+		Con_Printf ("3dfx RGSS requires six bound descriptor sets; using multisample AA\n");
+		vulkan_globals.rgss_samples = 0;
+		Cvar_SetValueQuick (&vid_fsaamode, AA_MULTISAMPLE);
+	}
+	if (vulkan_globals.rgss_samples)
+		Sys_Printf ("3dfx %ux RGSS: complete jittered frames, single-sample rendering\n", vulkan_globals.rgss_samples);
 
 	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1853,8 +1862,8 @@ static void GL_CreateColorBuffer (void)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage =
-		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+							  VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
@@ -1912,7 +1921,7 @@ static void GL_CreateColorBuffer (void)
 	vulkan_globals.supersampling = false;
 
 	{
-		const int fsaa = (int)vid_fsaa.value;
+		const int fsaa = vulkan_globals.rgss_samples ? 0 : (int)vid_fsaa.value;
 
 		VkImageFormatProperties image_format_properties;
 		vkGetPhysicalDeviceImageFormatProperties (
@@ -1950,7 +1959,7 @@ static void GL_CreateColorBuffer (void)
 
 	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
 	{
-		vulkan_globals.supersampling = (vulkan_globals.device_features.sampleRateShading && vid_fsaamode.value >= 1) ? true : false;
+		vulkan_globals.supersampling = (vulkan_globals.device_features.sampleRateShading && (int)vid_fsaamode.value == AA_SUPERSAMPLE) ? true : false;
 
 		if (vulkan_globals.supersampling)
 			Sys_Printf ("Supersampling enabled\n");
@@ -2005,7 +2014,7 @@ static void GL_CreateColorBuffer (void)
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateImageView failed with code %i", (int)err);
 	}
-	else
+	else if (!vulkan_globals.rgss_samples)
 		Sys_Printf ("AA disabled\n");
 
 	if (R_UseOIT ())
@@ -2845,6 +2854,7 @@ static void GL_CreateRenderResources (void)
 	GL_CreateColorBuffer ();
 	if (vid.render_width != vid.width || vid.render_height != vid.height)
 		GL_CreateUIColorBuffer ();
+	R_CreateRGSSImages (ui_color_buffer ? ui_color_buffer : vulkan_globals.color_buffers[0]);
 	GL_CreateDepthBuffer ();
 	R_CreateSSAO (depth_buffer);
 	R_CreateRenderPasses ();
@@ -2874,6 +2884,7 @@ static void GL_DestroyRenderResources (void)
 	GL_WaitForDeviceIdle ();
 
 	R_DestroyPipelines ();
+	R_DestroyRGSSImages ();
 
 	if (postprocess_descriptor_set != VK_NULL_HANDLE)
 	{
@@ -3082,7 +3093,9 @@ void GL_BeginRenderingTask (void *unused)
 
 			ZEROED_STRUCT (VkCommandBufferBeginInfo, command_buffer_begin_info);
 			command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-			command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+			command_buffer_begin_info.flags =
+				VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT |
+				(vulkan_globals.rgss_samples ? VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT : VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 			command_buffer_begin_info.pInheritanceInfo = &inheritance_info;
 
 			err = vkBeginCommandBuffer (cbx->cb, &command_buffer_begin_info);
@@ -3106,7 +3119,7 @@ void GL_BeginRenderingTask (void *unused)
 			viewport.height = render_area.extent.height;
 			viewport.minDepth = 0.0f;
 			viewport.maxDepth = 1.0f;
-			vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
+			R_SetViewport (cbx, &viewport);
 
 			if (scbx_index != SCBX_OIT_RESOLVE && !(scbx_index == SCBX_FTE_PARTICLES_BLEND && R_UseOIT ()) && R_HasGraphicsPipeline (cbx, PIPELINE_BASIC_BLEND))
 			{
@@ -3160,7 +3173,7 @@ void GL_DrawSceneUpscale (cb_context_t *cbx)
 		float	 output_size_rcp[2];
 		uint32_t upscale_filter;
 	} constants = {{1.0f / vid.width, 1.0f / vid.height}, r_upscalefilter.value >= 1 ? 1 : 0};
-	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
+	R_SetViewport (cbx, &viewport);
 	R_BindGraphicsPipeline (cbx, PIPELINE_SCENE_UPSCALE);
 	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, cbx->current_pipeline.layout.handle, 0, 1, &scene_upscale_descriptor_set, 0, NULL);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, sizeof (constants), &constants);
@@ -3405,7 +3418,7 @@ static void GL_RecordOITResolveContext (end_rendering_parms_t *parms, VkRect2D r
 	viewport.height = (float)parms->render_height;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
+	R_SetViewport (cbx, &viewport);
 
 	if (parms->use_mboit)
 	{
@@ -3476,11 +3489,16 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		GL_Viewport (cbx, 0, 0, vid.width, vid.height, 0.0f, 1.0f);
 		float postprocess_values[2] = {vid_gamma.value, q_min (2.0f, q_max (1.0f, vid_contrast.value))};
 
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
-		vkCmdBindDescriptorSets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline.layout.handle, 0, 1, &postprocess_descriptor_set, 0, NULL);
-		R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 2 * sizeof (float), postprocess_values);
-		vkCmdDraw (cbx->cb, 3, 1, 0, 0);
+		if (vulkan_globals.rgss_samples)
+			R_DrawRGSSResolve (cbx, postprocess_values[0], postprocess_values[1]);
+		else
+		{
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
+			vkCmdBindDescriptorSets (
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline.layout.handle, 0, 1, &postprocess_descriptor_set, 0, NULL);
+			R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 2 * sizeof (float), postprocess_values);
+			vkCmdDraw (cbx->cb, 3, 1, 0, 0);
+		}
 	}
 
 	GL_RecordOITResolveContext (parms, render_area);
@@ -3542,8 +3560,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	if (take_screenshot && (readback.buffer != VK_NULL_HANDLE))
 	{
 		WriteScreenshot (readback.buffer, readback.memory);
+		take_screenshot = false;
 	}
-	take_screenshot = false;
 
 	if (swapchain_acquired == true)
 	{
@@ -4111,6 +4129,7 @@ void VID_Init (void)
 	R_InitMeshHeap ();
 	TexMgr_InitHeap ();
 	R_InitSamplers ();
+	R_InitRGSS ();
 	R_CreatePipelineLayouts ();
 	R_CreatePaletteOctreeBuffers (palette_octree_colors, NUM_PALETTE_OCTREE_COLORS, palette_octree_nodes, NUM_PALETTE_OCTREE_NODES);
 	// GL_CreateRenderResources ();
@@ -4975,6 +4994,10 @@ SCR_ScreenShot_f -- johnfitz
 */
 void SCR_ScreenShot_f (void)
 {
+	// A slower RGSS frame may still be submitting or writing the previous capture.
+	// Finish that task before publishing a new request or changing its filename.
+	GL_SynchronizeEndRenderingTask ();
+
 	if ((vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_SRGB) &&
 		(vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB))
 	{

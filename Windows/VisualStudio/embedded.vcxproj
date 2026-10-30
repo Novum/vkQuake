@@ -13,6 +13,19 @@
   <ItemGroup>
     <CustomBuild Include="..\..\Shaders\alias.vert">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias.vert.spv" alias.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_rgss.vert.spv" alias_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\alias.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_rgss.vert.c</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.vert.spv" alias.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_rgss.vert.spv" alias_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\alias.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_rgss.vert.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\rgss.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\fte_particles.frag">
       <FileType>Document</FileType>
@@ -24,6 +37,19 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic.vert.spv" basic.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_rgss.vert.spv" basic_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\basic.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_rgss.vert.c</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.vert.spv" basic.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_rgss.vert.spv" basic_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\basic.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\basic_rgss.vert.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\rgss.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic_alphatest.frag">
       <FileType>Document</FileType>
@@ -49,6 +75,19 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\draw_pic_xbr.vert">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\draw_pic_xbr.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\draw_pic_xbr.vert.spv" draw_pic_xbr.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\draw_pic_xbr.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\draw_pic_xbr_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\draw_pic_xbr_rgss.vert.spv" draw_pic_xbr_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\draw_pic_xbr_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\draw_pic_xbr.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\draw_pic_xbr_rgss.vert.c</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr.vert.spv" draw_pic_xbr.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr_rgss.vert.spv" draw_pic_xbr_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\draw_pic_xbr_rgss.vert.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\rgss.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\cs_tex_warp.comp">
       <FileType>Document</FileType>
@@ -60,6 +99,9 @@
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\postprocess.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\rgss_resolve.frag">
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\scene_upscale.frag">
@@ -368,6 +410,19 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\showtris.vert">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\showtris.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\showtris.vert.spv" showtris.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\showtris.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\showtris_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\showtris_rgss.vert.spv" showtris_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\showtris_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\showtris.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\showtris_rgss.vert.c</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris.vert.spv" showtris.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris_rgss.vert.spv" showtris_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\showtris_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\showtris.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\showtris_rgss.vert.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\rgss.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\sky_box.frag">
       <FileType>Document</FileType>
@@ -377,15 +432,54 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\sky_cube.vert">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_cube.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_cube.vert.spv" sky_cube.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_cube.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_cube_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_cube_rgss.vert.spv" sky_cube_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_cube_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_cube.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_cube_rgss.vert.c</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube.vert.spv" sky_cube.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube_rgss.vert.spv" sky_cube_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\sky_cube_rgss.vert.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\rgss.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\sky_layer.frag">
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\sky_layer.vert">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_layer.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_layer.vert.spv" sky_layer.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_layer.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_layer_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_layer_rgss.vert.spv" sky_layer_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_layer_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_layer.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\sky_layer_rgss.vert.c</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer.vert.spv" sky_layer.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer_rgss.vert.spv" sky_layer_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\sky_layer_rgss.vert.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\rgss.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.vert">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\world.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\world.vert.spv" world.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\world.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_rgss.vert.spv" world_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\world.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\world_rgss.vert.c</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V  "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\world.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\world.vert.spv" world.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\world.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\world_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\world_rgss.vert.spv" world_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\world_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\world.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\world_rgss.vert.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\rgss.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\md5.vert">
       <FileType>Document</FileType>
@@ -394,25 +488,42 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.spv"
 "$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.spv" md5.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.c"
 $(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DEIGHT_WEIGHT_SKINNING "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.spv"
-"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.spv" md5_8.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.c"</Command>
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.spv" md5_8.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_rgss.vert.spv" md5_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_rgss.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 -DEIGHT_WEIGHT_SKINNING "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8_rgss.vert.spv" md5_8_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8_rgss.vert.c"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.spv"
 $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.spv"
 "$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.spv" md5.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.c"
 $(VULKAN_SDK)\bin\glslangValidator.exe -V -DEIGHT_WEIGHT_SKINNING "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.spv"
 $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.spv"
-"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.spv" md5_8.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.c"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.c</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.c</Outputs>
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.spv" md5_8.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_rgss.vert.spv" md5_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_rgss.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 -DEIGHT_WEIGHT_SKINNING "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8_rgss.vert.spv" md5_8_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\md5.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_rgss.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_8_rgss.vert.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\md5.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\md5_rgss.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\md5_8_rgss.vert.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\rgss.inc;$(SolutionDir)..\..\Shaders\skinning.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\md5_debug.vert">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.spv"
-"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.spv" md5_debug.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.c"</Command>
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.spv" md5_debug.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug_rgss.vert.spv" md5_debug_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug_rgss.vert.c"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.spv"
 $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.spv"
-"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.spv" md5_debug.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.c"</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.c</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.c</Outputs>
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.spv" md5_debug.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRGSS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug_rgss.vert.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug_rgss.vert.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug_rgss.vert.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug_rgss.vert.spv" md5_debug_rgss.vert_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug_rgss.vert.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\md5_debug_rgss.vert.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug.vert.c;$(SolutionDir)..\..\Shaders\Compiled\Release\md5_debug_rgss.vert.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\rgss.inc;$(SolutionDir)..\..\Shaders\skinning.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\mesh_interpolate.comp">
       <FileType>Document</FileType>

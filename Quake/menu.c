@@ -2203,6 +2203,13 @@ static void M_Menu_GraphicsOptions_f (void)
 
 static void M_GraphicsOptions_ChooseNextAASamples (int dir)
 {
+	if (RGSS_SampleCount ((int)vid_fsaamode.value))
+	{
+		const int count = AA_3DFX_8X - AA_3DFX_2X + 1;
+		const int mode = ((int)vid_fsaamode.value - AA_3DFX_2X + count + dir) % count;
+		Cvar_SetValueQuick (&vid_fsaamode, (float)(AA_3DFX_2X + mode));
+		return;
+	}
 	int value = vid_fsaa.value;
 
 	if (dir > 0)
@@ -2322,9 +2329,15 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		Cbuf_AddText ("vid_restart\n");
 		break;
 	case GRAPHICS_OPT_ANTIALIASING_MODE:
-		if (vulkan_globals.device_features.sampleRateShading)
-			Cvar_SetValueQuick (&vid_fsaamode, (float)(((int)vid_fsaamode.value + 2 + dir) % 2));
-		break;
+	{
+		int mode = (int)CLAMP (0, vid_fsaamode.value, AA_MODE_COUNT - 1);
+		do
+		{
+			mode = (mode + AA_MODE_COUNT + dir) % AA_MODE_COUNT;
+		} while ((mode == AA_SUPERSAMPLE && !vulkan_globals.device_features.sampleRateShading) || (RGSS_SampleCount (mode) && !R_RGSSSupported ()));
+		Cvar_SetValueQuick (&vid_fsaamode, (float)mode);
+	}
+	break;
 	case GRAPHICS_OPT_ANISOTROPY:
 		Cvar_SetValueQuick (&vid_anisotropic, (float)(((int)vid_anisotropic.value + 2 + dir) % 2));
 		break;
@@ -2493,13 +2506,19 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_SAMPLES, "Antialiasing");
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_SAMPLES,
-		((int)vid_fsaa.value >= 2) ? va ("%ix", CLAMP (2, (int)vid_fsaa.value, 16)) : "off");
+		RGSS_SampleCount ((int)vid_fsaamode.value) ? va ("%ix", RGSS_SampleCount ((int)vid_fsaamode.value))
+		: ((int)vid_fsaa.value >= 2)			   ? va ("%ix", CLAMP (2, (int)vid_fsaa.value, 16))
+												   : "off");
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_ANTIALIASING_MODE, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_MODE);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_MODE, "AA mode");
-	M_Print (
-		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_MODE,
-		(((int)vid_fsaamode.value == 0) || !vulkan_globals.device_features.sampleRateShading) ? "Multisample" : "Supersample");
+	{
+		static const char *modes[] = {"Multisample", "Supersample", "3dfx 2x RGSS", "3dfx 4x RGSS", "3dfx 8x RGSS"};
+		int				   mode = (int)CLAMP (0, vid_fsaamode.value, AA_MODE_COUNT - 1);
+		if (mode == AA_SUPERSAMPLE && !vulkan_globals.device_features.sampleRateShading)
+			mode = AA_MULTISAMPLE;
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_MODE, modes[mode]);
+	}
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_ANISOTROPY, top + CHARACTER_SIZE * GRAPHICS_OPT_ANISOTROPY);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANISOTROPY, "Anisotropic");

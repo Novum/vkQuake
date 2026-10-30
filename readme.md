@@ -24,6 +24,18 @@ Improvements over QuakeSpasm include:
 * External WAD support ([more info](https://github.com/Novum/vkQuake/pull/753))
 * WAD3 format support, allowing per-texture palettes for more colorful levels ([more info](https://github.com/Novum/vkQuake/pull/753))
 
+## 3dfx RGSS antialiasing
+
+In **Options > Graphics > AA mode**, select **3dfx 2x RGSS**, **3dfx 4x RGSS**, or **3dfx 8x RGSS**. The existing Multisample and Supersample modes remain available. The Antialiasing row cycles through 2x, 4x, and 8x when a 3dfx mode is selected.
+
+These modes render the complete frame two, four, or eight times into single-sample buffers, including the weapon, particles, transparency, HUD, console, and menus. Each render uses a different subpixel offset from the VSA-100's [2x/4x sample patterns](https://sources.debian.org/src/glide/2002.04.10ds1-11/glide3x/h5/incsrc/h3defs.h) or Glide's [four-chip 8x sample table](https://sources.debian.org/src/glide/2002.04.10ds1-16/glide3x/h5/glide3/src/gpci.c), expressed relative to the pixel center. The resulting pixels receive equal weights, with display gamma and contrast applied after averaging. The emulation covers the spatial sampling method; the original hardware's parallel execution, color precision, and dithering are outside its scope.
+
+Simulation and animation advance once per displayed frame. Hardware MSAA and sample shading are disabled in these modes. GPU rendering work increases because each sample rerenders the frame. At reduced render resolutions, jitter remains relative to output pixels and the HUD stays at output resolution; use matching render and output resolutions for native-resolution RGSS.
+
+Console equivalents are `vid_fsaamode 2` (2x), `vid_fsaamode 3` (4x), and `vid_fsaamode 4` (8x). Modes `0` and `1` restore Multisample and Supersample using the saved `vid_fsaa` setting. Changes apply immediately. RGSS requires a Vulkan device supporting at least six bound descriptor sets.
+
+For Windows runtime validation, build Debug and run `powershell -ExecutionPolicy Bypass -File tests/rgss-smoke.ps1 -GameDirectory "C:\path\to\Quake"` with `VULKAN_SDK` set. The test copies game data into an isolated directory under `build`, checks twenty rendering configurations with Vulkan synchronization validation, and saves screenshots for visual review.
+
 ## Installation
 
 Windows and Linux binaries can be found in [Releases](https://github.com/Novum/vkQuake/releases).

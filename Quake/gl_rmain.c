@@ -365,7 +365,7 @@ vrect_t r_scene_vrect;
 static void R_SceneViewport (cb_context_t *cbx, float min_depth)
 {
 	const VkViewport viewport = {r_scene_vrect.x, r_scene_vrect.y, r_scene_vrect.width, r_scene_vrect.height, min_depth, 1.0f};
-	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
+	R_SetViewport (cbx, &viewport);
 }
 
 static void R_SetupContext (cb_context_t *cbx)

@@ -31,12 +31,15 @@ typedef enum
 	FRAME_READBACK,
 	FRAME_END_GRAPHICS,
 	FRAME_PREPARED_COMMANDS,
+	FRAME_RGSS_BEGIN_SAMPLE,
+	FRAME_RGSS_END_SAMPLE,
 } frame_step_type_t;
 
 typedef enum
 {
 	FRAME_TARGET_SCENE,
 	FRAME_TARGET_UI,
+	FRAME_TARGET_PRESENT,
 } frame_target_t;
 
 typedef void (*frame_recorder_t) (cb_context_t *cbx);
@@ -89,6 +92,7 @@ typedef struct
 	VkFormat			  swapchain_format;
 	VkSampleCountFlagBits samples;
 	bool				  upscale;
+	uint32_t			  rgss_samples;
 	frame_desc_t		  variants[MAIN_RENDER_PASS_VARIANT_COUNT];
 } frame_layout_t;
 
@@ -204,6 +208,8 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 	R_AddPreparedCommands (&builder, PCBX_BUILD_ACCELERATION_STRUCTURES);
 	R_AddPreparedCommands (&builder, PCBX_UPDATE_LIGHTMAPS);
 	R_AddPreparedCommands (&builder, PCBX_UPDATE_WARP);
+	if (vulkan_globals.rgss_samples)
+		R_AddFrameStep (&builder, FRAME_RGSS_BEGIN_SAMPLE);
 
 	R_BeginGraphicsPass (&builder, FRAME_TARGET_SCENE, SUBPASS_MAIN);
 	R_AddGraphicsWork (&builder, DRAW_WORLD, SCBX_WORLD, SCBX_WORLD);
@@ -252,7 +258,14 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 
 	R_BeginGraphicsPass (&builder, FRAME_TARGET_UI, SUBPASS_UI);
 	R_AddGraphicsWork (&builder, DRAW_UI, SCBX_GUI, SCBX_GUI);
-	R_NextSubpass (&builder, SUBPASS_POST_PROCESS);
+	if (vulkan_globals.rgss_samples)
+	{
+		R_EndGraphicsPass (&builder);
+		R_AddFrameStep (&builder, FRAME_RGSS_END_SAMPLE);
+		R_BeginGraphicsPass (&builder, FRAME_TARGET_PRESENT, SUBPASS_POST_PROCESS);
+	}
+	else
+		R_NextSubpass (&builder, SUBPASS_POST_PROCESS);
 	R_AddGraphicsWork (&builder, DRAW_POST_PROCESS, SCBX_POST_PROCESS, SCBX_POST_PROCESS);
 	R_EndGraphicsPass (&builder);
 	R_AddFrameStep (&builder, FRAME_READBACK);
@@ -275,6 +288,7 @@ bool R_SetupRenderPasses (void)
 	pending_layout.depth_format = vulkan_globals.depth_format;
 	pending_layout.swapchain_format = vulkan_globals.swap_chain_format;
 	pending_layout.samples = vulkan_globals.sample_count;
+	pending_layout.rgss_samples = vulkan_globals.rgss_samples;
 	pending_layout.upscale = vid.render_width != vid.width || vid.render_height != vid.height;
 	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		R_DescribeFrame (&pending_layout.variants[variant], variant);
@@ -406,7 +420,9 @@ static void R_CreateGraphicsPasses (
 			const VkResult result = vkCreateRenderPass (vulkan_globals.device, &info, NULL, &physical->handles[stencil]);
 			if (result != VK_SUCCESS)
 				Sys_Error ("Couldn't create render pass: %d", result);
-			GL_SetObjectName ((uint64_t)physical->handles[stencil], VK_OBJECT_TYPE_RENDER_PASS, target == FRAME_TARGET_UI ? "ui" : "scene");
+			GL_SetObjectName (
+				(uint64_t)physical->handles[stencil], VK_OBJECT_TYPE_RENDER_PASS,
+				target == FRAME_TARGET_PRESENT ? "present" : target == FRAME_TARGET_UI ? "ui" : "scene");
 			for (uint32_t subpass = 0; subpass < desc->subpass_count; ++subpass)
 			{
 				render_pass_binding_t *binding = &physical->bindings[subpass];
@@ -457,20 +473,24 @@ void R_CreateFrameBuffers (const render_framebuffer_images_t *images)
 	const bool						 msaa = current_layout.samples != VK_SAMPLE_COUNT_1_BIT;
 	for (uint32_t pass = 0; pass < frame->pass_count; ++pass)
 	{
-		const bool		 ui = frame->passes[pass].target == FRAME_TARGET_UI;
+		const bool		 ui = frame->passes[pass].target != FRAME_TARGET_SCENE;
+		const bool		 present = frame->passes[pass].target == FRAME_TARGET_PRESENT;
 		physical_pass_t *physical = &physical_passes[variant][pass];
 		assert (!physical->framebuffers);
-		physical->framebuffer_count = ui ? images->swapchain_count : NUM_COLOR_BUFFERS;
+		physical->framebuffer_count = present || (ui && !current_layout.rgss_samples) ? images->swapchain_count : ui ? 1 : NUM_COLOR_BUFFERS;
 		physical->framebuffers = calloc (physical->framebuffer_count, sizeof (*physical->framebuffers));
 		if (!physical->framebuffers)
 			Sys_Error ("Couldn't allocate framebuffers");
 		for (uint32_t i = 0; i < physical->framebuffer_count; ++i)
 		{
 			VkImageView attachments[MAX_PASS_ATTACHMENTS] = {0};
-			if (ui)
+			if (present)
+				attachments[0] = images->swapchain[i];
+			else if (ui)
 			{
 				attachments[0] = images->ui_color;
-				attachments[1] = images->swapchain[i];
+				if (!current_layout.rgss_samples)
+					attachments[1] = images->swapchain[i];
 			}
 			else
 			{
@@ -777,10 +797,14 @@ uint32_t R_RecordFrame (
 			clear_values[msaa ? 4 : 3].color.float32[i] = 1.0f;
 
 	uint32_t submit_count = 0;
+	uint32_t rgss_sample = 0;
+	uint32_t rgss_begin_step = 0;
 	bool	 recording_started = false;
 	for (uint32_t i = 0; i < frame->step_count; ++i)
 	{
 		const frame_step_t *step = &frame->steps[i];
+		if (current_layout.rgss_samples && !swapchain_acquired && step->type != FRAME_PREPARED_COMMANDS)
+			continue;
 		// The UI pass includes the swapchain attachment even without a postprocess draw.
 		// Skip the entire pass and its readback unless we own an acquired image.
 		if (!swapchain_acquired && (step->type == FRAME_READBACK || frame->passes[step->pass].target == FRAME_TARGET_UI))
@@ -799,12 +823,22 @@ uint32_t R_RecordFrame (
 		case FRAME_PREPARED_COMMANDS:
 			assert (!recording_started);
 			break;
+		case FRAME_RGSS_BEGIN_SAMPLE:
+			rgss_begin_step = i;
+			R_RGSSBeginSample (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], rgss_sample);
+			break;
+		case FRAME_RGSS_END_SAMPLE:
+			R_RGSSEndSample (command_buffer, rgss_sample);
+			if (++rgss_sample < current_layout.rgss_samples)
+				i = rgss_begin_step - 1;
+			break;
 		case FRAME_BEGIN_GRAPHICS:
 		{
-			const bool			   ui = frame->passes[step->pass].target == FRAME_TARGET_UI;
+			const frame_target_t   target = frame->passes[step->pass].target;
+			const bool			   ui = target != FRAME_TARGET_SCENE;
 			const physical_pass_t *physical = &physical_passes[variant][step->pass];
-			const uint32_t		   image = ui ? swapchain_index : screen_effects ? 1 : 0;
-			if (ui && (parms->render_width != parms->vid_width || parms->render_height != parms->vid_height))
+			const uint32_t image = target == FRAME_TARGET_PRESENT || (ui && !current_layout.rgss_samples) ? swapchain_index : ui ? 0 : screen_effects ? 1 : 0;
+			if (target == FRAME_TARGET_UI && (parms->render_width != parms->vid_width || parms->render_height != parms->vid_height))
 			{
 				// The fullscreen triangle samples the scene before the native-resolution GUI.
 				const VkImageMemoryBarrier barrier = {
@@ -1074,7 +1108,7 @@ static void R_CreateUIPasses (main_render_pass_variant_t variant)
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[0].format = vulkan_globals.color_format;
 	attachment_descriptions[0].loadOp = upscale ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_LOAD;
-	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment_descriptions[0].storeOp = current_layout.rgss_samples ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -1106,7 +1140,14 @@ static void R_CreateUIPasses (main_render_pass_variant_t variant)
 	subpass_descriptions[SUBPASS_POST_PROCESS].inputAttachmentCount = 1;
 	subpass_descriptions[SUBPASS_POST_PROCESS].pInputAttachments = &color_input_attachment_reference;
 
-	R_CreateGraphicsPasses (variant, FRAME_TARGET_UI, attachment_descriptions, 2, subpass_descriptions);
+	R_CreateGraphicsPasses (variant, FRAME_TARGET_UI, attachment_descriptions, current_layout.rgss_samples ? 1 : 2, subpass_descriptions);
+	if (current_layout.rgss_samples)
+	{
+		swap_chain_attachment_reference.attachment = 0;
+		subpass_descriptions[SUBPASS_POST_PROCESS].inputAttachmentCount = 0;
+		subpass_descriptions[SUBPASS_POST_PROCESS].pInputAttachments = NULL;
+		R_CreateGraphicsPasses (variant, FRAME_TARGET_PRESENT, &attachment_descriptions[1], 1, subpass_descriptions);
+	}
 }
 
 void R_CreateRenderPasses (void)
@@ -1216,7 +1257,7 @@ bool R_DebugRenderPassCompatible (VkRenderPass first, VkRenderPass second)
 						descs[i] = &current_layout.variants[variant].passes[pass];
 						variants[i] = variant;
 					}
-	return descs[0] && descs[1] && descs[0]->target == descs[1]->target && (descs[0]->target == FRAME_TARGET_UI || variants[0] == variants[1]) &&
+	return descs[0] && descs[1] && descs[0]->target == descs[1]->target && (descs[0]->target != FRAME_TARGET_SCENE || variants[0] == variants[1]) &&
 		   descs[0]->subpass_count == descs[1]->subpass_count &&
 		   memcmp (descs[0]->subpasses, descs[1]->subpasses, descs[0]->subpass_count * sizeof (*descs[0]->subpasses)) == 0;
 }

@@ -1215,7 +1215,7 @@ void GL_Viewport (cb_context_t *cbx, float x, float y, float width, float height
 	viewport.minDepth = min_depth;
 	viewport.maxDepth = max_depth;
 
-	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
+	R_SetViewport (cbx, &viewport);
 }
 
 /*
