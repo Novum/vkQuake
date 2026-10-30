@@ -485,6 +485,14 @@ void R_ComputeSSAO (cb_context_t *cbx)
 	constants.viewport[3] = 2.0f * ao_height * scale / r_scene_vrect.height / vulkan_globals.projection_matrix[5];
 	constants.projection[0] = (-1.0f - (2.0f * r_scene_vrect.x + scale - 1) / r_scene_vrect.width) / vulkan_globals.projection_matrix[0];
 	constants.projection[1] = (-1.0f - (2.0f * r_scene_vrect.y + scale - 1) / r_scene_vrect.height) / vulkan_globals.projection_matrix[5];
+	if (vulkan_globals.rgss_samples)
+	{
+		// Invert the same subpixel translation used when rasterizing this sample's depth.
+		const float jitter_x = cbx->rgss_jitter[0] * vid.render_width / vid.width;
+		const float jitter_y = cbx->rgss_jitter[1] * vid.render_height / vid.height;
+		constants.projection[0] -= 2.0f * jitter_x / r_scene_vrect.width / vulkan_globals.projection_matrix[0];
+		constants.projection[1] -= 2.0f * jitter_y / r_scene_vrect.height / vulkan_globals.projection_matrix[5];
+	}
 
 	// The evaluator uses settings.w for quality; the composite gets its own debug constants.
 	constants.settings[3] = q_max (quality, 2);

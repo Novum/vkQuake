@@ -141,11 +141,14 @@ extern int r_trace_line_cache_counter;
 		++r_trace_line_cache_counter; \
 	} while (0);
 
+#include "rgss.h"
+
 typedef struct vulkan_pipeline_layout_s
 {
 	VkPipelineLayout	handle;
 	VkPushConstantRange push_constant_range;
 	int					mboit_input_attachment_set;
+	qboolean			rgss;
 } vulkan_pipeline_layout_t;
 
 typedef struct vulkan_pipeline_s
@@ -324,6 +327,8 @@ typedef struct cb_context_s
 	main_render_pass_variant_t pipeline_variant;
 	int						   subpass;
 	vulkan_pipeline_t		   current_pipeline;
+	float					   rgss_scale[2];
+	float					   rgss_jitter[2];
 	uint32_t				   vbo_indices[MAX_BATCH_SIZE];
 	unsigned int			   num_vbo_indices;
 } cb_context_t;
@@ -350,6 +355,7 @@ typedef struct
 	VkFormat						 color_format;
 	VkFormat						 depth_format;
 	VkSampleCountFlagBits			 sample_count;
+	uint32_t						 rgss_samples;
 	qboolean						 supersampling;
 	qboolean						 non_solid_fill;
 	qboolean						 multi_draw_indirect;
@@ -387,6 +393,7 @@ typedef struct
 
 	// Pipelines
 	vulkan_pipeline_layout_t basic_pipeline_layout;
+	vulkan_pipeline_t		 rgss_resolve_pipeline;
 	vulkan_pipeline_layout_t fte_particle_pipeline_layout;
 	VkDescriptorSet			 particle_depth_descriptor_set;
 	vulkan_pipeline_layout_t gui_pipeline_layout;
@@ -827,6 +834,17 @@ void R_DestroyPipelines ();
 
 VkPipeline R_ResolvePipelineInstance (const cb_context_t *cbx, vulkan_pipeline_t pipeline);
 
+qboolean R_RGSSSupported (void);
+void	 R_InitRGSS (void);
+VkResult R_CreateScenePipelineLayout (const VkPipelineLayoutCreateInfo *source, vulkan_pipeline_layout_t *layout);
+void	 R_BindRGSS (cb_context_t *cbx);
+void	 R_SetViewport (cb_context_t *cbx, const VkViewport *viewport);
+void	 R_CreateRGSSImages (VkImage output_image);
+void	 R_DestroyRGSSImages (void);
+void	 R_RGSSBeginSample (cb_context_t *cbx, uint32_t sample);
+void	 R_RGSSEndSample (VkCommandBuffer commands, uint32_t sample);
+void	 R_DrawRGSSResolve (cb_context_t *cbx, float gamma, float contrast);
+
 static inline void R_BindPipeline (cb_context_t *cbx, VkPipelineBindPoint bind_point, vulkan_pipeline_t pipeline)
 {
 	static byte zeroes[MAX_PUSH_CONSTANT_SIZE];
@@ -844,6 +862,8 @@ static inline void R_BindPipeline (cb_context_t *cbx, VkPipelineBindPoint bind_p
 			vulkan_globals.vk_cmd_push_constants (
 				cbx->cb, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0, pipeline.layout.push_constant_range.size, zeroes);
 		cbx->current_pipeline = pipeline;
+		if (bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS)
+			R_BindRGSS (cbx);
 		if (cbx->subpass_type == SUBPASS_MBOIT_COMPOSITE && pipeline.layout.mboit_input_attachment_set >= 0)
 		{
 			vulkan_globals.vk_cmd_bind_descriptor_sets (

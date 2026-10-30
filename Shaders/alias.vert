@@ -8,8 +8,13 @@ layout (push_constant) uniform PushConsts
 	mat4  view_projection_matrix;
 	vec3  fog_color;
 	float fog_density;
+#ifdef RGSS
+	layout (offset = 112) vec2 rgss_scale;
+#endif
 }
 push_constants;
+
+#include "rgss.inc"
 
 layout (set = 2, binding = 0) uniform UBO
 {
@@ -67,7 +72,7 @@ void main ()
 	const vec4 lerped_position =
 		vec4 (mix (in_pose1_position.xyz, in_pose2_position.xyz, ubo.blend_factor) * to_world_coords_factor + to_world_coords_shift, 1.0f);
 	const vec4 model_space_position = ubo.model_matrix * lerped_position;
-	gl_Position = push_constants.view_projection_matrix * model_space_position;
+	gl_Position = RGSS_POSITION (push_constants.view_projection_matrix * model_space_position);
 
 	if ((ubo.flags & 0x2) == 0)
 	{

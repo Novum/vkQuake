@@ -160,6 +160,9 @@
     <ClCompile Include="..\..\Quake\r_passes.c">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\r_rgss.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\r_ssao.c">
       <Filter>Renderer</Filter>
     </ClCompile>
@@ -403,6 +406,39 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\postprocess.frag.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\draw_pic_xbr_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_debug_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_cube_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_layer_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\showtris_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_8_rgss.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\rgss_resolve.frag.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\scene_upscale.frag.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
@@ -554,6 +590,39 @@
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\postprocess.frag.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\draw_pic_xbr_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5_debug_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\sky_cube_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\sky_layer_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\showtris_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5_8_rgss.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\rgss_resolve.frag.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\scene_upscale.frag.c">
@@ -1036,6 +1105,9 @@
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\r_passes.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\rgss.h">
       <Filter>Renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\r_ssao.h">

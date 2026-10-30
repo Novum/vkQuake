@@ -34,6 +34,9 @@
     <CustomBuild Include="..\..\Shaders\postprocess.frag">
       <Filter>Shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\rgss_resolve.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\scene_upscale.frag">
       <Filter>Shaders</Filter>
     </CustomBuild>

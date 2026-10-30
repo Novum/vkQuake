@@ -189,6 +189,17 @@ SHADER_OBJS = \
 	sky_cube_frag.o \
 	sky_cube_vert.o \
 	postprocess_frag.o \
+	basic_rgss_vert.o \
+	draw_pic_xbr_rgss_vert.o \
+	world_rgss_vert.o \
+	alias_rgss_vert.o \
+	md5_rgss_vert.o \
+	md5_debug_rgss_vert.o \
+	sky_cube_rgss_vert.o \
+	sky_layer_rgss_vert.o \
+	showtris_rgss_vert.o \
+	md5_8_rgss_vert.o \
+	rgss_resolve_frag.o \
 	scene_upscale_frag.o \
 	ssao_composite_frag.o \
 	ssao_composite_debug_frag.o \
@@ -235,6 +246,7 @@ GLOBJS = \
 	gl_fog.o \
 	gl_rmisc.o \
 	r_passes.o \
+	r_rgss.o \
 	r_ssao.o \
 	r_part.o \
 	r_part_fte.o \
@@ -363,6 +375,17 @@ define SHADER_VARIANT
 ../Shaders/Compiled/$$(GLSLANG_OUT_FOLDER)/$(1).spv: ../Shaders/$(2)
 	$$(GLSLANG) $$(GLSLANG_FLAGS) $(3) $$< -o $$@ --depfile ../Shaders/Compiled/$$(GLSLANG_OUT_FOLDER)/$(1).d
 endef
+
+$(eval $(call SHADER_VARIANT,basic_rgss_vert,basic.vert,-DRGSS=1))
+$(eval $(call SHADER_VARIANT,draw_pic_xbr_rgss_vert,draw_pic_xbr.vert,-DRGSS=1))
+$(eval $(call SHADER_VARIANT,world_rgss_vert,world.vert,-DRGSS=1))
+$(eval $(call SHADER_VARIANT,alias_rgss_vert,alias.vert,-DRGSS=1))
+$(eval $(call SHADER_VARIANT,md5_rgss_vert,md5.vert,-DRGSS=1))
+$(eval $(call SHADER_VARIANT,md5_debug_rgss_vert,md5_debug.vert,-DRGSS=1))
+$(eval $(call SHADER_VARIANT,sky_cube_rgss_vert,sky_cube.vert,-DRGSS=1))
+$(eval $(call SHADER_VARIANT,sky_layer_rgss_vert,sky_layer.vert,-DRGSS=1))
+$(eval $(call SHADER_VARIANT,showtris_rgss_vert,showtris.vert,-DRGSS=1))
+$(eval $(call SHADER_VARIANT,md5_8_rgss_vert,md5.vert,-DRGSS=1 -DEIGHT_WEIGHT_SKINNING))
 
 $(eval $(call SHADER_VARIANT,basic_oit_frag,basic.frag,-DWBOIT=1))
 $(eval $(call SHADER_VARIANT,basic_mboit_moment_frag,basic.frag,-DMBOIT=1))

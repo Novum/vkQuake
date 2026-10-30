@@ -1,4 +1,5 @@
 #version 460
+#extension GL_GOOGLE_include_directive : enable
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
@@ -8,8 +9,13 @@ layout (push_constant) uniform PushConsts
 	vec3  fog_color;
 	float fog_density;
 	vec3  eye_pos;
+#ifdef RGSS
+	layout (offset = 112) vec2 rgss_scale;
+#endif
 }
 push_constants;
+
+#include "rgss.inc"
 
 layout (location = 0) in vec3 in_position;
 
@@ -22,7 +28,7 @@ out gl_PerVertex
 
 void main ()
 {
-	gl_Position = push_constants.mvp * vec4 (in_position, 1.0f);
+	gl_Position = RGSS_POSITION (push_constants.mvp * vec4 (in_position, 1.0f));
 	out_texcoord = vec4 (in_position - push_constants.eye_pos, 0.0f);
 	out_texcoord.z *= 3.0; // flatten the sphere
 }
