@@ -1733,7 +1733,7 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_SCALE: // console and menu scale
 		if (scr_relativescale.value)
 		{
-			f = M_GetSliderPos (1, 3.0f, scr_relativescale.value, false, mouse, clamped_mouse, dir, 0.1, 999);
+			f = M_GetSliderPos (1, 3.0f, scr_relativescale.value, false, mouse, clamped_mouse, dir, 0.05, 999);
 			Cvar_SetValue ("scr_relativescale", f);
 		}
 		else
@@ -1819,7 +1819,7 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValue ("crosshair_size", f);
 		break;
 	case GAME_OPT_CROSSHAIR_OPACITY:
-		f = M_GetSliderPos (0, 1, crosshair_alpha.value, false, mouse, clamped_mouse, dir, 0.1, 999);
+		f = M_GetSliderPos (0, 1, crosshair_alpha.value, false, mouse, clamped_mouse, dir, 0.05, 999);
 		Cvar_SetValue ("crosshair_alpha", f);
 		break;
 	case GAME_OPT_HUD_DETAIL: // interface detail
@@ -1974,7 +1974,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 			M_Print (cbx, MENU_LABEL_X, y, "Interface Scale");
 			l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
 			r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
-			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.1f", r));
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.2f", r));
 			break;
 
 		case GAME_OPT_SBALPHA:
@@ -2066,7 +2066,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 		case GAME_OPT_CROSSHAIR_OPACITY:
 			M_Print (cbx, MENU_LABEL_X, y, "Crosshair Opacity");
-			M_DrawSlider (cbx, MENU_SLIDER_X, y, crosshair_alpha.value, va ("%.1f", crosshair_alpha.value));
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, crosshair_alpha.value, va ("%.2f", crosshair_alpha.value));
 			break;
 
 		case GAME_OPT_FAST_LOADING:
