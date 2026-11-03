@@ -321,7 +321,7 @@ if host_machine.system() == 'windows'
         # the \xA9 copyright escape is Windows-1252; llvm-rc refuses 8 bit
         # codepoints without an explicit codepage. gcc builds use windres,
         # which takes no /C option
-        args : cc.get_id() == 'gcc' ? [] : ['/C', '1252'],
+        args : cc.get_id() == 'gcc' ? [] : ['-c', '1252'],
         include_directories : include_directories('Windows', 'Quake'),
         depend_files : ['Windows/vkQuake.ico'])
 else
