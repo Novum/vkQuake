@@ -107,6 +107,8 @@ void(entity targ, entity attacker) Killed =
     {
         killed_monsters = killed_monsters + 1;
         WriteByte(MSG_ALL, SVC_KILLEDMONSTER);
+
+        Loot_MonsterDrop(self); // loot: maybe drop a gun
     }
 
     ClientObituary(self, attacker);

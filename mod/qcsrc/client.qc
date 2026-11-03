@@ -76,20 +76,24 @@ void() SetChangeParms =
     parm7 = self.ammo_cells;
     parm8 = self.weapon;
     parm9 = self.armortype * 100;
+
+    Loot_SaveParms(); // loot: gun slots
 };
 
 
 void() SetNewParms =
 {
-    parm1 = IT_SHOTGUN | IT_AXE;
+    parm1 = IT_AXE; // loot: the starting pistol lives in a gun slot
     parm2 = 100;
     parm3 = 0;
-    parm4 = 25;
+    parm4 = 50; // loot: pistols use shells, start with more
     parm5 = 0;
     parm6 = 0;
     parm7 = 0;
     parm8 = 1;
     parm9 = 0;
+
+    Loot_NewParms(); // loot: a common pistol in slot 1
 };
 
 
@@ -112,6 +116,8 @@ void() DecodeLevelParms =
     self.ammo_cells = parm7;
     self.weapon = parm8;
     self.armortype = parm9 * 0.01;
+
+    Loot_DecodeParms(); // loot: gun slots
 };
 
 
@@ -1061,11 +1067,8 @@ void() PlayerPreThink =
         self.velocity = '0 0 0';
     }
 
-    if (time > self.attack_finished && self.currentammo == 0 && self.weapon != IT_AXE)
-    {
-        self.weapon = W_BestWeapon();
-        W_SetCurrentAmmo();
-    }
+    // loot: an empty magazine reloads, or switches to a gun that has ammo
+    Loot_AmmoThink();
 };
 
 

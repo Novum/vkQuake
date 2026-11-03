@@ -26,6 +26,8 @@
 ../progs.dat
 
 defs.qc
+loot_decl.qc   // loot: shared fields and forward declarations
+loot_core.qc   // loot: gun generator (pure logic, also used by mod/tests)
 subs.qc
 fight.qc
 ai.qc
@@ -35,6 +37,7 @@ weapons.qc
 world.qc
 client.qc
 player.qc
+loot_game.qc   // loot: slots, firing, floor guns, drops
 monsters.qc
 doors.qc
 buttons.qc

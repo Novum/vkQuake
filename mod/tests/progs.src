@@ -1,0 +1,7 @@
+// Headless test for the loot generator. Not part of the game.
+// Build and run: ../build.sh test
+loot_test.dat
+
+qcvm_defs.qc
+../qcsrc/loot_core.qc
+loot_test.qc

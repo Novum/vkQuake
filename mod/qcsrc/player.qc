@@ -164,6 +164,13 @@ void() player_shot4 = [ $shotatt4, player_shot5 ] { self.weaponframe = 4; };
 void() player_shot5 = [ $shotatt5, player_shot6 ] { self.weaponframe = 5; };
 void() player_shot6 = [ $shotatt6, player_run   ] { self.weaponframe = 6; };
 
+// loot: sniper firing animation. The lightning gun view model only has
+// frames 0-4, so player_shot (frames 1-6) would show missing frames.
+void() player_lshot1 = [ $shotatt1, player_lshot2 ] { self.weaponframe = 1; self.effects = self.effects | EF_MUZZLEFLASH; };
+void() player_lshot2 = [ $shotatt2, player_lshot3 ] { self.weaponframe = 2; };
+void() player_lshot3 = [ $shotatt3, player_lshot4 ] { self.weaponframe = 3; };
+void() player_lshot4 = [ $shotatt4, player_run    ] { self.weaponframe = 4; };
+
 void() player_axe1 = [ $axatt1, player_axe2 ] { self.weaponframe = 1; };
 void() player_axe2 = [ $axatt2, player_axe3 ] { self.weaponframe = 2; };
 void() player_axe3 = [ $axatt3, player_axe4 ] { self.weaponframe = 3; W_FireAxe(); };

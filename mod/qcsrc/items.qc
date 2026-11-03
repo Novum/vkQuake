@@ -604,17 +604,18 @@ void() weapon_touch =
 };
 
 
+/*
+loot: map weapons become random guns. Models are precached in
+Loot_Precache. The bias number raises the rarity odds: bigger
+weapons in the original game give better loot.
+*/
+
 /*QUAKED weapon_supershotgun (0 .5 .8) (-16 -16 0) (16 16 32)
 */
 void() weapon_supershotgun =
 {
-    precache_model("progs/g_shot.mdl");
-    setmodel(self, "progs/g_shot.mdl");
-    self.weapon = IT_SUPER_SHOTGUN;
-    self.netname = "Double-barrelled Shotgun";
-    self.touch = weapon_touch;
-    setsize(self, '-16 -16 0', '16 16 56');
-    StartItem();
+    // loot: a random gun of a matching type, with better rarity odds
+    Loot_MapGun(LT_SHOTGUN, 0.5);
 };
 
 
@@ -622,13 +623,8 @@ void() weapon_supershotgun =
 */
 void() weapon_nailgun =
 {
-    precache_model("progs/g_nail.mdl");
-    setmodel(self, "progs/g_nail.mdl");
-    self.weapon = IT_NAILGUN;
-    self.netname = "Nailgun";
-    self.touch = weapon_touch;
-    setsize(self, '-16 -16 0', '16 16 56');
-    StartItem();
+    // loot: a random gun of a matching type, with better rarity odds
+    Loot_MapGun(LT_SMG, 0.5);
 };
 
 
@@ -636,13 +632,8 @@ void() weapon_nailgun =
 */
 void() weapon_supernailgun =
 {
-    precache_model("progs/g_nail2.mdl");
-    setmodel(self, "progs/g_nail2.mdl");
-    self.weapon = IT_SUPER_NAILGUN;
-    self.netname = "Super Nailgun";
-    self.touch = weapon_touch;
-    setsize(self, '-16 -16 0', '16 16 56');
-    StartItem();
+    // loot: a random gun of a matching type, with better rarity odds
+    Loot_MapGun(LT_RIFLE, 1);
 };
 
 
@@ -650,13 +641,8 @@ void() weapon_supernailgun =
 */
 void() weapon_grenadelauncher =
 {
-    precache_model("progs/g_rock.mdl");
-    setmodel(self, "progs/g_rock.mdl");
-    self.weapon = 3;
-    self.netname = "Grenade Launcher";
-    self.touch = weapon_touch;
-    setsize(self, '-16 -16 0', '16 16 56');
-    StartItem();
+    // loot: a random gun of a matching type, with better rarity odds
+    Loot_MapGun(LT_LAUNCHER, 1);
 };
 
 
@@ -664,13 +650,8 @@ void() weapon_grenadelauncher =
 */
 void() weapon_rocketlauncher =
 {
-    precache_model("progs/g_rock2.mdl");
-    setmodel(self, "progs/g_rock2.mdl");
-    self.weapon = 3;
-    self.netname = "Rocket Launcher";
-    self.touch = weapon_touch;
-    setsize(self, '-16 -16 0', '16 16 56');
-    StartItem();
+    // loot: a random gun of a matching type, with better rarity odds
+    Loot_MapGun(LT_LAUNCHER, 1.5);
 };
 
 
@@ -678,13 +659,8 @@ void() weapon_rocketlauncher =
 */
 void() weapon_lightning =
 {
-    precache_model("progs/g_light.mdl");
-    setmodel(self, "progs/g_light.mdl");
-    self.weapon = 3;
-    self.netname = "Thunderbolt";
-    self.touch = weapon_touch;
-    setsize(self, '-16 -16 0', '16 16 56');
-    StartItem();
+    // loot: a random gun of a matching type, with better rarity odds
+    Loot_MapGun(LT_SNIPER, 2);
 };
 
 

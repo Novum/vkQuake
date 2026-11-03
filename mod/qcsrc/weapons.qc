@@ -35,6 +35,8 @@ void() W_Precache =
     precache_sound("weapons/grenade.wav"); // grenade launcher
     precache_sound("weapons/bounce.wav"); // grenade bounce
     precache_sound("weapons/shotgn2.wav"); // super shotgun
+
+    Loot_Precache(); // loot: gun models
 };
 
 
@@ -813,98 +815,16 @@ void() W_SetCurrentAmmo =
 
     self.items = self.items - (self.items & (IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS));
 
-    if (self.weapon == IT_AXE)
-    {
-        self.currentammo = 0;
-        self.weaponmodel = "progs/v_axe.mdl";
-        self.weaponframe = 0;
-    }
-    else if (self.weapon == IT_SHOTGUN)
-    {
-        self.currentammo = self.ammo_shells;
-        self.weaponmodel = "progs/v_shot.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_SHELLS;
-    }
-    else if (self.weapon == IT_SUPER_SHOTGUN)
-    {
-        self.currentammo = self.ammo_shells;
-        self.weaponmodel = "progs/v_shot2.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_SHELLS;
-    }
-    else if (self.weapon == IT_NAILGUN)
-    {
-        self.currentammo = self.ammo_nails;
-        self.weaponmodel = "progs/v_nail.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_NAILS;
-    }
-    else if (self.weapon == IT_SUPER_NAILGUN)
-    {
-        self.currentammo = self.ammo_nails;
-        self.weaponmodel = "progs/v_nail2.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_NAILS;
-    }
-    else if (self.weapon == IT_GRENADE_LAUNCHER)
-    {
-        self.currentammo = self.ammo_rockets;
-        self.weaponmodel = "progs/v_rock.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_ROCKETS;
-    }
-    else if (self.weapon == IT_ROCKET_LAUNCHER)
-    {
-        self.currentammo = self.ammo_rockets;
-        self.weaponmodel = "progs/v_rock2.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_ROCKETS;
-    }
-    else if (self.weapon == IT_LIGHTNING)
-    {
-        self.currentammo = self.ammo_cells;
-        self.weaponmodel = "progs/v_light.mdl";
-        self.weaponframe = 0;
-        self.items = self.items | IT_CELLS;
-    }
-    else
-    {
-        self.currentammo = 0;
-        self.weaponmodel = "";
-        self.weaponframe = 0;
-    }
+    // loot: the selected gun slot decides model, HUD icon and ammo
+    Loot_RefreshWeapon();
 };
 
 
 float() W_BestWeapon =
 {
-    local float it;
-
-    it = self.items;
-
-    if (self.waterlevel <= 1 && self.ammo_cells >= 1 && (it & IT_LIGHTNING))
-    {
-        return IT_LIGHTNING;
-    }
-    if (self.ammo_nails >= 2 && (it & IT_SUPER_NAILGUN))
-    {
-        return IT_SUPER_NAILGUN;
-    }
-    if (self.ammo_shells >= 2 && (it & IT_SUPER_SHOTGUN))
-    {
-        return IT_SUPER_SHOTGUN;
-    }
-    if (self.ammo_nails >= 1 && (it & IT_NAILGUN))
-    {
-        return IT_NAILGUN;
-    }
-    if (self.ammo_shells >= 1 && (it & IT_SHOTGUN))
-    {
-        return IT_SHOTGUN;
-    }
-
-    return IT_AXE;
+    // loot: never auto-switch on pickup. Running dry is handled by
+    // Loot_AmmoThink, which reloads or switches to a loaded gun.
+    return self.weapon;
 };
 
 
@@ -918,6 +838,11 @@ float() W_CheckNoAmmo =
     if (self.weapon == IT_AXE)
     {
         return TRUE; // weapon doesn't need ammo
+    }
+
+    if (self.loot_slot)
+    {
+        return TRUE; // loot: Loot_Attack reloads empty magazines itself
     }
 
     self.weapon = W_BestWeapon();
@@ -970,43 +895,10 @@ void() W_Attack =
         }
         self.attack_finished = time + 0.5;
     }
-    else if (self.weapon == IT_SHOTGUN)
+    else
     {
-        player_shot1();
-        W_FireShotgun();
-        self.attack_finished = time + 0.5;
-    }
-    else if (self.weapon == IT_SUPER_SHOTGUN)
-    {
-        player_shot1();
-        W_FireSuperShotgun();
-        self.attack_finished = time + 0.7;
-    }
-    else if (self.weapon == IT_NAILGUN)
-    {
-        player_nail1();
-    }
-    else if (self.weapon == IT_SUPER_NAILGUN)
-    {
-        player_nail1();
-    }
-    else if (self.weapon == IT_GRENADE_LAUNCHER)
-    {
-        player_rocket1();
-        W_FireGrenade();
-        self.attack_finished = time + 0.6;
-    }
-    else if (self.weapon == IT_ROCKET_LAUNCHER)
-    {
-        player_rocket1();
-        W_FireRocket();
-        self.attack_finished = time + 0.8;
-    }
-    else if (self.weapon == IT_LIGHTNING)
-    {
-        player_light1();
-        self.attack_finished = time + 0.1;
-        sound(self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
+        // loot: every gun fires through one function driven by its stats
+        Loot_Attack();
     }
 };
 
@@ -1018,93 +910,24 @@ W_ChangeWeapon
 */
 void() W_ChangeWeapon =
 {
-    local float it, am, fl;
+    local float imp;
 
-    it = self.items;
-    am = FALSE;
-
-    if (self.impulse == 1)
-    {
-        fl = IT_AXE;
-    }
-    else if (self.impulse == 2)
-    {
-        fl = IT_SHOTGUN;
-        if (self.ammo_shells < 1)
-        {
-            am = TRUE;
-        }
-    }
-    else if (self.impulse == 3)
-    {
-        fl = IT_SUPER_SHOTGUN;
-        if (self.ammo_shells < 2)
-        {
-            am = TRUE;
-        }
-    }
-    else if (self.impulse == 4)
-    {
-        fl = IT_NAILGUN;
-        if (self.ammo_nails < 1)
-        {
-            am = TRUE;
-        }
-    }
-    else if (self.impulse == 5)
-    {
-        fl = IT_SUPER_NAILGUN;
-        if (self.ammo_nails < 2)
-        {
-            am = TRUE;
-        }
-    }
-    else if (self.impulse == 6)
-    {
-        fl = IT_GRENADE_LAUNCHER;
-        if (self.ammo_rockets < 1)
-        {
-            am = TRUE;
-        }
-    }
-    else if (self.impulse == 7)
-    {
-        fl = IT_ROCKET_LAUNCHER;
-        if (self.ammo_rockets < 1)
-        {
-            am = TRUE;
-        }
-    }
-    else if (self.impulse == 8)
-    {
-        fl = IT_LIGHTNING;
-        if (self.ammo_cells < 1)
-        {
-            am = TRUE;
-        }
-    }
-
+    // loot: 1-4 select gun slots, 5 is the axe
+    imp = self.impulse;
     self.impulse = 0;
 
-    if (!(self.items & fl))
+    if (imp >= 1 && imp <= 4)
     {
-        // don't have the weapon or the ammo
+        Loot_SelectSlot(imp);
+    }
+    else if (imp == 5)
+    {
+        Loot_SelectSlot(0);
+    }
+    else
+    {
         sprint(self, "no weapon.\n");
-        return;
     }
-
-    if (am)
-    {
-        // don't have the ammo
-        sprint(self, "not enough ammo.\n");
-        return;
-    }
-
-    //
-    // set weapon, set ammo
-    //
-    self.weapon = fl;
-    W_SetCurrentAmmo();
 };
 
 
@@ -1136,8 +959,8 @@ void() CheatCommand =
     self.ammo_cells = 200;
     self.items = self.items | IT_LIGHTNING;
 
-    self.weapon = IT_ROCKET_LAUNCHER;
     self.impulse = 0;
+    Loot_FillEmptySlots(); // loot: random guns in empty slots
     W_SetCurrentAmmo();
 };
 
@@ -1151,82 +974,8 @@ Go to the next weapon with ammo
 */
 void() CycleWeaponCommand =
 {
-    local float it, am;
-
-    it = self.items;
     self.impulse = 0;
-
-    while (TRUE)
-    {
-        am = FALSE;
-
-        if (self.weapon == IT_LIGHTNING)
-        {
-            self.weapon = IT_AXE;
-        }
-        else if (self.weapon == IT_AXE)
-        {
-            self.weapon = IT_SHOTGUN;
-            if (self.ammo_shells < 1)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_SHOTGUN)
-        {
-            self.weapon = IT_SUPER_SHOTGUN;
-            if (self.ammo_shells < 2)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_SUPER_SHOTGUN)
-        {
-            self.weapon = IT_NAILGUN;
-            if (self.ammo_nails < 1)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_NAILGUN)
-        {
-            self.weapon = IT_SUPER_NAILGUN;
-            if (self.ammo_nails < 2)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_SUPER_NAILGUN)
-        {
-            self.weapon = IT_GRENADE_LAUNCHER;
-            if (self.ammo_rockets < 1)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_GRENADE_LAUNCHER)
-        {
-            self.weapon = IT_ROCKET_LAUNCHER;
-            if (self.ammo_rockets < 1)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_ROCKET_LAUNCHER)
-        {
-            self.weapon = IT_LIGHTNING;
-            if (self.ammo_cells < 1)
-            {
-                am = TRUE;
-            }
-        }
-
-        if ((it & self.weapon) && am == FALSE)
-        {
-            W_SetCurrentAmmo();
-            return;
-        }
-    }
+    Loot_CycleSlot(1); // loot: next gun slot
 };
 
 
@@ -1239,82 +988,8 @@ Go to the prev weapon with ammo
 */
 void() CycleWeaponReverseCommand =
 {
-    local float it, am;
-
-    it = self.items;
     self.impulse = 0;
-
-    while (TRUE)
-    {
-        am = FALSE;
-
-        if (self.weapon == IT_LIGHTNING)
-        {
-            self.weapon = IT_ROCKET_LAUNCHER;
-            if (self.ammo_rockets < 1)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_ROCKET_LAUNCHER)
-        {
-            self.weapon = IT_GRENADE_LAUNCHER;
-            if (self.ammo_rockets < 1)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_GRENADE_LAUNCHER)
-        {
-            self.weapon = IT_SUPER_NAILGUN;
-            if (self.ammo_nails < 2)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_SUPER_NAILGUN)
-        {
-            self.weapon = IT_NAILGUN;
-            if (self.ammo_nails < 1)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_NAILGUN)
-        {
-            self.weapon = IT_SUPER_SHOTGUN;
-            if (self.ammo_shells < 2)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_SUPER_SHOTGUN)
-        {
-            self.weapon = IT_SHOTGUN;
-            if (self.ammo_shells < 1)
-            {
-                am = TRUE;
-            }
-        }
-        else if (self.weapon == IT_SHOTGUN)
-        {
-            self.weapon = IT_AXE;
-        }
-        else if (self.weapon == IT_AXE)
-        {
-            self.weapon = IT_LIGHTNING;
-            if (self.ammo_cells < 1)
-            {
-                am = TRUE;
-            }
-        }
-
-        if ((it & self.weapon) && am == FALSE)
-        {
-            W_SetCurrentAmmo();
-            return;
-        }
-    }
+    Loot_CycleSlot(-1); // loot: previous gun slot
 };
 
 
@@ -1372,6 +1047,22 @@ void() ImpulseCommands =
     {
         CycleWeaponReverseCommand();
     }
+    else if (self.impulse == 13)
+    {
+        Loot_Reload(); // loot
+    }
+    else if (self.impulse == 14)
+    {
+        Loot_SwapWithFloor(); // loot
+    }
+    else if (self.impulse == 15)
+    {
+        Loot_DropCurrent(); // loot
+    }
+    else if (self.impulse >= 200 && self.impulse <= 202)
+    {
+        Loot_DevImpulse(self.impulse); // loot: developer tools
+    }
     else if (self.impulse == 255)
     {
         QuadCheat();
@@ -1390,6 +1081,8 @@ Called every frame so impulse events can be handled as well as possible
 */
 void() W_WeaponFrame =
 {
+    Loot_WeaponFrame(); // loot: finish reloads, fire burst shots
+
     if (time < self.attack_finished)
     {
         return;
