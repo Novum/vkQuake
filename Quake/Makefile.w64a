@@ -4,8 +4,6 @@
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
 #
-# WINDRES currently unsupported on Aarch64 ?
-# https://github.com/llvm/llvm-project/issues/125371
 #
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE = 1
@@ -87,12 +85,11 @@ CFLAGS += -funwind-tables
 # ---------------------------
 all: $(BINTOC_EXE) .WAIT $(DEFAULT_TARGET) .WAIT dll
 
-#FIXME:  windres on Aarch64?
 %.res: ../Windows/%.rc
-	$(WINDRES) -I../Windows -I../Quake --output-format=coff --target=pe-aarch64-little -o $@ $<
+	$(WINDRES) -c 1252 -I../Windows -I../Quake -o $@ $<
 
-vkQuake.exe: $(SHADER_OBJS) $(OBJS)
-	$(LINKER) $(SHADER_OBJS) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
+vkQuake.exe: $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES)
+	$(LINKER) $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 # Never strip
 #	$(call DO_STRIP,$@)
 
