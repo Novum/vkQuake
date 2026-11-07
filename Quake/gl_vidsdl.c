@@ -3539,11 +3539,14 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	vulkan_globals.device_idle = false;
 
+	// Only clear the request once a frame actually captured the image. If this frame
+	// had no swapchain image (e.g. none free yet on MoltenVK), the readback was skipped:
+	// keep the request pending and capture on the next frame instead of dropping it.
 	if (take_screenshot && (readback.buffer != VK_NULL_HANDLE))
 	{
 		WriteScreenshot (readback.buffer, readback.memory);
+		take_screenshot = false;
 	}
-	take_screenshot = false;
 
 	if (swapchain_acquired == true)
 	{
