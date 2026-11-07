@@ -248,7 +248,8 @@ static struct
 	{"every 1 mn", 1 * 60.0f},
 	{"every 2 mn", 2 * 60.0f},
 	{"every 5 mn", 5 * 60.0f},
-	{"every 10 mn", 10 * 60.0f}};
+	{"every 10 mn", 10 * 60.0f},
+};
 
 const int num_autosave_presets = countof (autosave_presets);
 

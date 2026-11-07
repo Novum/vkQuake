@@ -5,10 +5,11 @@ on: [push, pull_request]
 jobs:
   build-mac-os:
     name: Build macOS
-    runs-on: macos-14
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
+        runner: [macos-15, macos-15-intel]
         configuration: [release, debug]
         use-sdl3: ['auto', 'disabled']
     steps:
@@ -25,7 +26,7 @@ jobs:
     - name: Upload vkQuake
       uses: actions/upload-artifact@v7
       with:
-        name: vkQuake archive (${{ matrix.configuration }}${{ matrix.use-sdl3 == 'disabled' && ', SDL2' || '' }})
+        name: vkQuake archive (${{ matrix.runner == 'macos-15' && 'ARM64' || 'Intel' }}, ${{ matrix.configuration }}${{ matrix.use-sdl3 == 'disabled' && ', SDL2' || '' }})
         path: |
           build/vkquake
           build/vkquake.dSYM
