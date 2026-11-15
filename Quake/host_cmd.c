@@ -2713,6 +2713,8 @@ static void Host_Loadgame_f (void)
 	if (fastload)
 	{
 		sv.lastchecktime = 0.0;
+		// Reset weapon interpolation on the next view update, even if its frame is unchanged.
+		cl.viewent.model = NULL;
 		memset (cl_dlights, 0, sizeof (cl_dlights));
 		memset (cl_temp_entities, 0, sizeof (cl_temp_entities));
 		memset (cl_beams, 0, sizeof (cl_beams));
