@@ -206,7 +206,8 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 	R_AddPreparedCommands (&builder, PCBX_UPDATE_WARP);
 
 	R_BeginGraphicsPass (&builder, FRAME_TARGET_SCENE, SUBPASS_MAIN);
-	R_AddGraphicsWork (&builder, DRAW_WORLD, SCBX_WORLD, SCBX_WORLD);
+	// Lightmapped brush entities belong to the SSAO receiver depth, including alpha-tested surfaces.
+	R_AddGraphicsWork (&builder, DRAW_WORLD, SCBX_WORLD, SCBX_BRUSH_ENTITIES);
 	if (r_ssao.value > 0)
 	{
 		R_EndGraphicsPass (&builder);

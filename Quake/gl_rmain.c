@@ -490,9 +490,10 @@ static qboolean R_IsEntityTransparent (entity_t *e, qboolean *opaque_with_transp
 R_DrawEntitiesOnList
 
 alphapass 0 for opaque, 1 for transparent overwater, 2 for transpatent underwater
+Opaque brush draws use a separate context so they precede the SSAO baseline depth capture.
 =============
 */
-void R_DrawEntitiesOnList (cb_context_t *cbx, int alphapass, int chain, qboolean use_tasks) // johnfitz -- added parameter
+void R_DrawEntitiesOnList (cb_context_t *cbx, cb_context_t *brush_cbx, int alphapass, int chain, qboolean use_tasks)
 {
 	int i = -1;
 
@@ -546,7 +547,7 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, int alphapass, int chain, qboolean
 			break;
 		case mod_brush:
 			R_DrawBrushModel (
-				cbx, currententity, chain, &brushpolys, alphapass && R_UseAlphaSort (), !alphapass && opaque_with_transparent_water,
+				brush_cbx, currententity, chain, &brushpolys, alphapass && R_UseAlphaSort (), !alphapass && opaque_with_transparent_water,
 				alphapass && opaque_with_transparent_water);
 			++brushpasses;
 			break;
@@ -1406,9 +1407,14 @@ R_DrawEntitiesTask
 static void R_DrawEntitiesTask (int index, void *use_tasks)
 {
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_ENTITIES][index];
+	cb_context_t *brush_cbx = &vulkan_globals.secondary_cb_contexts[SCBX_BRUSH_ENTITIES][index];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx); // johnfitz
-	R_DrawEntitiesOnList (cbx, false, index + chain_model_0, use_tasks ? true : false);
+	R_SetupContext (brush_cbx);
+	Fog_EnableGFog (brush_cbx);
+	R_BeginDebugUtilsLabel (brush_cbx, "Lightmapped Entities");
+	R_DrawEntitiesOnList (cbx, brush_cbx, false, index + chain_model_0, use_tasks ? true : false);
+	R_EndDebugUtilsLabel (brush_cbx);
 }
 
 /*
@@ -1425,14 +1431,14 @@ static void R_DrawAlphaEntitiesTask (int index, void *use_tasks)
 		cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[i ? SCBX_ALPHA_ENTITIES : SCBX_ALPHA_ENTITIES_ACROSS_WATER];
 		R_SetupContext (cbx);
 		Fog_EnableGFog (cbx);
-		R_DrawEntitiesOnList (cbx, underwater ? 1 + i : 2 - i, i ? chain_alpha_model : chain_alpha_model_across_water, false);
+		R_DrawEntitiesOnList (cbx, cbx, underwater ? 1 + i : 2 - i, i ? chain_alpha_model : chain_alpha_model_across_water, false);
 
 		if (R_UseMBOIT ())
 		{
 			cbx = vulkan_globals.secondary_cb_contexts[i ? SCBX_MBOIT_COMPOSITE_ALPHA_ENTITIES : SCBX_MBOIT_COMPOSITE_ALPHA_ENTITIES_ACROSS_WATER];
 			R_SetupContext (cbx);
 			Fog_EnableGFog (cbx);
-			R_DrawEntitiesOnList (cbx, underwater ? 1 + i : 2 - i, i ? chain_alpha_model : chain_alpha_model_across_water, false);
+			R_DrawEntitiesOnList (cbx, cbx, underwater ? 1 + i : 2 - i, i ? chain_alpha_model : chain_alpha_model_across_water, false);
 		}
 	}
 }
