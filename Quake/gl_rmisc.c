@@ -3818,6 +3818,85 @@ static void R_CreateWorldPipelines ()
 
 /*
 ===============
+R_CreateModelPipelineSet
+===============
+*/
+static void R_CreateModelPipelineSet (
+	const pipeline_create_infos_t *base, vulkan_pipeline_layout_t layout, vulkan_pipeline_t pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT],
+	vulkan_pipeline_t wboit_pipelines[MODEL_PIPELINE_COUNT], vulkan_pipeline_t mboit_moment_pipelines[MODEL_PIPELINE_COUNT],
+	vulkan_pipeline_t mboit_composite_pipelines[MODEL_PIPELINE_COUNT], const VkShaderModule composite_modules[2], const char *name)
+{
+	pipeline_create_infos_t infos;
+	for (int pipeline_index = 0; pipeline_index < MODEL_PIPELINE_SHOWTRIS; ++pipeline_index)
+	{
+		const qboolean alpha_test = pipeline_index & MODEL_PIPELINE_ALPHA_TEST_BIT;
+		const qboolean alpha_blend = pipeline_index & MODEL_PIPELINE_ALPHA_BLEND_BIT;
+
+		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+		{
+			R_CopyPipelineCreateInfos (&infos, base);
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
+			infos.shader_stages[1].module = alpha_test ? alias_alphatest_frag_module : alias_frag_module;
+			infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+			infos.multisample_state.sampleShadingEnable = (!alpha_blend && vulkan_globals.supersampling) ? VK_TRUE : VK_FALSE;
+			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
+			R_CreateGraphicsPipeline (&pipelines[variant][pipeline_index], &infos, layout, va (variant ? "%s_main_oit %d" : "%s %d", name, pipeline_index));
+		}
+
+		if (alpha_blend)
+		{
+			R_CopyPipelineCreateInfos (&infos, base);
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
+			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
+			infos.shader_stages[1].module = alpha_test ? alias_alphatest_oit_frag_module : alias_oit_frag_module;
+			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+			R_SetWBOITBlend (infos.blend_attachment_states);
+			R_CreateGraphicsPipeline (&wboit_pipelines[pipeline_index], &infos, layout, va ("%s_wboit %d", name, pipeline_index));
+
+			R_CopyPipelineCreateInfos (&infos, base);
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_MOMENTS, MAIN_RENDER_PASS_MBOIT);
+			infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
+			infos.shader_stages[1].module = alpha_test ? alias_alphatest_mboit_moment_frag_module : alias_mboit_moment_frag_module;
+			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+			R_SetMBOITMomentBlend (infos.blend_attachment_states);
+			R_CreateGraphicsPipeline (&mboit_moment_pipelines[pipeline_index], &infos, layout, va ("%s_mboit_moment %d", name, pipeline_index));
+
+			R_CopyPipelineCreateInfos (&infos, base);
+			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_COMPOSITE, MAIN_RENDER_PASS_MBOIT);
+			infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
+			infos.shader_stages[1].module = composite_modules[!!alpha_test];
+			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+			R_SetMBOITCompositeBlend (infos.blend_attachment_states);
+			R_CreateGraphicsPipeline (&mboit_composite_pipelines[pipeline_index], &infos, layout, va ("%s_mboit_composite %d", name, pipeline_index));
+		}
+	}
+
+	if (vulkan_globals.non_solid_fill)
+	{
+		for (int pipeline_index = MODEL_PIPELINE_SHOWTRIS; pipeline_index <= MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST; ++pipeline_index)
+		{
+			const qboolean depth_test = pipeline_index == MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST;
+			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+			{
+				R_CopyPipelineCreateInfos (&infos, base);
+				R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
+				infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
+				infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
+				infos.depth_stencil_state.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
+				infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+				infos.rasterization_state.depthBiasEnable = depth_test ? VK_TRUE : VK_FALSE;
+				infos.rasterization_state.depthBiasConstantFactor = 500.0f;
+				infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
+				infos.shader_stages[1].module = showtris_frag_module;
+				R_CreateGraphicsPipeline (
+					&pipelines[variant][pipeline_index], &infos, layout, va (variant ? "%s_showtris_main_oit %d" : "%s_showtris %d", name, pipeline_index));
+			}
+		}
+	}
+}
+
+/*
+===============
 R_CreateAliasPipelines
 ===============
 */
@@ -3838,86 +3917,15 @@ static void R_CreateAliasPipelines ()
 
 	const vulkan_pipeline_layout_t layout = vulkan_globals.alias_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout;
 
-	pipeline_create_infos_t infos;
-	for (int pipeline_index = 0; pipeline_index < MODEL_PIPELINE_SHOWTRIS; ++pipeline_index)
-	{
-		const qboolean alpha_test = pipeline_index & MODEL_PIPELINE_ALPHA_TEST_BIT;
-		const qboolean alpha_blend = pipeline_index & MODEL_PIPELINE_ALPHA_BLEND_BIT;
-
-		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
-		{
-			R_CopyPipelineCreateInfos (&infos, &base);
-			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
-			infos.shader_stages[1].module = alpha_test ? alias_alphatest_frag_module : alias_frag_module;
-			infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
-			infos.multisample_state.sampleShadingEnable = (!alpha_blend && vulkan_globals.supersampling) ? VK_TRUE : VK_FALSE;
-			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
-			R_CreateGraphicsPipeline (
-				&vulkan_globals.alias_pipelines[variant][pipeline_index], &infos, layout, va (variant ? "alias_main_oit %d" : "alias %d", pipeline_index));
-		}
-
-		if (alpha_blend)
-		{
-			R_CopyPipelineCreateInfos (&infos, &base);
-			R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
-			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-			infos.shader_stages[1].module = alpha_test ? alias_alphatest_oit_frag_module : alias_oit_frag_module;
-			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-			R_SetWBOITBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (&vulkan_globals.alias_wboit_pipelines[pipeline_index], &infos, layout, va ("alias_wboit %d", pipeline_index));
-
-			R_CopyPipelineCreateInfos (&infos, &base);
-			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_MOMENTS, MAIN_RENDER_PASS_MBOIT);
-			infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
-			infos.shader_stages[1].module = alpha_test ? alias_alphatest_mboit_moment_frag_module : alias_mboit_moment_frag_module;
-			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-			R_SetMBOITMomentBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (
-				&vulkan_globals.alias_mboit_moment_pipelines[pipeline_index], &infos, layout, va ("alias_mboit_moment %d", pipeline_index));
-
-			R_CopyPipelineCreateInfos (&infos, &base);
-			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_COMPOSITE, MAIN_RENDER_PASS_MBOIT);
-			infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
-			infos.shader_stages[1].module = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT)
-												? (alpha_test ? alias_alphatest_mboit_composite_frag_module : alias_mboit_composite_frag_module)
-												: (alpha_test ? alias_alphatest_mboit_composite_msaa_frag_module : alias_mboit_composite_msaa_frag_module);
-			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-			R_SetMBOITCompositeBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (
-				&vulkan_globals.alias_mboit_composite_pipelines[pipeline_index], &infos, layout, va ("alias_mboit_composite %d", pipeline_index));
-		}
-	}
-
-	if (vulkan_globals.non_solid_fill)
-	{
-		for (int pipeline_index = MODEL_PIPELINE_SHOWTRIS; pipeline_index <= MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST; ++pipeline_index)
-		{
-			const qboolean depth_test = pipeline_index == MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST;
-			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
-			{
-				R_CopyPipelineCreateInfos (&infos, &base);
-				R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
-				infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
-				infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
-				infos.depth_stencil_state.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
-				infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-				infos.rasterization_state.depthBiasEnable = depth_test ? VK_TRUE : VK_FALSE;
-				infos.rasterization_state.depthBiasConstantFactor = 500.0f;
-				infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
-				infos.shader_stages[1].module = showtris_frag_module;
-				R_CreateGraphicsPipeline (
-					&vulkan_globals.alias_pipelines[variant][pipeline_index], &infos, layout,
-					va (variant ? "alias_showtris_main_oit %d" : "alias_showtris %d", pipeline_index));
-			}
-		}
-	}
+	const VkShaderModule composite_modules[2] = {
+		vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? alias_mboit_composite_frag_module : alias_mboit_composite_msaa_frag_module,
+		vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? alias_alphatest_mboit_composite_frag_module : alias_alphatest_mboit_composite_msaa_frag_module,
+	};
+	R_CreateModelPipelineSet (
+		&base, layout, vulkan_globals.alias_pipelines, vulkan_globals.alias_wboit_pipelines, vulkan_globals.alias_mboit_moment_pipelines,
+		vulkan_globals.alias_mboit_composite_pipelines, composite_modules, "alias");
 }
 
-/*
-===============
-R_CreateMD5Pipelines
-===============
-*/
 static void R_CreateMD5PipelineSet (
 	vulkan_pipeline_t pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT], vulkan_pipeline_t wboit_pipelines[MODEL_PIPELINE_COUNT],
 	vulkan_pipeline_t mboit_moment_pipelines[MODEL_PIPELINE_COUNT], vulkan_pipeline_t mboit_composite_pipelines[MODEL_PIPELINE_COUNT],
@@ -3939,77 +3947,12 @@ static void R_CreateMD5PipelineSet (
 
 	const vulkan_pipeline_layout_t layout = vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout;
 
-	pipeline_create_infos_t infos;
-	for (int pipeline_index = 0; pipeline_index < MODEL_PIPELINE_SHOWTRIS; ++pipeline_index)
-	{
-		const qboolean alpha_test = pipeline_index & MODEL_PIPELINE_ALPHA_TEST_BIT;
-		const qboolean alpha_blend = pipeline_index & MODEL_PIPELINE_ALPHA_BLEND_BIT;
-
-		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
-		{
-			R_CopyPipelineCreateInfos (&infos, &base);
-			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
-			infos.shader_stages[1].module = alpha_test ? alias_alphatest_frag_module : alias_frag_module;
-			infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
-			infos.multisample_state.sampleShadingEnable = (!alpha_blend && vulkan_globals.supersampling) ? VK_TRUE : VK_FALSE;
-			infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
-			R_CreateGraphicsPipeline (&pipelines[variant][pipeline_index], &infos, layout, va (variant ? "%s_main_oit %d" : "%s %d", name, pipeline_index));
-		}
-
-		if (alpha_blend)
-		{
-			R_CopyPipelineCreateInfos (&infos, &base);
-			R_SetPipelineRenderPassVariant (&infos, SUBPASS_WBOIT, MAIN_RENDER_PASS_OIT);
-			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-			infos.shader_stages[1].module = alpha_test ? alias_alphatest_oit_frag_module : alias_oit_frag_module;
-			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-			R_SetWBOITBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (&wboit_pipelines[pipeline_index], &infos, layout, va ("%s_wboit %d", name, pipeline_index));
-
-			R_CopyPipelineCreateInfos (&infos, &base);
-			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_MOMENTS, MAIN_RENDER_PASS_MBOIT);
-			infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
-			infos.shader_stages[1].module = alpha_test ? alias_alphatest_mboit_moment_frag_module : alias_mboit_moment_frag_module;
-			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-			R_SetMBOITMomentBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (&mboit_moment_pipelines[pipeline_index], &infos, layout, va ("%s_mboit_moment %d", name, pipeline_index));
-
-			R_CopyPipelineCreateInfos (&infos, &base);
-			R_SetPipelineRenderPassVariant (&infos, SUBPASS_MBOIT_COMPOSITE, MAIN_RENDER_PASS_MBOIT);
-			infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
-			// the composite shader reads the moment input attachments, which the md5 layout binds
-			// at set 4 because the joints occupy set 3, so it needs its own MBOIT_INPUT_SET variant
-			infos.shader_stages[1].module = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT)
-												? (alpha_test ? md5_alphatest_mboit_composite_frag_module : md5_mboit_composite_frag_module)
-												: (alpha_test ? md5_alphatest_mboit_composite_msaa_frag_module : md5_mboit_composite_msaa_frag_module);
-			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-			R_SetMBOITCompositeBlend (infos.blend_attachment_states);
-			R_CreateGraphicsPipeline (&mboit_composite_pipelines[pipeline_index], &infos, layout, va ("%s_mboit_composite %d", name, pipeline_index));
-		}
-	}
-
-	if (vulkan_globals.non_solid_fill)
-	{
-		for (int pipeline_index = MODEL_PIPELINE_SHOWTRIS; pipeline_index <= MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST; ++pipeline_index)
-		{
-			const qboolean depth_test = pipeline_index == MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST;
-			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
-			{
-				R_CopyPipelineCreateInfos (&infos, &base);
-				R_SetPipelineRenderPassVariant (&infos, SUBPASS_MAIN, variant);
-				infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
-				infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
-				infos.depth_stencil_state.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
-				infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-				infos.rasterization_state.depthBiasEnable = depth_test ? VK_TRUE : VK_FALSE;
-				infos.rasterization_state.depthBiasConstantFactor = 500.0f;
-				infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
-				infos.shader_stages[1].module = showtris_frag_module;
-				R_CreateGraphicsPipeline (
-					&pipelines[variant][pipeline_index], &infos, layout, va (variant ? "%s_showtris_main_oit %d" : "%s_showtris %d", name, pipeline_index));
-			}
-		}
-	}
+	// MD5 binds moment input attachments at set 4 because joints occupy set 3.
+	const VkShaderModule composite_modules[2] = {
+		vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? md5_mboit_composite_frag_module : md5_mboit_composite_msaa_frag_module,
+		vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT ? md5_alphatest_mboit_composite_frag_module : md5_alphatest_mboit_composite_msaa_frag_module,
+	};
+	R_CreateModelPipelineSet (&base, layout, pipelines, wboit_pipelines, mboit_moment_pipelines, mboit_composite_pipelines, composite_modules, name);
 }
 
 static void R_CreateMD5Pipelines ()
