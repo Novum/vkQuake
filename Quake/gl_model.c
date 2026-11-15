@@ -455,7 +455,7 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 		mod->numclipnodes = 0;
 		SAFE_FREE (mod->marksurfaces);
 		mod->nummarksurfaces = 0;
-		SAFE_FREE (mod->soa_leafbounds);
+		SAFE_FREE (mod->soa_surfbounds);
 		SAFE_FREE (mod->surfvis);
 		SAFE_FREE (mod->soa_surfplanes);
 		SAFE_FREE (mod->textures);
@@ -1724,6 +1724,9 @@ static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 	mins[0] = mins[1] = FLT_MAX;
 	maxs[0] = maxs[1] = -FLT_MAX;
 
+	s->mins[0] = s->mins[1] = s->mins[2] = FLT_MAX;
+	s->maxs[0] = s->maxs[1] = s->maxs[2] = -FLT_MAX;
+
 	tex = s->texinfo;
 
 	const double tex_vecs[2][4] = {
@@ -1738,6 +1741,13 @@ static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 			v = &mod->vertexes[mod->edges[e].v[0]];
 		else
 			v = &mod->vertexes[mod->edges[-e].v[1]];
+
+		// Surface bounds share the existing vertex traversal for texture extents.
+		for (j = 0; j < 3; j++)
+		{
+			s->mins[j] = q_min (s->mins[j], v->position[j]);
+			s->maxs[j] = q_max (s->maxs[j], v->position[j]);
+		}
 
 		for (j = 0; j < 2; j++)
 		{

@@ -14,6 +14,7 @@ layout (push_constant) uniform PushConsts
 	float vieworg_y;
 	float vieworg_z;
 	uint  instance_base;
+	vec4  frustum[4];
 }
 push_constants;
 
@@ -81,6 +82,19 @@ void main ()
 	const bool	backface = (surfaces[surf].packed_tex_edgecount & 0x8000) != 0;
 	if (backface && dp > dist || !backface && dp < dist)
 		return;
+
+	// World surfaces can extend outside the leaves that reference them.
+	// Moving submodels have already been culled using their entity bounds.
+	if (submodel == 0u)
+	{
+		for (int i = 0; i < 4; ++i)
+		{
+			const vec4 plane = push_constants.frustum[i];
+			const vec3 corner = mix (surfaces[surf].maxs, surfaces[surf].mins, lessThan (plane.xyz, vec3 (0.0)));
+			if (dot (plane.xyz, corner) < plane.w)
+				return;
+		}
+	}
 
 	uint	   tex_idx = surfaces[surf].packed_tex_edgecount & 0x7FFF;
 	const bool is_decal =

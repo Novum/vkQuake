@@ -268,7 +268,7 @@ static FORCE_INLINE uint32_t R_CullBoxSIMD (soa_aabb_t *boxes, uint32_t activela
 			v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps ((*box) + ofsy + 4), py));
 			v0 = _mm_add_ps (v0, _mm_mul_ps (_mm_loadu_ps ((*box) + ofsz), pz));
 			v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps ((*box) + ofsz + 4), pz));
-			frustum_lanes |= (uint32_t)(_mm_movemask_ps (_mm_cmplt_ps (pd, v0)) | (_mm_movemask_ps (_mm_cmplt_ps (pd, v1)) << 4)) << (boxes_index * 8);
+			frustum_lanes |= (uint32_t)(_mm_movemask_ps (_mm_cmple_ps (pd, v0)) | (_mm_movemask_ps (_mm_cmple_ps (pd, v1)) << 4)) << (boxes_index * 8);
 		}
 		activelanes &= frustum_lanes;
 	}
@@ -350,7 +350,7 @@ static FORCE_INLINE uint32_t R_CullBoxSIMD (soa_aabb_t *boxes, uint32_t activela
 			v1 = vmlaq_f32 (v1, vld1q_f32 ((*box) + ofsy + 4), py);
 			v0 = vmlaq_f32 (v0, vld1q_f32 ((*box) + ofsz), pz);
 			v1 = vmlaq_f32 (v1, vld1q_f32 ((*box) + ofsz + 4), pz);
-			frustum_lanes |= (uint32_t)(NeonMoveMask (vcltq_f32 (pd, v0)) | (NeonMoveMask (vcltq_f32 (pd, v1)) << 4)) << (boxes_index * 8);
+			frustum_lanes |= (uint32_t)(NeonMoveMask (vcleq_f32 (pd, v0)) | (NeonMoveMask (vcleq_f32 (pd, v1)) << 4)) << (boxes_index * 8);
 		}
 		activelanes &= frustum_lanes;
 	}
@@ -373,7 +373,6 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 	unsigned int numsurfaces = cl.worldmodel->numsurfaces;
 	uint32_t	*vis = (uint32_t *)mark_surfaces_state.vis;
 	uint32_t	*surfvis = (uint32_t *)cl.worldmodel->surfvis;
-	soa_aabb_t	*leafbounds = cl.worldmodel->soa_leafbounds;
 
 	int current_combined_dep_index = INT_MAX;
 
@@ -382,14 +381,13 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 	const bool cst_r_oldskyleaf = (r_oldskyleaf.value > 0.0f);
 	const bool cst_r_gpulightmapupdate = (r_gpulightmapupdate.value > 0.0f);
 
-	// iterate through leaves, marking surfaces
+	// Leaves determine PVS membership; their bounds need not enclose their surfaces.
 	for (i = 0; i < numleafs; i += 32)
 	{
 		uint32_t mask = vis[i / 32];
 		if (mask == 0)
 			continue;
 
-		mask = R_CullBoxSIMD (&leafbounds[i / 8], mask);
 		while (mask != 0)
 		{
 			const int j = FindFirstBitNonZero (mask);
@@ -429,6 +427,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 		if (mask == 0)
 			continue;
 
+		mask = R_CullBoxSIMD (&cl.worldmodel->soa_surfbounds[i / 8], mask);
 		mask &= R_BackFaceCullSIMD (&cl.worldmodel->soa_surfplanes[i / 8]);
 		while (mask != 0)
 		{
@@ -472,7 +471,6 @@ void R_MarkLeafsSIMD (int index, void *unused)
 		((batch_index != nb_batchs - 1) ? nominal_nb_32leaf_in_batch : ((numleafs + 31) / 32) - (nb_batchs - 1) * nominal_nb_32leaf_in_batch);
 
 	atomic_uint32_t *surfvis = (atomic_uint32_t *)cl.worldmodel->surfvis;
-	soa_aabb_t		*leafbounds = cl.worldmodel->soa_leafbounds;
 	uint32_t		*vis = (uint32_t *)mark_surfaces_state.vis;
 
 	unsigned int current_surfvis_index_written = 0;
@@ -494,8 +492,6 @@ void R_MarkLeafsSIMD (int index, void *unused)
 
 		if (*mask == 0)
 			continue;
-
-		*mask = R_CullBoxSIMD (&leafbounds[index_32leaf * 4], *mask);
 
 		uint32_t mask_iter = *mask;
 
@@ -543,10 +539,10 @@ void R_MarkLeafsSIMD (int index, void *unused)
 
 /*
 ===============
-R_BackfaceCullSurfacesSIMD
+R_CullSurfacesSIMD
 ===============
 */
-void R_BackfaceCullSurfacesSIMD (int index, void *unused)
+void R_CullSurfacesSIMD (int index, void *unused)
 {
 	uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 
@@ -574,6 +570,7 @@ void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 		if (*mask == 0)
 			continue;
 
+		*mask = R_CullBoxSIMD (&cl.worldmodel->soa_surfbounds[index_32surf * 4], *mask);
 		*mask &= R_BackFaceCullSIMD (&cl.worldmodel->soa_surfplanes[index_32surf * 4]);
 
 		uint32_t mask_iter = *mask;
@@ -705,9 +702,10 @@ static void R_ChainVisSurfaces_TransparentWater ()
 	uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 	for (int i = 0; i < cl.worldmodel->used_water_surfs; i++)
 	{
-		int j = cl.worldmodel->water_surfs[i];
-		if (surfvis[j / 32] & 1 << j % 32 && !R_BackFaceCull (&cl.worldmodel->surfaces[j]))
-			R_ChainSurface (&cl.worldmodel->surfaces[j], chain_world);
+		int			j = cl.worldmodel->water_surfs[i];
+		msurface_t *surf = &cl.worldmodel->surfaces[j];
+		if ((surfvis[j / 32] & (1u << (j % 32))) && !R_CullBox (surf->mins, surf->maxs) && !R_BackFaceCull (surf))
+			R_ChainSurface (surf, chain_world);
 	}
 }
 
@@ -766,11 +764,6 @@ void R_MarkLeafsParallel (int index, void *unused)
 
 			mleaf_t *leaf = &cl.worldmodel->leafs[first_leaf + i];
 
-			if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
-			{
-				*mask &= bit_mask;
-				continue;
-			}
 			if (!leaf->efrags)
 				*mask &= bit_mask;
 
@@ -806,10 +799,10 @@ void R_MarkLeafsParallel (int index, void *unused)
 
 /*
 ===============
-R_BackfaceCullSurfacesParallel
+R_CullSurfacesParallel
 ===============
 */
-void R_BackfaceCullSurfacesParallel (int index, void *unused)
+void R_CullSurfacesParallel (int index, void *unused)
 {
 	uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 
@@ -847,8 +840,8 @@ void R_BackfaceCullSurfacesParallel (int index, void *unused)
 
 			msurface_t *surf = &cl.worldmodel->surfaces[(index_32surf * 32) + i];
 
-			if (R_BackFaceCull (surf))
-				*surfvis &= bit_mask;
+			if (R_CullBox (surf->mins, surf->maxs) || R_BackFaceCull (surf))
+				*mask &= bit_mask;
 			else
 			{
 				if (surf->lightmaptexturenum >= 0)
@@ -886,9 +879,6 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 	{
 		if (vis[i / 32] & (1u << (i % 32)))
 		{
-			if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
-				continue;
-
 			if (cst_r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || cst_r_oldskyleaf))
 			{
 				if (cst_indirect && current_combined_dep_index != leaf->combined_deps)
@@ -909,7 +899,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 					if (surf->visframe != r_visframecount)
 					{
 						surf->visframe = r_visframecount;
-						if (!R_BackFaceCull (surf))
+						if (!R_CullBox (surf->mins, surf->maxs) && !R_BackFaceCull (surf))
 						{
 							++brushpolys;
 							R_ChainSurface (surf, chain_world);
@@ -1058,12 +1048,10 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 #if defined(USE_SIMD)
 				// split processing in as many as there are workers and by MARK_SURFACE_CALLS_PER_WORKER:
 				if (use_simd)
-					*cull_surfaces =
-						Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers (), NULL, 0);
+					*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_CullSurfacesSIMD, MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers (), NULL, 0);
 				else
 #endif
-					*cull_surfaces =
-						Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesParallel, MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers (), NULL, 0);
+					*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_CullSurfacesParallel, MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers (), NULL, 0);
 				Task_AddDependency (mark_surfaces, *cull_surfaces);
 
 				*chain_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_ChainVisSurfaces, &use_tasks, sizeof (qboolean));

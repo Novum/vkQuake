@@ -266,8 +266,12 @@ typedef struct lm_compute_surface_data_s
 	uint32_t packed_tex_edgecount;
 	uint32_t vbo_offset;
 	vec4_t	 vecs[2];
+	vec3_t	 mins;
+	float	 pad0;
+	vec3_t	 maxs;
+	float	 pad1;
 } lm_compute_surface_data_t;
-COMPILE_TIME_ASSERT (lm_compute_surface_data_t, sizeof (lm_compute_surface_data_t) == 64);
+COMPILE_TIME_ASSERT (lm_compute_surface_data_t, sizeof (lm_compute_surface_data_t) == 96);
 
 // keep in sync with bmodel_instance_t in globals.inc
 typedef struct bmodel_instance_s
@@ -2010,6 +2014,9 @@ void GL_BuildLightmaps (void)
 			surf_data->packed_tex_edgecount = surf->indirect_idx | !!(surf->flags & SURF_PLANEBACK) << 15 | surf->numedges << 16;
 			surf->vbo_firstvert = varray_index;
 			surf_data->vbo_offset = surf->vbo_firstvert;
+			VectorCopy (surf->mins, surf_data->mins);
+			VectorCopy (surf->maxs, surf_data->maxs);
+			surf_data->pad0 = surf_data->pad1 = 0.0f;
 			if (surf->numedges > 65535)
 				indirect_ready = false;
 			varray_index += surf->numedges;
@@ -3082,18 +3089,13 @@ void GL_PrepareSIMDAndParallelData (void)
 #ifdef USE_SIMD
 	int i;
 
-	cl.worldmodel->soa_leafbounds = Mem_Alloc (6 * sizeof (float) * ((cl.worldmodel->numleafs + 31) & ~7));
+	cl.worldmodel->soa_surfbounds = Mem_Alloc (6 * sizeof (float) * ((cl.worldmodel->numsurfaces + 31) & ~7));
 	cl.worldmodel->soa_surfplanes = Mem_Alloc (4 * sizeof (float) * ((cl.worldmodel->numsurfaces + 31) & ~7));
-
-	for (i = 0; i < cl.worldmodel->numleafs; ++i)
-	{
-		mleaf_t *leaf = &cl.worldmodel->leafs[i + 1];
-		SoA_FillBoxLane (cl.worldmodel->soa_leafbounds, i, leaf->minmaxs, leaf->minmaxs + 3);
-	}
 
 	for (i = 0; i < cl.worldmodel->numsurfaces; ++i)
 	{
 		msurface_t *surf = &cl.worldmodel->surfaces[i];
+		SoA_FillBoxLane (cl.worldmodel->soa_surfbounds, i, surf->mins, surf->maxs);
 		SoA_FillPlaneLane (cl.worldmodel->soa_surfplanes, i, surf->plane, surf->flags & SURF_PLANEBACK);
 	}
 #endif // def USE_SIMD
@@ -3589,7 +3591,7 @@ static void R_IndirectComputeDispatch (cb_context_t *cbx)
 	vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.indirect_draw_pipeline);
-	char push_constants[7 * 4];
+	char push_constants[8 * sizeof (uint32_t) + 4 * sizeof (vec4_t)] = {0};
 	memcpy (push_constants, &cl.model_precache[1]->numsurfaces, sizeof (int));
 	memset (push_constants + 4, 0, sizeof (uint32_t));
 	uint32_t offset = current_compute_buffer_index * dyn_visibility_offset / 4;
@@ -3597,7 +3599,12 @@ static void R_IndirectComputeDispatch (cb_context_t *cbx)
 	memcpy (push_constants + 12, r_refdef.vieworg, sizeof (vec3_t));
 	const uint32_t instance_base = (uint32_t)bmodel_instances_index * MAX_MODELS;
 	memcpy (push_constants + 24, &instance_base, sizeof (uint32_t));
-	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 7 * 4, push_constants);
+	for (int i = 0; i < 4; ++i)
+	{
+		memcpy (push_constants + 32 + i * sizeof (vec4_t), frustum[i].normal, sizeof (vec3_t));
+		memcpy (push_constants + 44 + i * sizeof (vec4_t), &frustum[i].dist, sizeof (float));
+	}
+	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), push_constants);
 	const uint32_t num_workgroups = (cl.worldmodel->numsurfaces + 63) / 64;
 	const uint32_t max_dispatch = vulkan_globals.device_properties.limits.maxComputeWorkGroupCount[0];
 	uint32_t	   start_workgroup = 0;

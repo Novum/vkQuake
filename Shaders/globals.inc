@@ -20,6 +20,10 @@ struct surface_t
 	uint  packed_tex_edgecount;
 	uint  vbo_offset;
 	vec4  vecs[2];
+	vec3  mins;
+	float pad0;
+	vec3  maxs;
+	float pad1;
 };
 
 struct bmodel_instance_t
