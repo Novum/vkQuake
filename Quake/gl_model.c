@@ -296,35 +296,29 @@ mleaf_t *Mod_PointInLeaf (float *p, qmodel_t *model)
 Mod_DecompressVis
 ===================
 */
-byte *Mod_DecompressVis (byte *in, qmodel_t *model)
+static byte *Mod_DecompressVis (const byte *in, int numvisleafs)
 {
-	int	  c;
-	byte *out;
-	byte *outend;
-	int	  row;
-
-	row = (model->numleafs + 31) / 8;
-	if (mod_decompressed == NULL || row > mod_decompressed_capacity)
+	const int row = (numvisleafs + 7) / 8;
+	// A BSP row has one bit per world visleaf. Callers also access the last 32-bit word.
+	const int bufsize = row + 3;
+	if (bufsize > mod_decompressed_capacity)
 	{
-		mod_decompressed_capacity = row;
+		mod_decompressed_capacity = bufsize;
 		mod_decompressed = (byte *)Mem_Realloc (mod_decompressed, mod_decompressed_capacity);
 		if (!mod_decompressed)
 			Sys_Error ("Mod_DecompressVis: realloc() failed on %d bytes", mod_decompressed_capacity);
 	}
-	out = mod_decompressed;
-	outend = mod_decompressed + row;
+	byte *out = mod_decompressed;
+	byte *outend = out + row;
+	memset (outend, 0, bufsize - row);
 
 	if (!in)
 	{ // no vis info, so make all visible
-		while (row)
-		{
-			*out++ = 0xff;
-			row--;
-		}
+		memset (out, 0xff, row);
 		return mod_decompressed;
 	}
 
-	do
+	while (out < outend)
 	{
 		if (*in)
 		{
@@ -332,27 +326,11 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 			continue;
 		}
 
-		c = in[1];
+		const size_t c = q_min (in[1], outend - out);
 		in += 2;
-		if (c > row - (out - mod_decompressed))
-			c = row -
-				(out -
-				 mod_decompressed); // now that we're dynamically allocating pvs buffers, we have to be more careful to avoid heap overflows with buggy maps.
-		while (c)
-		{
-			if (out == outend)
-			{
-				if (!model->viswarn)
-				{
-					model->viswarn = true;
-					Con_Warning ("Mod_DecompressVis: output overrun on model \"%s\"\n", model->name);
-				}
-				return mod_decompressed;
-			}
-			*out++ = 0;
-			c--;
-		}
-	} while (out - mod_decompressed < row);
+		memset (out, 0, c);
+		out += c;
+	}
 
 	return mod_decompressed;
 }
@@ -366,7 +344,7 @@ byte *Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model)
 {
 	if (leaf == model->leafs)
 		return Mod_NoVisPVS (model);
-	return Mod_DecompressVis (leaf->compressed_vis, model);
+	return Mod_DecompressVis (leaf->compressed_vis, model->numleafs);
 }
 
 /*
@@ -1483,7 +1461,6 @@ Mod_LoadVisibility
 */
 static void Mod_LoadVisibility (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	mod->viswarn = false;
 	if (!l->filelen)
 	{
 		mod->visdata = NULL;
@@ -2399,7 +2376,7 @@ static void Mod_CheckWaterVis (qmodel_t *mod)
 			continue; // found one of this type already
 		}
 		contentfound |= contenttype;
-		vis = Mod_DecompressVis (leaf->compressed_vis, mod);
+		vis = Mod_DecompressVis (leaf->compressed_vis, numclusters);
 		for (j = 0; j < (numclusters + 7) / 8; j++)
 		{
 			if (vis[j])

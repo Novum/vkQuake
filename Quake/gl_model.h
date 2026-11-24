@@ -704,7 +704,6 @@ typedef struct qmodel_s
 	char		*entities;
 	unsigned int entities_crc; // entities lump CRC16
 
-	qboolean viswarn;	 // for Mod_DecompressVis()
 	qboolean bogus_tree; // BSP node tree doesn't visit nummodelsurfaces surfaces
 
 	int bspversion;
