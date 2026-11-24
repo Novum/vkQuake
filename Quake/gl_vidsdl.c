@@ -5057,6 +5057,7 @@ void SCR_ScreenShot_f (void)
 void VID_FocusGained (void)
 {
 	has_focus = true;
+	Q_UNUSED (has_focus);
 	if (vulkan_globals.want_full_screen_exclusive)
 	{
 		vid.restart_next_frame = true;
