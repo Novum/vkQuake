@@ -6639,6 +6639,8 @@ void PScript_UpdateParticlesSetupTask (void *unused)
 		pe_size3 = PScript_FindParticleType ("PE_SIZE3");
 		pe_defaulttrail = PScript_FindParticleType ("PE_DEFAULTTRAIL");
 
+		Q_UNUSED (pe_defaulttrail);
+
 		for (j = 0; j < numparticletypes; j++)
 		{
 			// set the fallback

@@ -830,7 +830,6 @@ name checkclient ()
 =================
 */
 #define MAX_CHECK 16
-static int	c_invis, c_notvis;
 static void PF_sv_checkclient (void)
 {
 	edict_t *ent, *self;
@@ -860,13 +859,11 @@ static void PF_sv_checkclient (void)
 	l = (leaf - qcvm->worldmodel->leafs) - 1;
 	if ((l < 0) || !(checkpvs[l >> 3] & (1 << (l & 7))))
 	{
-		c_notvis++;
 		RETURN_EDICT (qcvm->edicts);
 		return;
 	}
 
 	// might be able to see it
-	c_invis++;
 	RETURN_EDICT (ent);
 }
 
