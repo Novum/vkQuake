@@ -34,8 +34,6 @@ is not a staircase.
 
 =============
 */
-static int c_yes, c_no;
-
 qboolean SV_CheckBottom (edict_t *ent)
 {
 	vec3_t	mins, maxs, start, stop;
@@ -59,11 +57,9 @@ qboolean SV_CheckBottom (edict_t *ent)
 				goto realcheck;
 		}
 
-	c_yes++;
 	return true; // we got out easy
 
 realcheck:
-	c_no++;
 	//
 	// check it for real...
 	//
@@ -94,7 +90,6 @@ realcheck:
 				return false;
 		}
 
-	c_yes++;
 	return true;
 }
 

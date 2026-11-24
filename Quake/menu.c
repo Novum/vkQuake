@@ -4379,7 +4379,6 @@ static void M_Skill_Key (int key)
 //=============================================================================
 /* QUIT MENU */
 
-static int			  msg_number;
 static enum m_state_e m_quit_prevstate;
 static qboolean		  was_in_menus;
 
@@ -4395,7 +4394,6 @@ void M_Menu_Quit_f (void)
 		m_quit_prevstate = m_state;
 		m_state = m_quit;
 		m_entersound = true;
-		msg_number = COM_Rand () & 7;
 	}
 	else
 	{
