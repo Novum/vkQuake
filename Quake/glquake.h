@@ -216,6 +216,7 @@ typedef enum
 	SCBX_ENTITIES,
 	SCBX_SKY,
 	SCBX_VIEW_MODEL,
+	SCBX_OPAQUE_PARTICLES,
 	SCBX_FTE_PARTICLES_BLEND,
 	SCBX_ALPHA_ENTITIES_ACROSS_WATER,
 	SCBX_WATER,
@@ -300,6 +301,7 @@ static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 	[SCBX_ENTITIES] = NUM_ENTITIES_CBX,
 	[SCBX_SKY] = 1,
 	[SCBX_VIEW_MODEL] = 1,
+	[SCBX_OPAQUE_PARTICLES] = 1,
 	[SCBX_FTE_PARTICLES_BLEND] = 1,
 	[SCBX_ALPHA_ENTITIES_ACROSS_WATER] = 1,
 	[SCBX_WATER] = 1,
@@ -720,7 +722,7 @@ void		  R_ParseEntityDlights (void);			// 2021 rerelease "dynamiclight" entities
 void		  R_UpdateEntityDlights (void);			// keeps the parsed entity dlights alive, called every frame
 
 void R_InitParticles (void);
-void R_DrawParticles (cb_context_t *cbx);
+void R_DrawParticles (cb_context_t *cbx, qboolean square);
 void CL_RunParticles (void);
 void R_ClearParticles (void);
 

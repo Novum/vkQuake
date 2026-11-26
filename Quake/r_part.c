@@ -109,7 +109,8 @@ void R_InitParticleTextures (void)
 			*dst++ = x || y ? 0 : 255;
 		}
 	particletexture2 = TexMgr_LoadImage (
-		NULL, "particle2", 2, 2, SRC_RGBA, particle2_data, "", (src_offset_t)particle2_data, TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_NEAREST);
+		NULL, "particle2", 2, 2, SRC_RGBA, particle2_data, "", (src_offset_t)particle2_data,
+		TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_NOPICMIP);
 
 	// particle texture 3 -- blob
 	dst = particle3_data;
@@ -1030,14 +1031,16 @@ static void R_DrawParticlesFaces (cb_context_t *cbx)
 R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
 ===============
 */
-void R_DrawParticles (cb_context_t *cbx)
+void R_DrawParticles (cb_context_t *cbx, qboolean square)
 {
 	R_BeginDebugUtilsLabel (cbx, "Particles");
+	if (square)
+		vkCmdSetDepthBias (cbx->cb, OFFSET_NONE, 0.0f, 0.0f);
 	R_BindPipeline (
 		cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
 		R_PipelineForSubpassType (
-			cbx->subpass_type, vulkan_globals.particle_pipeline, vulkan_globals.particle_oit_pipeline, vulkan_globals.particle_mboit_moment_pipeline,
-			vulkan_globals.particle_mboit_composite_pipeline));
+			cbx->subpass_type, square ? vulkan_globals.sprite_pipeline[cbx->pipeline_variant] : vulkan_globals.particle_pipeline,
+			vulkan_globals.particle_oit_pipeline, vulkan_globals.particle_mboit_moment_pipeline, vulkan_globals.particle_mboit_composite_pipeline));
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &particletexture->descriptor_set, 0, NULL);
 

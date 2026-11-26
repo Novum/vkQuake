@@ -223,7 +223,7 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 		R_AddGraphicsWork (&builder, DRAW_ENTITY_SSAO, SCBX_ENTITY_SSAO, SCBX_ENTITY_SSAO);
 		R_NextSubpass (&builder, SUBPASS_MAIN);
 	}
-	R_AddGraphicsWork (&builder, DRAW_POST_ENTITIES, SCBX_SKY, SCBX_VIEW_MODEL);
+	R_AddGraphicsWork (&builder, DRAW_POST_ENTITIES, SCBX_SKY, SCBX_OPAQUE_PARTICLES);
 	if (!use_oit)
 		R_AddGraphicsWork (&builder, DRAW_TRANSPARENCY, SCBX_ALPHA_ENTITIES_ACROSS_WATER, SCBX_MAIN_PASS_LAST);
 

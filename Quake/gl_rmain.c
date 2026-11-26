@@ -108,6 +108,7 @@ cvar_t r_nolerp_list = {
 	CVAR_NONE};
 
 extern cvar_t r_vfog;
+extern cvar_t r_particles;
 // johnfitz
 
 cvar_t gl_zfix = {"gl_zfix", "1", CVAR_ARCHIVE}; // QuakeSpasm z-fighting fix
@@ -1176,8 +1177,7 @@ R_ShowTris -- johnfitz
  */
 void R_ShowTris (cb_context_t *cbx)
 {
-	extern cvar_t r_particles;
-	int			  i;
+	int i;
 
 	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1 || !vulkan_globals.non_solid_fill)
 		return;
@@ -1450,18 +1450,19 @@ R_DrawParticlesTask
 */
 static void R_DrawParticlesTask (void *unused)
 {
-	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_PARTICLES];
+	const qboolean square = (int)r_particles.value == 2;
+	cb_context_t  *cbx = vulkan_globals.secondary_cb_contexts[square ? SCBX_OPAQUE_PARTICLES : SCBX_PARTICLES];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx); // johnfitz
-	R_DrawParticles (cbx);
+	R_DrawParticles (cbx, square);
 
-	if (R_UseMBOIT ())
+	if (!square && R_UseMBOIT ())
 	{
 		// MBOIT needs all transparent geometry a second time in the composite pass
 		cb_context_t *composite_cbx = vulkan_globals.secondary_cb_contexts[SCBX_MBOIT_COMPOSITE_PARTICLES];
 		R_SetupContext (composite_cbx);
 		Fog_EnableGFog (composite_cbx);
-		R_DrawParticles (composite_cbx);
+		R_DrawParticles (composite_cbx, false);
 	}
 	cb_context_t *fte_blend_cbx = vulkan_globals.secondary_cb_contexts[SCBX_FTE_PARTICLES_BLEND];
 	R_SceneViewport (fte_blend_cbx, 0.0f);
