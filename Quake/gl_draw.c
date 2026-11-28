@@ -702,7 +702,8 @@ Draw_Character
 */
 void Draw_Character (cb_context_t *cbx, float x, float y, int num)
 {
-	if (y <= -CHARACTER_SIZE)
+	// The menu canvas extends above y=0; let the viewport clip its text.
+	if (cbx->current_canvas != CANVAS_MENU && y <= -CHARACTER_SIZE)
 		return; // totally off screen
 
 	const int rotation = (num / 256) % 4;
@@ -732,7 +733,7 @@ void Draw_String (cb_context_t *cbx, float x, float y, const char *str)
 	int			i;
 	const char *tmp;
 
-	if (y <= -CHARACTER_SIZE)
+	if (cbx->current_canvas != CANVAS_MENU && y <= -CHARACTER_SIZE)
 		return; // totally off screen
 
 	for (tmp = str; *tmp != 0; ++tmp)
@@ -770,7 +771,7 @@ void Draw_String_Scaled (cb_context_t *cbx, float x, float y, const char *str, f
 	const char *tmp;
 	const float size = CHARACTER_SIZE * scale;
 
-	if (y <= -size)
+	if (cbx->current_canvas != CANVAS_MENU && y <= -size)
 		return;
 
 	for (tmp = str; *tmp != 0; ++tmp)

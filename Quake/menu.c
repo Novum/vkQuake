@@ -327,6 +327,26 @@ static void M_PixelToMenuCanvasCoord (int *x, int *y)
 	*y = (*y - (glheight - 200 * s) / 2) / s;
 }
 
+typedef struct
+{
+	int x, top, cols, rows, namecols;
+} menulistlayout_t;
+
+static qboolean M_ListLayout (menulistlayout_t *layout)
+{
+	float	 scale = CLAMP (1.0f, M_GetScale (), q_min ((float)glwidth / 320, (float)glheight / 200));
+	// Leave 10% on each side, including the cursor, scrollbar, header and footer.
+	int		 cols = q_max (24, (int)(0.8f * glwidth / scale / CHARACTER_SIZE) - 2);
+	int		 rows = q_max (3, (int)(0.8f * glheight / scale / CHARACTER_SIZE) - 8);
+	qboolean changed = cols != layout->cols || rows != layout->rows;
+	layout->x = 160 - cols * CHARACTER_SIZE / 2;
+	layout->top = 100 - rows * CHARACTER_SIZE / 2;
+	layout->cols = cols;
+	layout->rows = rows;
+	layout->namecols = CLAMP (8, cols * 2 / 5, 32);
+	return changed;
+}
+
 #define MENU_OPTION_STRING (str)
 
 /*
@@ -3525,12 +3545,6 @@ static void M_Help_Key (int key)
 //=============================================================================
 /* MODS MENU */
 
-#define MODLIST_TOP		 32
-#define MODLIST_ROWS	 17
-#define MODLIST_X		 16
-#define MODLIST_COLS	 44
-#define MODLIST_NAMECOLS 16
-
 static int mod_loaded_from_menu;
 int		   mods_prev_cursor;
 
@@ -3547,14 +3561,15 @@ typedef struct
 
 static struct
 {
-	moditem_t	*items;
-	int			 cursor, scroll, prev_cursor;
-	unsigned int revision;
-	menuticker_t ticker;
-	char		 search[33];
-	double		 search_time, error_time;
-	qboolean	 details, cancelling;
-	int			 action;
+	menulistlayout_t layout;
+	moditem_t		*items;
+	int				 cursor, scroll, prev_cursor;
+	unsigned int	 revision;
+	menuticker_t	 ticker;
+	char			 search[33];
+	double			 search_time, error_time;
+	qboolean		 details, cancelling;
+	int				 action;
 } modsmenu;
 
 static void M_DrawQuakeBar (cb_context_t *cbx, int x, int y, int cols);
@@ -3567,9 +3582,9 @@ static qboolean M_Mods_Selectable (int index)
 static void M_Mods_SetScroll (int scroll)
 {
 	int count = (int)VEC_SIZE (modsmenu.items);
-	modsmenu.scroll = CLAMP (0, scroll, q_max (0, count - MODLIST_ROWS));
+	modsmenu.scroll = CLAMP (0, scroll, q_max (0, count - modsmenu.layout.rows));
 	int first = modsmenu.scroll;
-	int last = q_min (count - 1, modsmenu.scroll + MODLIST_ROWS - 1);
+	int last = q_min (count - 1, modsmenu.scroll + modsmenu.layout.rows - 1);
 	int cursor = CLAMP (first, modsmenu.cursor, last);
 	for (int i = cursor; i <= last; i++)
 		if (M_Mods_Selectable (i))
@@ -3594,9 +3609,9 @@ static void M_Mods_Scroll (void)
 		while (modsmenu.scroll > 0 && !M_Mods_Selectable (modsmenu.scroll - 1))
 			modsmenu.scroll--;
 	}
-	if (modsmenu.cursor >= modsmenu.scroll + MODLIST_ROWS)
-		modsmenu.scroll = modsmenu.cursor - MODLIST_ROWS + 1;
-	modsmenu.scroll = CLAMP (0, modsmenu.scroll, q_max (0, (int)VEC_SIZE (modsmenu.items) - MODLIST_ROWS));
+	if (modsmenu.cursor >= modsmenu.scroll + modsmenu.layout.rows)
+		modsmenu.scroll = modsmenu.cursor - modsmenu.layout.rows + 1;
+	modsmenu.scroll = CLAMP (0, modsmenu.scroll, q_max (0, (int)VEC_SIZE (modsmenu.items) - modsmenu.layout.rows));
 }
 
 static qboolean M_Mods_Select (int start, int direction, qboolean wrap, qboolean search)
@@ -3640,6 +3655,7 @@ static void M_Mods_Heading (const char *text)
 
 static void M_Mods_Build (qboolean reset)
 {
+	M_ListLayout (&modsmenu.layout);
 	char selected[MAX_QPATH] = "";
 	int	 selected_source = -1;
 	if (!reset && M_Mods_Selectable (modsmenu.cursor))
@@ -3735,6 +3751,8 @@ static void M_Mods_Build (qboolean reset)
 
 static void M_Mods_Sync (void)
 {
+	if (M_ListLayout (&modsmenu.layout))
+		M_Mods_Scroll ();
 	if (modsmenu.revision != Addons_Revision ())
 		M_Mods_Build (false);
 }
@@ -3924,51 +3942,53 @@ static void M_Mods_Draw (cb_context_t *cbx)
 		M_Mods_InfoDraw (cbx);
 		return;
 	}
-	M_PrintWhite (cbx, MODLIST_X, 4, "Mods");
-	M_DrawQuakeBar (cbx, MODLIST_X - 8, 16, MODLIST_NAMECOLS + 1);
-	M_DrawQuakeBar (cbx, MODLIST_X + MODLIST_NAMECOLS * 8, 16, MODLIST_COLS - MODLIST_NAMECOLS + 1);
-	for (int row = 0; row < MODLIST_ROWS; row++)
+	M_PrintWhite (cbx, modsmenu.layout.x, modsmenu.layout.top - 28, "Mods");
+	M_DrawQuakeBar (cbx, modsmenu.layout.x - 8, modsmenu.layout.top - 16, modsmenu.layout.namecols + 1);
+	M_DrawQuakeBar (cbx, modsmenu.layout.x + modsmenu.layout.namecols * 8, modsmenu.layout.top - 16, modsmenu.layout.cols - modsmenu.layout.namecols + 1);
+	for (int row = 0; row < modsmenu.layout.rows; row++)
 	{
 		int index = modsmenu.scroll + row;
 		if (index >= (int)VEC_SIZE (modsmenu.items))
 			break;
 		const moditem_t *item = &modsmenu.items[index];
-		int				 y = MODLIST_TOP + row * 8;
+		int				 y = modsmenu.layout.top + row * 8;
 		if (!item->dir[0])
 		{
-			M_PrintWhite (cbx, MODLIST_X + (MODLIST_COLS - (int)strlen (item->name)) * 4, y, item->name);
+			M_PrintWhite (cbx, modsmenu.layout.x + (modsmenu.layout.cols - (int)strlen (item->name)) * 4, y, item->name);
 			continue;
 		}
 		char label[128], name[256];
 		COM_TintSubstring (item->dir, modsmenu.search, label, sizeof (label));
-		M_PrintScroll (cbx, MODLIST_X, y, (MODLIST_NAMECOLS - 1) * 8, label, 0, true);
+		M_PrintScroll (cbx, modsmenu.layout.x, y, (modsmenu.layout.namecols - 1) * 8, label, 0, true);
 		if (item->update)
 			q_snprintf (name, sizeof (name), "[Update] %s", item->name);
 		else
 			COM_TintSubstring (item->name, modsmenu.search, name, sizeof (name));
 		M_PrintScroll (
-			cbx, MODLIST_X + MODLIST_NAMECOLS * 8, y, (MODLIST_COLS - MODLIST_NAMECOLS) * 8, name, index == modsmenu.cursor ? modsmenu.ticker.scroll_time : 0,
-			true);
-		M_Mouse_UpdateCursor (&modsmenu.cursor, MODLIST_X, MODLIST_X + MODLIST_COLS * 8, y, 8, index);
+			cbx, modsmenu.layout.x + modsmenu.layout.namecols * 8, y, (modsmenu.layout.cols - modsmenu.layout.namecols) * 8, name,
+			index == modsmenu.cursor ? modsmenu.ticker.scroll_time : 0, true);
+		M_Mouse_UpdateCursor (&modsmenu.cursor, modsmenu.layout.x, modsmenu.layout.x + modsmenu.layout.cols * 8, y, 8, index);
 	}
 	if (modsmenu.cursor >= 0)
-		Draw_Character (cbx, MODLIST_X - 8, MODLIST_TOP + (modsmenu.cursor - modsmenu.scroll) * 8, 12 + ((int)(realtime * 4) & 1));
-	int overflow = (int)VEC_SIZE (modsmenu.items) - MODLIST_ROWS;
+		Draw_Character (cbx, modsmenu.layout.x - 8, modsmenu.layout.top + (modsmenu.cursor - modsmenu.scroll) * 8, 12 + ((int)(realtime * 4) & 1));
+	int overflow = (int)VEC_SIZE (modsmenu.items) - modsmenu.layout.rows;
 	if (overflow > 0)
-		M_DrawScrollbar (cbx, MODLIST_X + MODLIST_COLS * 8, MODLIST_TOP + 8, (float)modsmenu.scroll / overflow, MODLIST_ROWS - 2);
+		M_DrawScrollbar (
+			cbx, modsmenu.layout.x + modsmenu.layout.cols * 8, modsmenu.layout.top + 8, (float)modsmenu.scroll / overflow, modsmenu.layout.rows - 2);
+	int footer = modsmenu.layout.top + modsmenu.layout.rows * 8 + 12;
 	if (modsmenu.search[0] && realtime - modsmenu.search_time > 4.0)
 		modsmenu.search[0] = 0;
 	if (modsmenu.search[0])
 	{
 		int len = (int)strlen (modsmenu.search);
-		int ofs = q_max (0, len + 1 - MODLIST_NAMECOLS);
-		M_DrawTextBox (cbx, MODLIST_X - 8, 172, MODLIST_NAMECOLS, 1);
-		M_PrintWhite (cbx, MODLIST_X, 180, modsmenu.search + ofs);
-		Draw_Character (cbx, MODLIST_X + (len - ofs) * 8, 180, realtime < modsmenu.error_time ? 11 : 10 + ((int)(realtime * 4) & 1));
+		int ofs = q_max (0, len + 1 - modsmenu.layout.namecols);
+		M_DrawTextBox (cbx, modsmenu.layout.x - 8, footer - 8, modsmenu.layout.namecols, 1);
+		M_PrintWhite (cbx, modsmenu.layout.x, footer, modsmenu.search + ofs);
+		Draw_Character (cbx, modsmenu.layout.x + (len - ofs) * 8, footer, realtime < modsmenu.error_time ? 11 : 10 + ((int)(realtime * 4) & 1));
 	}
 	else
-		M_Print (cbx, MODLIST_X, 180, "Enter: select");
-	M_PrintScroll (cbx, MODLIST_X, 192, MODLIST_COLS * 8, Addons_Message (), modsmenu.ticker.scroll_time, true);
+		M_Print (cbx, modsmenu.layout.x, footer, "Enter: select");
+	M_PrintScroll (cbx, modsmenu.layout.x, footer + 12, modsmenu.layout.cols * 8, Addons_Message (), modsmenu.ticker.scroll_time, true);
 }
 
 static void M_Mods_Char (int key)
@@ -4004,7 +4024,7 @@ static void M_Mods_Key (int key)
 	}
 	if (!modsmenu.details)
 	{
-		int overflow = (int)VEC_SIZE (modsmenu.items) - MODLIST_ROWS;
+		int overflow = (int)VEC_SIZE (modsmenu.items) - modsmenu.layout.rows;
 		if (key == K_MOUSE1 && M_InScrollbar () && overflow > 0 && !slider_grab)
 		{
 			scrollbar_grab = true;
@@ -4035,7 +4055,7 @@ static void M_Mods_Key (int key)
 			if (key == K_END)
 				start = (int)VEC_SIZE (modsmenu.items) - 1;
 			if (key == K_PGUP || key == K_PGDN)
-				start = modsmenu.cursor + direction * (MODLIST_ROWS - 1);
+				start = modsmenu.cursor + direction * (modsmenu.layout.rows - 1);
 			if (M_Mods_Select (start, direction, wrap, modsmenu.search[0] != 0))
 				S_LocalSound ("misc/menu1.wav");
 			modsmenu.search_time = realtime;
@@ -4116,12 +4136,6 @@ static void M_ModDownload_Key (int key)
 //=============================================================================
 /* MAPS MENU (from Ironwail) */
 
-#define MAPLIST_X		 8
-#define MAPLIST_TOP		 32
-#define MAPLIST_COLS	 (38 + 6)
-#define MAPLIST_NAMECOLS (14 + 4)
-#define MAPLIST_VIEWSIZE 19
-
 /*
 ================
 M_DrawQuakeBar
@@ -4165,13 +4179,14 @@ typedef struct
 
 static struct
 {
-	int			 cursor;
-	int			 scroll;
-	int			 numitems;
-	int			 mapcount; // not all items represent actual maps!
-	int			 prev_cursor;
-	menuticker_t ticker;
-	mapitem_t	*items;
+	int				 cursor;
+	int				 scroll;
+	int				 numitems;
+	int				 mapcount; // not all items represent actual maps!
+	int				 prev_cursor;
+	menuticker_t	 ticker;
+	menulistlayout_t layout;
+	mapitem_t		*items;
 	struct
 	{
 		int	 len;
@@ -4248,7 +4263,7 @@ static void M_Maps_ClearSearch (void)
 
 static int M_Maps_GetOverflow (void)
 {
-	return mapsmenu.numitems - MAPLIST_VIEWSIZE;
+	return mapsmenu.numitems - mapsmenu.layout.rows;
 }
 
 static void M_Maps_ClampScroll (void)
@@ -4258,24 +4273,33 @@ static void M_Maps_ClampScroll (void)
 
 static void M_Maps_AutoScroll (void)
 {
-	if (mapsmenu.numitems <= MAPLIST_VIEWSIZE)
+	if (mapsmenu.numitems <= mapsmenu.layout.rows)
 		return;
 	if (mapsmenu.cursor < mapsmenu.scroll)
 	{
 		mapsmenu.scroll = mapsmenu.cursor;
 		// show decorations right above the selected item (e.g. a section header)
-		while (mapsmenu.scroll > 0 && mapsmenu.scroll > mapsmenu.cursor - MAPLIST_VIEWSIZE + 1 && !M_Maps_IsSelectable (mapsmenu.scroll - 1))
+		while (mapsmenu.scroll > 0 && mapsmenu.scroll > mapsmenu.cursor - mapsmenu.layout.rows + 1 && !M_Maps_IsSelectable (mapsmenu.scroll - 1))
 			--mapsmenu.scroll;
 	}
-	else if (mapsmenu.cursor >= mapsmenu.scroll + MAPLIST_VIEWSIZE)
-		mapsmenu.scroll = mapsmenu.cursor - MAPLIST_VIEWSIZE + 1;
+	else if (mapsmenu.cursor >= mapsmenu.scroll + mapsmenu.layout.rows)
+		mapsmenu.scroll = mapsmenu.cursor - mapsmenu.layout.rows + 1;
 	M_Maps_ClampScroll ();
+}
+
+static void M_Maps_UpdateLayout (void)
+{
+	if (M_ListLayout (&mapsmenu.layout))
+	{
+		M_Maps_ClampScroll ();
+		M_Maps_AutoScroll ();
+	}
 }
 
 static void M_Maps_CenterCursor (void)
 {
-	if (mapsmenu.cursor >= MAPLIST_VIEWSIZE)
-		mapsmenu.scroll = mapsmenu.cursor - MAPLIST_VIEWSIZE / 2; // keep centered
+	if (mapsmenu.cursor >= mapsmenu.layout.rows)
+		mapsmenu.scroll = mapsmenu.cursor - mapsmenu.layout.rows / 2; // keep centered
 	else
 		mapsmenu.scroll = 0;
 	M_Maps_ClampScroll ();
@@ -4332,8 +4356,8 @@ static void M_Maps_UpdateMouseSelection (void)
 {
 	if (mapsmenu.cursor < mapsmenu.scroll)
 		M_Maps_SelectNextActive (mapsmenu.scroll, 1, false);
-	else if (mapsmenu.cursor >= mapsmenu.scroll + MAPLIST_VIEWSIZE)
-		M_Maps_SelectNextActive (mapsmenu.scroll + MAPLIST_VIEWSIZE - 1, -1, false);
+	else if (mapsmenu.cursor >= mapsmenu.scroll + mapsmenu.layout.rows)
+		M_Maps_SelectNextActive (mapsmenu.scroll + mapsmenu.layout.rows - 1, -1, false);
 }
 
 static void M_Maps_Init (void)
@@ -4375,6 +4399,7 @@ static void M_Maps_Init (void)
 	if (mapsmenu.cursor == -1)
 		mapsmenu.cursor = (active != -1) ? active : 0;
 
+	M_Maps_UpdateLayout ();
 	M_Maps_CenterCursor ();
 
 	mapsmenu.prev_cursor = mapsmenu.cursor;
@@ -4413,6 +4438,7 @@ static void M_Menu_Maps_Cmd_f (void)
 		}
 
 		mapsmenu.cursor = i;
+		M_Maps_UpdateLayout ();
 		M_Maps_CenterCursor ();
 		M_SetSkillMenuMap (mapname);
 		M_Menu_Skill_f ();
@@ -4425,11 +4451,11 @@ static void M_Maps_UpdateMouse (void)
 
 	if (scrollbar_grab || slider_grab)
 		return;
-	if (m_mouse_x < MAPLIST_X - CHARACTER_SIZE || m_mouse_x > MAPLIST_X + MAPLIST_COLS * CHARACTER_SIZE)
+	if (m_mouse_x < mapsmenu.layout.x - CHARACTER_SIZE || m_mouse_x > mapsmenu.layout.x + mapsmenu.layout.cols * CHARACTER_SIZE)
 		return;
 
-	yrel = m_mouse_y - MAPLIST_TOP;
-	numvis = q_min (mapsmenu.scroll + MAPLIST_VIEWSIZE, mapsmenu.numitems) - mapsmenu.scroll;
+	yrel = m_mouse_y - mapsmenu.layout.top;
+	numvis = q_min (mapsmenu.scroll + mapsmenu.layout.rows, mapsmenu.numitems) - mapsmenu.scroll;
 	if (!numvis || yrel < 0)
 		return;
 	i = yrel / CHARACTER_SIZE;
@@ -4490,11 +4516,12 @@ static void M_Maps_Draw (cb_context_t *cbx)
 	int			firstvismap, numvismaps;
 	int			namecols, desccols;
 
+	M_Maps_UpdateLayout ();
 	M_Maps_UpdateMouse ();
 
-	x = MAPLIST_X;
-	cols = MAPLIST_COLS;
-	namecols = MAPLIST_NAMECOLS;
+	x = mapsmenu.layout.x;
+	cols = mapsmenu.layout.cols;
+	namecols = mapsmenu.layout.namecols;
 	desccols = cols - 1 - namecols;
 
 	if (mapsmenu.prev_cursor != mapsmenu.cursor)
@@ -4508,16 +4535,16 @@ static void M_Maps_Draw (cb_context_t *cbx)
 	// to trigger scroll faster
 	M_Ticker_Update (&mapsmenu.ticker);
 
-	M_PrintWhite (cbx, x, CHARACTER_SIZE, "Levels");
-	M_DrawQuakeBar (cbx, x - CHARACTER_SIZE, 16, namecols + 1);
-	M_DrawQuakeBar (cbx, x + namecols * CHARACTER_SIZE, 16, cols + 1 - namecols);
+	M_PrintWhite (cbx, x, mapsmenu.layout.top - 24, "Levels");
+	M_DrawQuakeBar (cbx, x - CHARACTER_SIZE, mapsmenu.layout.top - 16, namecols + 1);
+	M_DrawQuakeBar (cbx, x + namecols * CHARACTER_SIZE, mapsmenu.layout.top - 16, cols + 1 - namecols);
 
-	y = MAPLIST_TOP;
+	y = mapsmenu.layout.top;
 
 	firstvismap = -1;
 	numvismaps = 0;
 	firstvis = mapsmenu.scroll;
-	numvis = q_min (firstvis + MAPLIST_VIEWSIZE, mapsmenu.numitems) - firstvis;
+	numvis = q_min (firstvis + mapsmenu.layout.rows, mapsmenu.numitems) - firstvis;
 	for (i = 0; i < numvis; i++)
 	{
 		int				 idx = i + firstvis;
@@ -4549,8 +4576,9 @@ static void M_Maps_Draw (cb_context_t *cbx)
 			{
 				if (!message) // still parsing, show a fully dotted line
 				{
-					memset (buf, '.' | 0x80, desccols);
-					buf[desccols] = '\0';
+					int dots = q_min (desccols, (int)sizeof (buf) - 1);
+					memset (buf, '.' | 0x80, dots);
+					buf[dots] = '\0';
 				}
 				else if (mapsmenu.search.len > 0)
 					COM_TintSubstring (message, mapsmenu.search.text, buf, sizeof (buf));
@@ -4577,23 +4605,24 @@ static void M_Maps_Draw (cb_context_t *cbx)
 	}
 
 	str = va ("%d-%d of %d", firstvismap + 1, firstvismap + numvismaps, mapsmenu.mapcount);
-	M_Print (cbx, x + (cols - strlen (str)) * CHARACTER_SIZE, 8, str);
+	M_Print (cbx, x + (cols - strlen (str)) * CHARACTER_SIZE, mapsmenu.layout.top - 24, str);
 
 	if (M_Maps_GetOverflow () > 0)
 	{
 		M_DrawScrollbar (
-			cbx, x + cols * CHARACTER_SIZE - CHARACTER_SIZE, y + CHARACTER_SIZE, (float)mapsmenu.scroll / (float)M_Maps_GetOverflow (), MAPLIST_VIEWSIZE - 2);
+			cbx, x + cols * CHARACTER_SIZE - CHARACTER_SIZE, y + CHARACTER_SIZE, (float)mapsmenu.scroll / (float)M_Maps_GetOverflow (),
+			mapsmenu.layout.rows - 2);
 
 		if (mapsmenu.scroll > 0)
 			M_DrawEllipsisBar (cbx, x, y - CHARACTER_SIZE, cols);
-		if (mapsmenu.scroll + MAPLIST_VIEWSIZE < mapsmenu.numitems)
-			M_DrawEllipsisBar (cbx, x, y + MAPLIST_VIEWSIZE * CHARACTER_SIZE, cols);
+		if (mapsmenu.scroll + mapsmenu.layout.rows < mapsmenu.numitems)
+			M_DrawEllipsisBar (cbx, x, y + mapsmenu.layout.rows * CHARACTER_SIZE, cols);
 	}
 
 	if (mapsmenu.search.len > 0)
 	{
 		int ofs = q_max (0, mapsmenu.search.len + 1 - namecols);
-		int cy = y + MAPLIST_VIEWSIZE * CHARACTER_SIZE + 4;
+		int cy = y + mapsmenu.layout.rows * CHARACTER_SIZE + 4;
 		M_DrawTextBox (cbx, x - CHARACTER_SIZE, cy - CHARACTER_SIZE, namecols, 1);
 		for (i = ofs; i < mapsmenu.search.len; i++)
 			Draw_Character (cbx, x + (i - ofs) * CHARACTER_SIZE, cy, mapsmenu.search.text[i]);
@@ -4662,10 +4691,10 @@ static qboolean M_Maps_ListKey (int key)
 		else
 		{
 			qboolean sel;
-			if (mapsmenu.cursor - mapsmenu.scroll < MAPLIST_VIEWSIZE - 1)
-				sel = M_Maps_SelectNextActive (mapsmenu.scroll + MAPLIST_VIEWSIZE - 1, 1, false);
+			if (mapsmenu.cursor - mapsmenu.scroll < mapsmenu.layout.rows - 1)
+				sel = M_Maps_SelectNextActive (mapsmenu.scroll + mapsmenu.layout.rows - 1, 1, false);
 			else
-				sel = M_Maps_SelectNextActive (mapsmenu.cursor + MAPLIST_VIEWSIZE - 1, 1, false);
+				sel = M_Maps_SelectNextActive (mapsmenu.cursor + mapsmenu.layout.rows - 1, 1, false);
 			if (!sel)
 				M_Maps_SelectNextActive (mapsmenu.numitems - 1, -1, false);
 		}
@@ -4682,7 +4711,7 @@ static qboolean M_Maps_ListKey (int key)
 			if (mapsmenu.cursor > mapsmenu.scroll)
 				sel = M_Maps_SelectNextActive (mapsmenu.scroll, -1, false);
 			else
-				sel = M_Maps_SelectNextActive (mapsmenu.cursor - MAPLIST_VIEWSIZE + 1, -1, false);
+				sel = M_Maps_SelectNextActive (mapsmenu.cursor - mapsmenu.layout.rows + 1, -1, false);
 			if (!sel)
 				M_Maps_SelectNextActive (0, 1, false);
 		}
@@ -4729,6 +4758,7 @@ static qboolean M_Maps_ListKey (int key)
 
 static void M_Maps_Key (int key)
 {
+	M_Maps_UpdateLayout ();
 	if (M_Maps_ListKey (key))
 		return;
 
