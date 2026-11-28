@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "sys.h"
+#include "addons.h"
 
 #include "q_ctype.h"
 #include "unicode_translit.h"
@@ -585,7 +586,7 @@ static uint32_t UTF8_ReadCodePoint (const char **src)
 	return code;
 }
 
-static size_t UTF8_ToQuake (char *dst, size_t maxbytes, const char *src)
+size_t UTF8_ToQuake (char *dst, size_t maxbytes, const char *src)
 {
 	size_t	 i, j;
 	uint32_t cp;
@@ -2332,8 +2333,6 @@ typedef struct
 	int	 dirlen;
 } dpackheader_t;
 
-#define MAX_FILES_IN_PACK 2048
-
 char			 com_gamenames[1024]; // eg: "hipnotic;quoth;warp" ... no id1
 char			 com_gamedir[MAX_OSPATH];
 char			 com_basedir[MAX_OSPATH];
@@ -3039,6 +3038,19 @@ qboolean COM_ModForbiddenChars (const char *p)
 //==============================================================================
 void COM_SwitchGame (const char *paths)
 {
+	const char *installing = Addons_Installing ();
+	if (installing)
+		for (const char *p = paths; *p;)
+		{
+			const char *end = strchr (p, ';');
+			size_t		len = end ? (size_t)(end - p) : strlen (p);
+			if (strlen (installing) == len && !q_strncasecmp (p, installing, len))
+			{
+				Con_Printf ("Wait for %s to finish installing\n", installing);
+				return;
+			}
+			p += len + (end != NULL);
+		}
 	if (!q_strcasecmp (paths, COM_GetGameNames (true)))
 	{
 		Con_Printf ("\"game\" is already \"%s\"\n", COM_GetGameNames (true));

@@ -58,7 +58,8 @@ CFLAGS += -I ${MSYSTEM_PREFIX}/include/opus
 CODECLIBS += -lopusfile -lopus -logg
 endif
 
-NET_LIBS := -lws2_32
+NET_LIBS := -lws2_32 -L../Windows/curl/lib/arm64 -lcurl
+CFLAGS += -I../Windows/curl/include
 
 CFLAGS += -I ${MSYSTEM_PREFIX}/include
 CODEC_LINK = -L ${MINGW_PREFIX}/lib
@@ -94,6 +95,8 @@ vkQuake.exe: $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES)
 #	$(call DO_STRIP,$@)
 
 dll:
+	cp ../Windows/curl/curl-LICENSE.txt .
+	cp ../Windows/curl/lib/arm64/*.dll .
 	ldd vkquake.exe | cut -d' ' -f3 | grep ${MSYSTEM_PREFIX}
 	cp -p ${MSYSTEM_PREFIX}/bin/libvorbisfile-3.dll \
 	      ${MSYSTEM_PREFIX}/bin/libFLAC.dll \
@@ -113,7 +116,7 @@ debug:
 
 clean:
 	make -C ../Misc/vq_pak clean
-	$(RM) *.o *.d *.res *.dll $(DEFAULT_TARGET) \
+	$(RM) *.o *.d *.res *.dll curl-LICENSE.txt $(DEFAULT_TARGET) \
 	$(BINTOC_EXE) \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv \

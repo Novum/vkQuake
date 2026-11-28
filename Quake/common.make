@@ -285,6 +285,7 @@ OBJS := strlcat.o \
 	steam.o \
 	host.o \
 	host_cmd.o \
+	addons.o \
 	mathlib.o \
 	mdfour.o \
 	pr_cmds.o \

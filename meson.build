@@ -258,6 +258,7 @@ srcs = [
     'Quake/gl_warp.c',
     'Quake/host.c',
     'Quake/host_cmd.c',
+    'Quake/addons.c',
     'Quake/image.c',
     'Quake/json.c',
     'Quake/in_sdl.c',
@@ -356,6 +357,13 @@ if host_machine.system() == 'windows'
         deps += cc.find_library(syslib)
     endforeach
     import('fs').copyfile('Windows/SDL3/lib64/SDL3.dll')
+    deps += declare_dependency(
+        include_directories : include_directories('Windows/curl/include'),
+        dependencies : cc.find_library('libcurl', dirs : meson.project_source_root() / 'Windows/curl/lib/x64'))
+    import('fs').copyfile('Windows/curl/lib/x64/libcurl-x64.dll')
+    import('fs').copyfile('Windows/curl/curl-LICENSE.txt')
+else
+    deps += dependency('libcurl')
 endif
 
 if build_machine.system() == 'darwin'

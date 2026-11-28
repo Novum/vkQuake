@@ -63,10 +63,11 @@ jobs:
         path: |
             Quake/*.exe
             Quake/*.dll
+            Quake/curl-LICENSE.txt
     - name: Package
       run: |
         set -eu
-        zip -j vkQuake-${{ steps.version.outputs.version }}_windows_arm64.zip Quake/*.exe Quake/*.dll LICENSE.txt
+        zip -j vkQuake-${{ steps.version.outputs.version }}_windows_arm64.zip Quake/*.exe Quake/*.dll LICENSE.txt Quake/curl-LICENSE.txt
     - name: Upload package
       uses: actions/upload-artifact@v7
       with:

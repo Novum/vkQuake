@@ -1109,7 +1109,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		if (!down)
 			return;
 
-		if (keydown[K_SHIFT])
+		if (keydown[K_SHIFT] && !(key_dest == key_menu && m_state == m_moddownload))
 		{
 			Con_ToggleConsole_f ();
 			return;
@@ -1187,7 +1187,7 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	}
 
 	// if not a consolekey, send to the interpreter no matter what mode is
-	if ((key_dest == key_menu && menubound[key] && !M_WaitingForKeyBinding ()) || (key_dest == key_console && !consolekeys[key]) ||
+	if ((key_dest == key_menu && menubound[key] && m_state != m_moddownload && !M_WaitingForKeyBinding ()) || (key_dest == key_console && !consolekeys[key]) ||
 		(key_dest == key_game && (!con_forcedup || !consolekeys[key])))
 	{
 		kb = keybindings[key];

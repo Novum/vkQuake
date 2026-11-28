@@ -16,7 +16,7 @@ Improvements over QuakeSpasm include:
 * Native support for anti aliasing and anisotropic filtering
 * 8-bit color emulation
 * Scaling for pixelated look
-* Mods menu for easy mod loading
+* Mods menu with KEX and Q1Tools downloads, installed/available versions, and updates
 * More modern protocol to avoid certain movement issues (from QSS)
 * Support for custom mod HUDs (from QSS)
 * Support for scriptable particles (from QSS)
@@ -103,6 +103,9 @@ Prerequisites:
 
 * Install [Visual Studio Community](https://www.visualstudio.com/products/free-developer-offers-vs) with Visual C++ component.
 
+The Windows builds include libcurl 8.23.0 (official Windows build 8.23.0_10).
+Its DLL and license are copied alongside the executable automatically.
+
 Open the Visual Studio solution, `Windows\VisualStudio\vkquake.sln`, select the desired configuration and platform, then
 build the solution.
 
@@ -144,18 +147,20 @@ To compile vkQuake, first install the build dependencies:
 
 Ubuntu:
 ~~~
-apt-get install git meson gcc glslang-tools spirv-tools libsdl3-dev libvulkan-dev libvorbis-dev libmpg123-dev libx11-xcb-dev
+apt-get install git meson gcc glslang-tools spirv-tools libsdl3-dev libvulkan-dev libvorbis-dev libmpg123-dev libx11-xcb-dev libcurl4-openssl-dev
 ~~~
 
 Arch Linux:
 ~~~
-pacman -S git meson flac glibc libgl mpg123 libvorbis libx11 sdl3 vulkan-headers glslang spirv-tools
+pacman -S git meson curl flac glibc libgl mpg123 libvorbis libx11 sdl3 vulkan-headers glslang spirv-tools
 ~~~
 
 Fedora:
 ~~~
-dnf install git meson gcc glslang spirv-tools vulkan-loader-devel SDL3-devel mpg123-devel libvorbis-devel flac-devel opusfile-devel
+dnf install git meson libcurl-devel gcc glslang spirv-tools vulkan-loader-devel SDL3-devel mpg123-devel libvorbis-devel flac-devel opusfile-devel
 ~~~
+
+Use an up-to-date libcurl package with the latest distribution security fixes. The AppImage uses Ubuntu's security-patched libcurl package.
 
 On distributions that do not ship SDL3 yet, install the SDL2 development package instead (e.g. `libsdl2-dev`); the build falls back to SDL2 automatically.
 
@@ -192,7 +197,7 @@ On macOS the build links MoltenVK directly. Add `-Duse_vulkan_loader=enabled` to
 To compile vkQuake, first install the build dependencies with Homebrew:
 
 ~~~
-brew install molten-vk vulkan-headers glslang spirv-tools sdl3 libvorbis flac opus opusfile flac mpg123 meson pkgconfig
+brew install curl molten-vk vulkan-headers glslang spirv-tools sdl3 libvorbis flac opus opusfile flac mpg123 meson pkgconfig
 ~~~
 
 Then clone the vkQuake repo:
@@ -205,6 +210,7 @@ Now go to the Quake directory and compile the executable:
 
 ~~~
 cd vkQuake
+export PKG_CONFIG_PATH="$(brew --prefix curl)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 meson build -Ddebug=true -Dstrip=false && ninja -C build
 ~~~
 

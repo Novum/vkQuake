@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // host.c -- coordinates spawning and killing of local servers
 
 #include "quakedef.h"
+#include "addons.h"
 #include "bgmusic.h"
 #include "steam.h"
 #include "tasks.h"
@@ -1211,6 +1212,7 @@ static void _Host_Frame (double time)
 	Host_GetConsoleCommands ();
 
 	// process console commands
+	Addons_Poll ();
 	Cbuf_Execute ();
 	if (host_framecount == 0)
 		SCR_EndStartupLoadingPlaque ();
@@ -1499,6 +1501,7 @@ void Host_Shutdown (void)
 	// keep Con_Printf from trying to update the screen
 	scr_disabled_for_loading = true;
 
+	Addons_Shutdown ();
 	Host_ShutdownSave ();
 	Host_WriteConfiguration ();
 

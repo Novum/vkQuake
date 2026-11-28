@@ -76,7 +76,8 @@ CFLAGS += $(shell pkg-config --cflags opusfile)
 CODECLIBS += $(shell pkg-config --libs opusfile)
 endif
 
-COMMON_LIBS:= -lm -lpthread
+COMMON_LIBS:= -lm -lpthread $(shell pkg-config --libs libcurl)
+CFLAGS += $(shell pkg-config --cflags libcurl)
 
 ifneq ($(HOST_OS),darwin)
 COMMON_LIBS+= -lvulkan

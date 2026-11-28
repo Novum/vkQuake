@@ -17,6 +17,9 @@ cd Packaging/AppImage
 rm -rf AppDir
 rm -rf vkquake* vkQuake-*
 
+mkdir -p AppDir/usr/share/licenses/curl
+cp /usr/share/doc/libcurl4/copyright AppDir/usr/share/licenses/curl/
+
 # NO_STRIP keeps the debug info in the binary for symbolizing crash
 # reports; the sections are not loaded at runtime
 NO_STRIP=1 ./linuxdeploy-x86_64.AppImage \

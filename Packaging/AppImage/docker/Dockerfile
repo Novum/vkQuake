@@ -19,6 +19,7 @@ RUN apt-get update \
 	libaudiofile-dev \
 	libcairo2-dev \
 	libdbus-1-dev \
+	libcurl4-openssl-dev \
 	libegl1-mesa-dev \
 	libibus-1.0-dev \
 	libmad0-dev \

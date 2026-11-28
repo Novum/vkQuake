@@ -55,6 +55,7 @@ Section "Game" GAME
     File "${SRCDIR}\*.exe"
 	File "${SRCDIR}\vkQuake.pdb"
 	File "${SRCDIR}\*.dll"
+	File "${SRCDIR}\curl-LICENSE.txt"
 	File "..\..\LICENSE.txt"
 	
 	!insertmacro MUI_STARTMENU_WRITE_BEGIN Application

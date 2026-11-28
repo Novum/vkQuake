@@ -40,3 +40,4 @@ jobs:
         path: |
             Quake/*.exe
             Quake/*.dll
+            Quake/curl-LICENSE.txt

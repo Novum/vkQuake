@@ -47,6 +47,7 @@ enum m_state_e
 	m_search,
 	m_slist,
 	m_mods,
+	m_moddownload,
 	m_maps,
 	m_skill,
 };

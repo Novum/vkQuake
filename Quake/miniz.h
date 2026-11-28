@@ -256,10 +256,8 @@ extern "C"
     MINIZ_EXPORT mz_ulong mz_adler32(mz_ulong adler, const unsigned char *ptr, size_t buf_len);
 
 #define MZ_CRC32_INIT (0)
-#if 0 // QUAKESPASM patch
     /* mz_crc32() returns the initial CRC-32 value to use when called with ptr==NULL. */
     MINIZ_EXPORT mz_ulong mz_crc32(mz_ulong crc, const unsigned char *ptr, size_t buf_len);
-#endif
     /* Compression strategies. */
     enum
     {

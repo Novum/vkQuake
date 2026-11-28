@@ -1,6 +1,7 @@
 *.suo
 vkquake.VC*
 Quake/*.dll
+Quake/curl-LICENSE.txt
 Quake/*.o
 Quake/*.d
 Quake/id1/
