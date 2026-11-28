@@ -3091,6 +3091,7 @@ void COM_SwitchGame (const char *paths)
 
 	LOC_Load ();
 	VID_Lock ();
+	Cbuf_AddText ("unaliasall\n");
 	Cbuf_AddText ("exec quake.rc\n");
 	Cbuf_AddText ("vid_unlock\n");
 }
